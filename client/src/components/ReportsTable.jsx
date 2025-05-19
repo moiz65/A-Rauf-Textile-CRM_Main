@@ -1,123 +1,117 @@
 import React from 'react';
-import { Search, Filter, FileDown, ChevronRight } from 'lucide-react';
+import { Search, Filter, FileDown, Ellipsis } from 'lucide-react';
 
-const ReportsTable = ({ reports, activeTab, setActiveTab }) => {
+const ReportsTable = ({ reports, activeTab, setActiveTab, onCreateReport }) => {
   const reportTabs = ['All', 'Pending', 'Being Prepared', 'On The Way', 'Delivered', 'Cancelled'];
 
-  const getStatusColor = (status) => {
+  const getStatusClass = (status) => {
     switch(status) {
-      case 'Pending': return 'text-orange-500';
-      case 'Preparing': return 'text-blue-500';
-      case 'Cancelled': return 'text-red-500';
-      case 'Delivered': return 'text-green-500';
-      case 'On the way': return 'text-blue-500';
-      default: return '';
+      case 'Pending': return 'bg-orange-100 text-orange-800';
+      case 'Preparing': return 'bg-blue-100 text-blue-800';
+      case 'Cancelled': return 'bg-red-100 text-red-800';
+      case 'Delivered': return 'bg-green-100 text-green-800';
+      case 'On the way': return 'bg-blue-100 text-blue-800';
+      default: return 'bg-gray-100 text-gray-800';
     }
-  };
-
-  // Custom Button Component
-  const Button = ({ children, variant = 'default', className = '', ...props }) => {
-    const baseClasses = 'inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors px-4 py-2';
-    
-    const variantClasses = {
-      default: 'bg-blue-500 text-white hover:bg-blue-600',
-      outline: 'border border-gray-300 bg-white hover:bg-gray-50',
-    };
-
-    return (
-      <button
-        className={`${baseClasses} ${variantClasses[variant]} ${className}`}
-        {...props}
-      >
-        {children}
-      </button>
-    );
   };
 
   return (
     <div className="bg-white rounded-xl sm:rounded-[30px] shadow-sm border border-gray-100 p-4 sm:p-5">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-lg sm:text-xl font-semibold">Reports</h1>
-        <div className="flex gap-2">
-          <div className="relative">
+      {/* Header Section */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-5">
+        <div>
+          <h2 className="text-lg sm:text-xl font-semibold">Reports</h2>
+          <p className="text-xs sm:text-sm text-gray-500">
+            View and manage all your reports in one place
+          </p>
+        </div>
+        
+        <div className="flex flex-col xs:flex-row gap-3 w-full sm:w-auto">
+          <div className="relative flex-grow">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
             <input 
               type="text" 
-              placeholder="Search" 
-              className="pl-10 pr-4 py-2 border rounded-md text-sm w-64 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="Search reports..." 
+              className="pl-10 pr-3 py-1.5 sm:py-2 border rounded-md text-xs sm:text-sm w-full focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
           
-          <Button variant="outline" className="flex items-center gap-2">
-            <Filter className="w-4 h-4" />
-            <span>Filter</span>
-          </Button>
-
-          <Button variant="outline" className="flex items-center gap-2">
-            <FileDown className="w-4 h-4" />
-            <span>Export</span>
-            <ChevronRight className="w-4 h-4" />
-          </Button>
-          
-          <Button className="bg-blue-500 hover:bg-blue-600 text-white">
-            Create New Report
-          </Button>
+          <div className="flex gap-2">
+            <button 
+              onClick={onCreateReport}
+              className="bg-[#1976D2] text-white px-3 sm:px-4 py-1.5 sm:py-2 rounded-md text-xs sm:text-sm font-medium hover:bg-blue-600 transition-colors w-full sm:w-auto text-center"
+            >
+              Create New Report
+            </button>
+            
+            <button className="flex items-center gap-1 bg-white border rounded-md px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm hover:bg-gray-50">
+              <Filter className="w-3 h-3 sm:w-4 sm:h-4" />
+              <span className="hidden xs:inline">Filter</span>
+            </button>
+            
+            <button className="flex items-center gap-1 bg-white border rounded-md px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm hover:bg-gray-50">
+              <FileDown className="w-3 h-3 sm:w-4 sm:h-4" />
+              <span className="hidden xs:inline">Export</span>
+            </button>
+          </div>
         </div>
       </div>
       
       {/* Tab Navigation */}
-      <div className="flex border-b mb-4">
-        {reportTabs.map(tab => (
-          <button
-            key={tab}
-            className={`py-2 px-4 text-sm ${activeTab === tab 
-              ? 'text-blue-500 border-b-2 border-blue-500 font-medium' 
-              : 'text-gray-600'}`}
-            onClick={() => setActiveTab(tab)}
-          >
-            {tab}
-          </button>
-        ))}
+      <div className="overflow-x-auto mb-4">
+        <div className="flex border-b w-max min-w-full">
+          {reportTabs.map(tab => (
+            <button
+              key={tab}
+              className={`px-3 py-2 text-xs sm:text-sm font-medium whitespace-nowrap border-b-2 ${
+                activeTab === tab 
+                  ? 'border-blue-500 text-blue-600' 
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+              onClick={() => setActiveTab(tab)}
+            >
+              {tab}
+            </button>
+          ))}
+        </div>
       </div>
       
-      {/* Custom Table Implementation */}
+      {/* Table */}
       <div className="overflow-x-auto">
-        <table className="w-full">
+        <table className="min-w-full divide-y divide-gray-200">
           <thead>
-            <tr className="text-left">
-              <th className="w-10 p-4">
-                <input type="checkbox" className="rounded" />
-              </th>
-              <th className="p-4">Order id</th>
-              <th className="p-4">Date</th>
-              <th className="p-4">Customer</th>
-              <th className="p-4">Price</th>
-              <th className="p-4">Status</th>
-              <th className="p-4 text-right">Action</th>
+            <tr className="text-left text-xs sm:text-sm font-normal text-black">
+              <th className="pb-3 px-2 whitespace-nowrap">Order ID</th>
+              <th className="pb-3 px-2 whitespace-nowrap">Date</th>
+              <th className="pb-3 px-2 whitespace-nowrap hidden xs:table-cell">Customer</th>
+              <th className="pb-3 px-2 whitespace-nowrap">Price</th>
+              <th className="pb-3 px-2 whitespace-nowrap">Status</th>
+              <th className="pb-3 px-2 whitespace-nowrap">Action</th>
             </tr>
           </thead>
-          <tbody>
-            {reports.map((report, index) => (
-              <tr key={index} className="bg-gray-50">
-                <td className="p-4">
-                  <input type="checkbox" className="rounded" />
+          <tbody className="divide-y divide-gray-100">
+            {reports.map((report) => (
+              <tr key={report.id} className="hover:bg-gray-50">
+                <td className="py-3 px-2 text-xs sm:text-sm text-gray-700 whitespace-nowrap">
+                  {report.id}
                 </td>
-                <td className="p-4">{report.id}</td>
-                <td className="p-4">{report.date}</td>
-                <td className="p-4">{report.customer}</td>
-                <td className="p-4">{report.price}</td>
-                <td className="p-4">
-                  <span className={getStatusColor(report.status)}>
+                <td className="py-3 px-2 text-xs sm:text-sm text-gray-700 whitespace-nowrap">
+                  {report.date}
+                </td>
+                <td className="py-3 px-2 text-xs sm:text-sm text-gray-700 whitespace-nowrap hidden xs:table-cell">
+                  {report.customer}
+                </td>
+                <td className="py-3 px-2 text-xs sm:text-sm font-medium whitespace-nowrap">
+                  PKR {report.price}
+                </td>
+                <td className="py-3 px-2 whitespace-nowrap">
+                  <span className={`px-2 sm:px-3 py-1 rounded-full text-[10px] xs:text-xs font-medium ${getStatusClass(report.status)}`}>
                     {report.status}
                   </span>
                 </td>
-                <td className="p-4 text-right">
-                  <button className="text-gray-500">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <circle cx="12" cy="12" r="1"/>
-                      <circle cx="19" cy="12" r="1"/>
-                      <circle cx="5" cy="12" r="1"/>
-                    </svg>
+                <td className="py-3 px-2 whitespace-nowrap">
+                  <button className="text-gray-400 hover:text-gray-600">
+                    <Ellipsis className="w-4 h-4" />
                   </button>
                 </td>
               </tr>
@@ -125,6 +119,13 @@ const ReportsTable = ({ reports, activeTab, setActiveTab }) => {
           </tbody>
         </table>
       </div>
+
+      {/* Empty state */}
+      {reports.length === 0 && (
+        <div className="text-center py-8 text-sm text-gray-500">
+          No reports found
+        </div>
+      )}
     </div>
   );
 };

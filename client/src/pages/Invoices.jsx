@@ -10,13 +10,13 @@ import { toast } from 'sonner';
 const Invoices = () => {
   const summaryData = [
     {
-      title: "Today's revenue",
+      title: "Today's Revenue",
       amount: "2,837.90",
       currency: "PKR",
       indicator: { text: "+10%", color: "blue" },
     },
     {
-      title: "Today's expenses",
+      title: "Today's Expenses",
       amount: "25,938.86",
       currency: "PKR",
       indicator: { text: "-5%", color: "red" },
