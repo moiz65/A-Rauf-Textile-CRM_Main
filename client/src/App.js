@@ -2,6 +2,7 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Login from './pages/auth/Login';
 import Signup from './pages/auth/Signup';
 import Invoices from './pages/Invoices';
+import Report from './pages/Report';
 
 // // Import Poppins font weights
 // import '@fontsource/poppins/400.css';  // font-normal
@@ -18,6 +19,7 @@ function App() {
           <Route path="/signup" element={<Signup />} />
           <Route path="/" element={<Login />} /> {/* Default to login */}
           <Route path="/invoices" element={<Invoices />} />
+          <Route path="/report" element={<Report />} />
           {/* Add more routes as needed */}
         </Routes>
       </Router>

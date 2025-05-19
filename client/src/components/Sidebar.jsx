@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
+import { Link, useLocation } from 'react-router-dom';
 
-const NavItem = ({ icon, label, isActive = false, isCollapsed = false }) => {
+const NavItem = ({ icon, label, isActive = false, isCollapsed = false, to }) => {
   return (
-    <div 
-      className={`flex items-center gap-3 px-3 sm:px-4 py-2 sm:py-3  cursor-pointer hover:bg-gray-100 transition-colors ${
+    <Link 
+      to={to}
+      className={`flex items-center gap-3 px-3 sm:px-4 py-2 sm:py-3 cursor-pointer hover:bg-gray-100 transition-colors ${
         isActive ? 'bg-blue-50 text-blue-500' : 'text-gray-700'
       }`}
       title={isCollapsed ? label : undefined}
@@ -16,11 +18,12 @@ const NavItem = ({ icon, label, isActive = false, isCollapsed = false }) => {
           {label}
         </span>
       )}
-    </div>
+    </Link>
   );
 };
 
 const Sidebar = () => {
+  const location = useLocation(); // Get current route location
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
 
@@ -42,7 +45,8 @@ const Sidebar = () => {
           <rect width="7" height="5" x="3" y="16" rx="1" />
         </svg>
       ),
-      label: "Dashboard"
+      label: "Dashboard",
+      to: "/dashboard"
     },
     {
       icon: (
@@ -55,7 +59,7 @@ const Sidebar = () => {
         </svg>
       ),
       label: "Invoices",
-      isActive: true
+      to: "/invoices"
     },
     {
       icon: (
@@ -64,7 +68,8 @@ const Sidebar = () => {
           <path d="m19 9-5 5-4-4-3 3" />
         </svg>
       ),
-      label: "Reports"
+      label: "Reports",
+      to: "/report"
     },
     {
       icon: (
@@ -75,7 +80,8 @@ const Sidebar = () => {
           <path d="M16 3.13a4 4 0 0 1 0 7.75" />
         </svg>
       ),
-      label: "Customers"
+      label: "Customers",
+      to: "/customers"
     },
     {
       icon: (
@@ -86,7 +92,8 @@ const Sidebar = () => {
           <path d="M16 3.13a4 4 0 0 1 0 7.75" />
         </svg>
       ),
-      label: "Employees"
+      label: "Employees",
+      to: "/employees"
     },
     {
       icon: (
@@ -95,7 +102,8 @@ const Sidebar = () => {
           <circle cx="17" cy="7" r="5" />
         </svg>
       ),
-      label: "History"
+      label: "History",
+      to: "/history"
     },
     {
       icon: (
@@ -107,7 +115,8 @@ const Sidebar = () => {
           <path d="M13 18h8" />
         </svg>
       ),
-      label: "Services"
+      label: "Services",
+      to: "/services"
     },
     {
       icon: (
@@ -116,7 +125,8 @@ const Sidebar = () => {
           <circle cx="12" cy="12" r="3" />
         </svg>
       ),
-      label: "Settings"
+      label: "Settings",
+      to: "/settings"
     }
   ];
 
@@ -181,13 +191,14 @@ const Sidebar = () => {
         </button>
 
         <div className="space-y-1 overflow-y-auto flex-grow">
-          {navItems.map((item, index) => (
+          {navItems.map((item) => (
             <NavItem 
-              key={index}
+              key={item.to}
               icon={item.icon}
               label={item.label}
-              isActive={item.isActive}
+              isActive={location.pathname === item.to} // Set active based on current route
               isCollapsed={isCollapsed}
+              to={item.to}
             />
           ))}
         </div>
