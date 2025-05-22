@@ -3,6 +3,7 @@ import Login from './pages/auth/Login';
 import Signup from './pages/auth/Signup';
 import Invoices from './pages/Invoices';
 import Report from './pages/Report';
+import Customers from './pages/Customers';
 
 // // Import Poppins font weights
 // import '@fontsource/poppins/400.css';  // font-normal
@@ -20,6 +21,7 @@ function App() {
           <Route path="/" element={<Login />} /> {/* Default to login */}
           <Route path="/invoices" element={<Invoices />} />
           <Route path="/report" element={<Report />} />
+          <Route path="/customers" element={<Customers />} />
           {/* Add more routes as needed */}
         </Routes>
       </Router>

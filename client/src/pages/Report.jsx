@@ -35,17 +35,14 @@ const Report = () => {
     },
   ];
   
-  const reports = [
-    { id: '813789', date: 'Feb 08, 2022', customer: 'Noor Textile', price: '90000', status: 'Pending' },
-    { id: '813789', date: 'Feb 08, 2022', customer: 'Leslie Alexander', price: '90000', status: 'Preparing' },
-    { id: '813789', date: 'Feb 08, 2022', customer: 'Ralph Edwards', price: '90000', status: 'Cancelled' },
-    { id: '813789', date: 'Feb 08, 2022', customer: 'Jane Cooper', price: '90000', status: 'Delivered' },
-    { id: '813789', date: 'Feb 08, 2022', customer: 'Kathryn Murphy', price: '90000', status: 'On the way' },
-    { id: '813789', date: 'Feb 08, 2022', customer: 'Jenny Wilson', price: '90000', status: 'Pending' },
-    { id: '813789', date: 'Feb 08, 2022', customer: 'Jacob Jones', price: '90000', status: 'Preparing' },
-    { id: '813789', date: 'Feb 08, 2022', customer: 'Courtney Henry', price: '90000', status: 'Cancelled' },
-    { id: '813789', date: 'Feb 08, 2022', customer: 'Floyd Miles', price: '90000', status: 'Delivered' },
-  ];
+ const reports = [
+  { id: '813789', date: 'Feb 08, 2022', customer: 'Noor Textile', price: '90000', status: 'Pending' },
+  { id: '813789', date: 'Feb 08, 2022', customer: 'Malik Fabrics', price: '90000', status: 'Preparing' },
+  { id: '813789', date: 'Feb 08, 2022', customer: 'Ahmed Textiles', price: '90000', status: 'Cancelled' },
+  { id: '813789', date: 'Feb 08, 2022', customer: 'Ahmed Textiles', price: '90000', status: 'Delivered' },
+  { id: '813789', date: 'Feb 08, 2022', customer: 'Zainab Cloth House', price: '90000', status: 'On the way' },
+
+];
 
   const recentActivities = [
     {
