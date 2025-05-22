@@ -21,7 +21,7 @@ const NavItem = ({
         {React.cloneElement(icon, { className: "w-5 h-5" })}
       </div>
       {!isCollapsed && (
-        <span className="font-medium text-sm sm:text-base whitespace-nowrap">
+        <span className="font-semibold text-sm sm:text-base whitespace-nowrap">
           {label}
         </span>
       )}
@@ -157,8 +157,8 @@ const Sidebar = () => {
           <path d="M12 7v5l4 2" />
         </svg>
       ),
-      label: "History",
-      to: "/history",
+      label: "Expenses",
+      to: "/expenses",
     },
     {
       icon: (
