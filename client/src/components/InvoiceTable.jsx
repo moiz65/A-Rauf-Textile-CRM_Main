@@ -1,9 +1,6 @@
 import React, { useState } from 'react';
 import { Search, Filter, FileDown, Ellipsis } from 'lucide-react';
 
-
-
-// Example invoice data (replace with your own data source)
 const invoicesData = [
   {
     id: 'INV-001',
@@ -43,8 +40,15 @@ const InvoiceTable = ({ onCreateInvoice }) => {
   const [currentPage, setCurrentPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState('All');
+  const [filters, setFilters] = useState({
+    minAmount: '',
+    maxAmount: '',
+    dateFrom: '',
+    dateTo: '',
+    account: ''
+  });
+  const [showFilters, setShowFilters] = useState(false);
 
-  // Filtering logic
   const filteredInvoices = invoicesData
     .filter(invoice =>
       invoice.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -53,6 +57,13 @@ const InvoiceTable = ({ onCreateInvoice }) => {
     )
     .filter(invoice =>
       activeTab === 'All' || invoice.status === activeTab
+    )
+    .filter(invoice =>
+      (!filters.minAmount || invoice.amount >= Number(filters.minAmount)) &&
+      (!filters.maxAmount || invoice.amount <= Number(filters.maxAmount)) &&
+      (!filters.dateFrom || new Date(invoice.date) >= new Date(filters.dateFrom)) &&
+      (!filters.dateTo || new Date(invoice.date) <= new Date(filters.dateTo)) &&
+      (!filters.account || invoice.account.toLowerCase().includes(filters.account.toLowerCase()))
     );
 
   const totalPages = Math.ceil(filteredInvoices.length / ITEMS_PER_PAGE);
@@ -78,6 +89,26 @@ const InvoiceTable = ({ onCreateInvoice }) => {
       setCurrentPage(page);
       setSelectedRows([]);
     }
+  };
+
+  const handleFilterChange = (e) => {
+    const { name, value } = e.target;
+    setFilters(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  const resetFilters = () => {
+    setFilters({
+      minAmount: '',
+      maxAmount: '',
+      dateFrom: '',
+      dateTo: '',
+      account: ''
+    });
+    setSearchTerm('');
+    setActiveTab('All');
   };
 
   const getStatusClass = (status) => {
@@ -117,7 +148,10 @@ const InvoiceTable = ({ onCreateInvoice }) => {
             >
               Create Invoice
             </button>
-            <button className="flex items-center gap-1 bg-white border rounded-md px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm hover:bg-gray-50">
+            <button 
+              className="flex items-center gap-1 bg-white border rounded-md px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm hover:bg-gray-50"
+              onClick={() => setShowFilters(!showFilters)}
+            >
               <Filter className="w-3 h-3 sm:w-4 sm:h-4" />
               <span className="hidden xs:inline">Filter</span>
             </button>
@@ -128,6 +162,71 @@ const InvoiceTable = ({ onCreateInvoice }) => {
           </div>
         </div>
       </div>
+
+      {/* Filter Panel */}
+      {showFilters && (
+        <div className="bg-gray-50 p-4 rounded-lg mb-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+          <div>
+            <label className="block text-xs font-medium text-gray-700 mb-1">Min Amount</label>
+            <input
+              type="number"
+              name="minAmount"
+              className="w-full p-2 border rounded-md text-xs"
+              value={filters.minAmount}
+              onChange={handleFilterChange}
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-700 mb-1">Max Amount</label>
+            <input
+              type="number"
+              name="maxAmount"
+              className="w-full p-2 border rounded-md text-xs"
+              value={filters.maxAmount}
+              onChange={handleFilterChange}
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-700 mb-1">From Date</label>
+            <input
+              type="date"
+              name="dateFrom"
+              className="w-full p-2 border rounded-md text-xs"
+              value={filters.dateFrom}
+              onChange={handleFilterChange}
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-700 mb-1">To Date</label>
+            <input
+              type="date"
+              name="dateTo"
+              className="w-full p-2 border rounded-md text-xs"
+              value={filters.dateTo}
+              onChange={handleFilterChange}
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-700 mb-1">Account</label>
+            <input
+              type="text"
+              name="account"
+              className="w-full p-2 border rounded-md text-xs"
+              value={filters.account}
+              onChange={handleFilterChange}
+              placeholder="Filter by account"
+            />
+          </div>
+          <div className="md:col-span-5 flex justify-end gap-2">
+            <button
+              onClick={resetFilters}
+              className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 text-sm"
+            >
+              Reset Filters
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Tab Navigation */}
       <div className="overflow-x-auto mb-4">

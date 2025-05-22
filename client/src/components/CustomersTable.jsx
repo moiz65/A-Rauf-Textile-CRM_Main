@@ -55,6 +55,18 @@ const CustomersTable = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState('All');
+  const [filters, setFilters] = useState({
+    customerName: '',
+    minPrice: '',
+    maxPrice: '',
+    dateFrom: '',
+    dateTo: '',
+    category: '',
+    address: ''
+  });
+  const [showFilters, setShowFilters] = useState(false);
+
+  const customerCategories = ['All', 'Dying', 'Weaving', 'Stitching'];
 
   const filteredCustomers = customersData
     .filter(customer =>
@@ -62,8 +74,17 @@ const CustomersTable = () => {
       customer.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
       customer.phoneNumber.includes(searchTerm)
     )
-    .filter(customer => 
+    .filter(customer =>
       activeTab === 'All' || customer.category === activeTab
+    )
+    .filter(customer =>
+      (!filters.customerName || customer.name.toLowerCase().includes(filters.customerName.toLowerCase())) &&
+      (!filters.minPrice || customer.price >= Number(filters.minPrice)) &&
+      (!filters.maxPrice || customer.price <= Number(filters.maxPrice)) &&
+      (!filters.dateFrom || new Date(customer.date) >= new Date(filters.dateFrom)) &&
+      (!filters.dateTo || new Date(customer.date) <= new Date(filters.dateTo)) &&
+      (!filters.category || customer.category === filters.category) &&
+      (!filters.address || customer.address.toLowerCase().includes(filters.address.toLowerCase()))
     );
 
   const totalPages = Math.ceil(filteredCustomers.length / ITEMS_PER_PAGE);
@@ -91,8 +112,6 @@ const CustomersTable = () => {
     }
   };
 
-  const customerCategories = ['All', 'Dying', 'Weaving', 'Stitching'];
-
   const getCategoryClass = (category) => {
     switch(category) {
       case 'Dying': return 'bg-orange-100 text-orange-800';
@@ -100,6 +119,28 @@ const CustomersTable = () => {
       case 'Stitching': return 'bg-green-100 text-green-800';
       default: return 'bg-gray-100 text-gray-800';
     }
+  };
+
+  const handleFilterChange = (e) => {
+    const { name, value } = e.target;
+    setFilters(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  const resetFilters = () => {
+    setFilters({
+      customerName: '',
+      minPrice: '',
+      maxPrice: '',
+      dateFrom: '',
+      dateTo: '',
+      category: '',
+      address: ''
+    });
+    setSearchTerm('');
+    setActiveTab('All');
   };
 
   return (
@@ -126,17 +167,16 @@ const CustomersTable = () => {
           </div>
           
           <div className="flex gap-2">
-            <button 
-              className="bg-[#1976D2] text-white px-3 sm:px-4 py-1.5 sm:py-2 rounded-md text-xs sm:text-sm font-medium hover:bg-blue-600 transition-colors w-full sm:w-auto text-center"
-            >
+            <button className="bg-[#1976D2] text-white px-3 sm:px-4 py-1.5 sm:py-2 rounded-md text-xs sm:text-sm font-medium hover:bg-blue-600 transition-colors w-full sm:w-auto text-center">
               Add New Customer
             </button>
-            
-            <button className="flex items-center gap-1 bg-white border rounded-md px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm hover:bg-gray-50">
+            <button
+              className="flex items-center gap-1 bg-white border rounded-md px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm hover:bg-gray-50"
+              onClick={() => setShowFilters(!showFilters)}
+            >
               <Filter className="w-3 h-3 sm:w-4 sm:h-4" />
               <span className="hidden xs:inline">Filter</span>
             </button>
-            
             <button className="flex items-center gap-1 bg-white border rounded-md px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm hover:bg-gray-50">
               <FileDown className="w-3 h-3 sm:w-4 sm:h-4" />
               <span className="hidden xs:inline">Export</span>
@@ -145,6 +185,96 @@ const CustomersTable = () => {
         </div>
       </div>
       
+      {/* Filter Panel - Positioned right below the header */}
+      {showFilters && (
+        <div className="bg-gray-50 p-4 rounded-lg mb-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+          <div>
+            <label className="block text-xs font-medium text-gray-700 mb-1">Customer Name</label>
+            <input
+              type="text"
+              name="customerName"
+              className="w-full p-2 border rounded-md text-xs"
+              value={filters.customerName}
+              onChange={handleFilterChange}
+              placeholder="Filter by customer name"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-700 mb-1">Min Price</label>
+            <input
+              type="number"
+              name="minPrice"
+              className="w-full p-2 border rounded-md text-xs"
+              value={filters.minPrice}
+              onChange={handleFilterChange}
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-700 mb-1">Max Price</label>
+            <input
+              type="number"
+              name="maxPrice"
+              className="w-full p-2 border rounded-md text-xs"
+              value={filters.maxPrice}
+              onChange={handleFilterChange}
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-700 mb-1">From Date</label>
+            <input
+              type="date"
+              name="dateFrom"
+              className="w-full p-2 border rounded-md text-xs"
+              value={filters.dateFrom}
+              onChange={handleFilterChange}
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-700 mb-1">To Date</label>
+            <input
+              type="date"
+              name="dateTo"
+              className="w-full p-2 border rounded-md text-xs"
+              value={filters.dateTo}
+              onChange={handleFilterChange}
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-700 mb-1">Category</label>
+            <select
+              name="category"
+              className="w-full p-2 border rounded-md text-xs"
+              value={filters.category}
+              onChange={handleFilterChange}
+            >
+              <option value="">All</option>
+              <option value="Dying">Dying</option>
+              <option value="Weaving">Weaving</option>
+              <option value="Stitching">Stitching</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-700 mb-1">Address</label>
+            <input
+              type="text"
+              name="address"
+              className="w-full p-2 border rounded-md text-xs"
+              value={filters.address}
+              onChange={handleFilterChange}
+              placeholder="Filter by address"
+            />
+          </div>
+          <div className="md:col-span-5 flex justify-end gap-2">
+            <button
+              onClick={resetFilters}
+              className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 text-sm"
+            >
+              Reset Filters
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Tab Navigation */}
       <div className="overflow-x-auto mb-4">
         <div className="flex border-b w-max min-w-full">
@@ -250,7 +380,7 @@ const CustomersTable = () => {
         </table>
       </div>
 
-      {/* Pagination - Only show if there are more items than ITEMS_PER_PAGE */}
+      {/* Pagination */}
       {filteredCustomers.length > ITEMS_PER_PAGE && (
         <div className="flex justify-between items-center px-4 py-3 border-t border-gray-200 bg-white">
           <div className="text-sm text-gray-700">
