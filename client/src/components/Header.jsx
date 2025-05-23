@@ -1,7 +1,20 @@
-import React from 'react';
+import React, { useState } from 'react';
 import ProfileImage from '../assets/header/pfp.png';
 
-const Header = ({ name }) => {
+const Header = ({ name: initialName }) => {
+  const [name, setName] = useState(initialName);
+  const [isEditing, setIsEditing] = useState(false);
+
+  const handleNameChange = (e) => setName(e.target.value);
+
+  const handleBlur = () => setIsEditing(false);
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter') {
+      setIsEditing(false);
+    }
+  };
+
   return (
     <div className="flex justify-between items-center mb-6 p-4 sm:p-6 rounded-[30px] shadow-sm bg-white">
       {/* Profile Section */}
@@ -15,9 +28,24 @@ const Header = ({ name }) => {
         </div>
         <div>
           <div className="text-gray-500 text-xs sm:text-sm">Welcome Back!</div>
-          <h1 className="text-base sm:text-lg font-semibold truncate max-w-[150px] sm:max-w-none">
-            {name}
-          </h1>
+          {isEditing ? (
+            <input
+              value={name}
+              onChange={handleNameChange}
+              onBlur={handleBlur}
+              onKeyDown={handleKeyDown}
+              autoFocus
+              className="text-base sm:text-lg font-semibold max-w-[150px] sm:max-w-none border-b border-gray-300 focus:outline-none"
+            />
+          ) : (
+            <h1
+              className="text-base sm:text-lg font-semibold truncate max-w-[150px] sm:max-w-none cursor-pointer"
+              onClick={() => setIsEditing(true)}
+              title="Click to edit"
+            >
+              {name}
+            </h1>
+          )}
         </div>
       </div>
 
@@ -27,6 +55,7 @@ const Header = ({ name }) => {
           className="p-2 rounded-full hover:bg-gray-100 transition-colors"
           aria-label="Notifications"
         >
+          {/* Bell Icon */}
           <svg 
             xmlns="http://www.w3.org/2000/svg" 
             width="20" 
@@ -48,6 +77,7 @@ const Header = ({ name }) => {
           className="p-2 rounded-full hover:bg-gray-100 transition-colors"
           aria-label="Settings"
         >
+          {/* Gear Icon */}
           <svg 
             xmlns="http://www.w3.org/2000/svg" 
             width="20" 

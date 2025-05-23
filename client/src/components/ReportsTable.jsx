@@ -10,11 +10,11 @@ const ReportsTable = ({ reports: initialReports, activeTab, setActiveTab, onCrea
   const [searchTerm, setSearchTerm] = useState('');
   const [showFilters, setShowFilters] = useState(false);
   const [filters, setFilters] = useState({
+    customer: '', // Use 'customer' as the filter key
     minPrice: '',
     maxPrice: '',
     dateFrom: '',
-    dateTo: '',
-    customer: '' // Added customer filter
+    dateTo: ''
   });
 
   const getStatusClass = (status) => {
@@ -29,7 +29,7 @@ const ReportsTable = ({ reports: initialReports, activeTab, setActiveTab, onCrea
   };
 
   // Get unique customer names for dropdown
-  const customerOptions = [...new Set(initialReports.map(report => report.customer))];
+  // const customerOptions = [...new Set(initialReports.map(report => report.customer))];
 
   // Filtering logic
   const filteredReports = initialReports
@@ -49,7 +49,7 @@ const ReportsTable = ({ reports: initialReports, activeTab, setActiveTab, onCrea
       (!filters.maxPrice || Number(report.price) <= Number(filters.maxPrice)) &&
       (!filters.dateFrom || new Date(report.date) >= new Date(filters.dateFrom)) &&
       (!filters.dateTo || new Date(report.date) <= new Date(filters.dateTo)) &&
-      (!filters.customer || report.customer === filters.customer) // Added customer filter
+      (!filters.customer || report.customer.toLowerCase().includes(filters.customer.toLowerCase()))
     );
 
   const totalPages = Math.ceil(filteredReports.length / ITEMS_PER_PAGE);
@@ -87,11 +87,11 @@ const ReportsTable = ({ reports: initialReports, activeTab, setActiveTab, onCrea
 
   const resetFilters = () => {
     setFilters({
+      customer: '',
       minPrice: '',
       maxPrice: '',
       dateFrom: '',
-      dateTo: '',
-      customer: ''
+      dateTo: ''
     });
     setSearchTerm('');
     setActiveTab('All');
@@ -150,17 +150,14 @@ const ReportsTable = ({ reports: initialReports, activeTab, setActiveTab, onCrea
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <div>
               <label className="block text-xs font-medium text-gray-700 mb-1">Customer</label>
-              <select
+              <input
+                type="text"
                 name="customer"
+                className="w-full p-2 border rounded-md text-xs"
                 value={filters.customer}
                 onChange={handleFilterChange}
-                className="w-full p-2 border rounded-md text-xs"
-              >
-                <option value="">All Customers</option>
-                {customerOptions.map(customer => (
-                  <option key={customer} value={customer}>{customer}</option>
-                ))}
-              </select>
+                placeholder="Filter by customer name"
+              />
             </div>
             <div>
               <label className="block text-xs font-medium text-gray-700 mb-1">Min Price</label>
