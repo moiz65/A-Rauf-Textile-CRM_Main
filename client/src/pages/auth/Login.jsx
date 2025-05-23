@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Eye, EyeOff } from "lucide-react";
 import LoginImage from "../../assets/Signup/signin.png";
 
@@ -26,7 +27,56 @@ const Input = ({ className = "", ...props }) => {
 
 // Main component
 const Index = () => {
+  const navigate = useNavigate();
   const [showPassword, setShowPassword] = useState(false);
+  const [formData, setFormData] = useState({
+    email: "",
+    password: ""
+  });
+  const [error, setError] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    setError("");
+
+    // Basic validation
+    if (!formData.email || !formData.password) {
+      setError("Please fill in all fields");
+      return;
+    }
+
+    // Email validation regex
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(formData.email)) {
+      setError("Please enter a valid email address");
+      return;
+    }
+
+    // Password length validation
+    if (formData.password.length < 8) {
+      setError("Password must be at least 8 characters");
+      return;
+    }
+
+    setIsLoading(true);
+
+    // Simulate API call
+    setTimeout(() => {
+      // This is just a mock login - in a real app you would call your backend
+      // For demo purposes, we'll consider any valid email and password combination as successful
+      setIsLoading(false);
+      navigate("/invoices"); // Redirect to invoice page
+    }, 1500);
+  };
 
   return (
     <div className="flex min-h-screen w-full p-2 sm:p-4">
@@ -89,16 +139,25 @@ const Index = () => {
             <p className="mt-2 text-sm text-gray-600 sm:text-base">Enter your personal data to create your account.</p>
           </div>
 
-          <div className="space-y-4 sm:space-y-6">
+          {error && (
+            <div className="rounded-md bg-red-50 p-4">
+              <p className="text-sm text-red-600">{error}</p>
+            </div>
+          )}
+
+          <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-gray-700 sm:text-base">
                 Email
               </label>
               <Input
                 id="email"
+                name="email"
                 type="email"
                 placeholder="eg. johnfrans@gmail.com"
                 className="mt-1 h-10 w-full sm:h-12"
+                value={formData.email}
+                onChange={handleChange}
               />
             </div>
 
@@ -109,9 +168,12 @@ const Index = () => {
               <div className="relative mt-1">
                 <Input
                   id="password"
+                  name="password"
                   type={showPassword ? "text" : "password"}
                   placeholder="Enter your password"
                   className="h-10 w-full pr-10 sm:h-12"
+                  value={formData.password}
+                  onChange={handleChange}
                 />
                 <button
                   type="button"
@@ -124,8 +186,12 @@ const Index = () => {
               <p className="mt-1 text-xs text-gray-600 sm:text-sm">Must be at least 8 characters.</p>
             </div>
 
-            <Button className="w-full bg-blue-500 py-2 text-white hover:bg-blue-600 sm:py-3">
-              Sign in
+            <Button 
+              type="submit"
+              className="w-full bg-blue-500 py-2 text-white hover:bg-blue-600 sm:py-3"
+              disabled={isLoading}
+            >
+              {isLoading ? "Signing in..." : "Sign in"}
             </Button>
 
             <p className="text-center text-xs text-gray-600 sm:text-sm">
@@ -134,7 +200,7 @@ const Index = () => {
                 Sign up
               </a>
             </p>
-          </div>
+          </form>
         </div>
       </div>
     </div>

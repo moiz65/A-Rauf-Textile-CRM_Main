@@ -123,7 +123,7 @@ const Signup = () => {
                 id="email"
                 type="email"
                 placeholder="eg. johnfrans@gmail.com"
-                className="mt-1 h-10 w-full sm:h-12"
+                className="mt-1 h-10 w-full sm:h-12 "
               />
             </div>
 
