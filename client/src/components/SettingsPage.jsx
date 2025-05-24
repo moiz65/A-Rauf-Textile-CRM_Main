@@ -191,7 +191,7 @@ const SettingsPage = () => {
               {activeTab === 'company' && (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
-                    <label className="block text-gray-700 mb-2 font-medium flex items-center gap-2">
+                    <label className=" text-gray-700 mb-2 font-medium flex items-center gap-2">
                       <FaPhone className="text-blue-500" /> Phone Number
                     </label>
                     <div className="relative">
@@ -210,7 +210,7 @@ const SettingsPage = () => {
                   </div>
 
                   <div>
-                    <label className="block text-gray-700 mb-2 font-medium flex items-center gap-2">
+                    <label className="  text-gray-700 mb-2 font-medium flex items-center gap-2">
                       <MdDeveloperMode className="text-blue-500" /> Developed By
                     </label>
                     <input
@@ -224,7 +224,7 @@ const SettingsPage = () => {
                   </div>
 
                   <div className="md:col-span-2">
-                    <label className="block text-gray-700 mb-2 font-medium flex items-center gap-2">
+                    <label className="  text-gray-700 mb-2 font-medium flex items-center gap-2">
                       <FaEnvelope className="text-blue-500" /> Email Address
                     </label>
                     <div className="relative">
@@ -243,7 +243,7 @@ const SettingsPage = () => {
                   </div>
 
                   <div className="md:col-span-2">
-                    <label className="block text-gray-700 mb-2 font-medium flex items-center gap-2">
+                    <label className="  text-gray-700 mb-2 font-medium flex items-center gap-2">
                       <FaMapMarkerAlt className="text-blue-500" /> Company Address
                     </label>
                     <textarea
@@ -262,7 +262,7 @@ const SettingsPage = () => {
               {activeTab === 'account' && (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
-                    <label className="block text-gray-700 mb-2 font-medium flex items-center gap-2">
+                    <label className="  text-gray-700 mb-2 font-medium flex items-center gap-2">
                       <FaUser className="text-blue-500" /> Username
                     </label>
                     <div className="relative">
@@ -281,7 +281,7 @@ const SettingsPage = () => {
                   </div>
 
                   <div>
-                    <label className="block text-gray-700 mb-2 font-medium flex items-center gap-2">
+                    <label className="  text-gray-700 mb-2 font-medium flex items-center gap-2">
                       <FaLock className="text-blue-500" /> Password
                     </label>
                     <div className="relative">
@@ -307,7 +307,7 @@ const SettingsPage = () => {
                   </div>
 
                   <div className="md:col-span-2">
-                    <label className="block text-gray-700 mb-2 font-medium flex items-center gap-2">
+                    <label className="  text-gray-700 mb-2 font-medium flex items-center gap-2">
                       <FaUserShield className="text-blue-500" /> User Role
                     </label>
                     <div className="relative">

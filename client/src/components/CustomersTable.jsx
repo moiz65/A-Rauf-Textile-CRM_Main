@@ -301,7 +301,7 @@ const CustomersTable = () => {
       <div className="overflow-x-auto">
         <table className="min-w-full divide-y divide-gray-200">
           <thead>
-            <tr className="text-left text-xs sm:text-sm font-normal text-black">
+            <tr className="text-center text-xs sm:text-sm font-normal text-black">
               <th className="pb-3 px-2 whitespace-nowrap">
                 <input
                   type="checkbox"
@@ -324,7 +324,7 @@ const CustomersTable = () => {
               <th className="pb-3 px-2 whitespace-nowrap">Action</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-100">
+          <tbody className="text-center divide-y divide-gray-100">
             {filteredCustomers.length === 0 ? (
               <tr>
                 <td colSpan="10" className="py-4 text-center text-sm text-gray-500">

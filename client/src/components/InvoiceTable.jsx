@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Search, Filter, FileDown, Ellipsis } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
+import { Search, Filter, FileDown, Ellipsis, Edit, Trash2, Printer, Download, Copy } from 'lucide-react';
 
 const invoicesData = [
   {
@@ -48,6 +48,19 @@ const InvoiceTable = ({ onCreateInvoice }) => {
     account: ''
   });
   const [showFilters, setShowFilters] = useState(false);
+  const [activeDropdown, setActiveDropdown] = useState(null);
+  const dropdownRefs = useRef([]);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRefs.current.every(ref => !ref.current?.contains(event.target))) {
+        setActiveDropdown(null);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const filteredInvoices = invoicesData
     .filter(invoice =>
@@ -117,6 +130,35 @@ const InvoiceTable = ({ onCreateInvoice }) => {
       case 'Pending': return 'bg-yellow-100 text-yellow-800';
       case 'Overdue': return 'bg-red-100 text-red-800';
       default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const toggleDropdown = (invoiceId) => {
+    setActiveDropdown(activeDropdown === invoiceId ? null : invoiceId);
+  };
+
+  const handleAction = (action, invoice) => {
+    setActiveDropdown(null);
+    switch (action) {
+      case 'edit':
+        alert(`Editing invoice: ${invoice.id}`);
+        break;
+      case 'delete':
+        if (window.confirm(`Are you sure you want to delete invoice ${invoice.id}?`)) {
+          alert(`Invoice ${invoice.id} deleted`);
+        }
+        break;
+      case 'print':
+        alert(`Printing invoice: ${invoice.id}`);
+        break;
+      case 'download':
+        alert(`Downloading invoice: ${invoice.id}`);
+        break;
+      case 'duplicate':
+        alert(`Duplicating invoice: ${invoice.id}`);
+        break;
+      default:
+        break;
     }
   };
 
@@ -254,7 +296,7 @@ const InvoiceTable = ({ onCreateInvoice }) => {
       <div className="overflow-x-auto">
         <table className="min-w-full divide-y divide-gray-200">
           <thead>
-            <tr className="text-left text-xs sm:text-sm font-normal text-black">
+            <tr className="text-center text-xs sm:text-sm font-normal text-black">
               <th className="pb-3 px-2 whitespace-nowrap">
                 <input
                   type="checkbox"
@@ -274,7 +316,7 @@ const InvoiceTable = ({ onCreateInvoice }) => {
               <th className="pb-3 px-2 whitespace-nowrap">Action</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-100">
+          <tbody className="text-center divide-y divide-gray-100">
             {visibleInvoices.length === 0 ? (
               <tr>
                 <td colSpan="7" className="py-4 text-center text-sm text-gray-500">
@@ -282,7 +324,7 @@ const InvoiceTable = ({ onCreateInvoice }) => {
                 </td>
               </tr>
             ) : (
-              visibleInvoices.map((invoice) => (
+              visibleInvoices.map((invoice, index) => (
                 <tr key={invoice.id} className="hover:bg-gray-50">
                   <td className="px-4 py-4 whitespace-nowrap">
                     <input
@@ -309,10 +351,58 @@ const InvoiceTable = ({ onCreateInvoice }) => {
                       {invoice.status}
                     </span>
                   </td>
-                  <td className="px-4 py-4 text-sm whitespace-nowrap">
-                    <button className="text-gray-400 hover:text-gray-600">
+                  <td className="px-4 py-4 text-sm whitespace-nowrap relative">
+                    <button 
+                      className="text-gray-400 hover:text-gray-600"
+                      onClick={() => toggleDropdown(invoice.id)}
+                    >
                       <Ellipsis className="h-5 w-5" />
                     </button>
+                    
+                    {activeDropdown === invoice.id && (
+                      <div 
+                        ref={el => dropdownRefs.current[index] = { current: el }}
+                        className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg z-10 border border-gray-200"
+                      >
+                        <div className="py-1">
+                          <button
+                            onClick={() => handleAction('edit', invoice)}
+                            className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left"
+                          >
+                            <Edit className="w-4 h-4 mr-2" />
+                            Edit
+                          </button>
+                          <button
+                            onClick={() => handleAction('delete', invoice)}
+                            className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left"
+                          >
+                            <Trash2 className="w-4 h-4 mr-2" />
+                            Delete
+                          </button>
+                          <button
+                            onClick={() => handleAction('print', invoice)}
+                            className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left"
+                          >
+                            <Printer className="w-4 h-4 mr-2" />
+                            Print
+                          </button>
+                          <button
+                            onClick={() => handleAction('download', invoice)}
+                            className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left"
+                          >
+                            <Download className="w-4 h-4 mr-2" />
+                            Download
+                          </button>
+                          <button
+                            onClick={() => handleAction('duplicate', invoice)}
+                            className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left"
+                          >
+                            <Copy className="w-4 h-4 mr-2" />
+                            Duplicate
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </td>
                 </tr>
               ))

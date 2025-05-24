@@ -75,7 +75,7 @@ const Index = () => {
       // For demo purposes, we'll consider any valid email and password combination as successful
       setIsLoading(false);
       navigate("/invoices"); // Redirect to invoice page
-    }, 1500);
+    }, 1000);
   };
 
   return (
