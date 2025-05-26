@@ -5,6 +5,7 @@ import Invoices from './pages/Invoices';
 import Report from './pages/Report';
 import Customers from './pages/Customers';
 import Settings from './pages/Settings';
+import Dashboard from './pages/Dashboard';
 
 // // Import Poppins font weights
 // import '@fontsource/poppins/400.css';  // font-normal
@@ -20,6 +21,7 @@ function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
           <Route path="/" element={<Login />} /> {/* Default to login */}
+          <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/invoices" element={<Invoices />} />
           <Route path="/report" element={<Report />} />
           <Route path="/customers" element={<Customers />} />

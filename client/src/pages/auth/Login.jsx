@@ -74,7 +74,7 @@ const Index = () => {
       // This is just a mock login - in a real app you would call your backend
       // For demo purposes, we'll consider any valid email and password combination as successful
       setIsLoading(false);
-      navigate("/invoices"); // Redirect to invoice page
+      navigate("/dashboard"); // Redirect to invoice page
     }, 1000);
   };
 
