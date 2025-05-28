@@ -1,12 +1,37 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import ProfileImage from '../assets/header/pfp.png';
+import { Bell, BellOff, Settings, X, Check } from 'lucide-react';
 
 const Header = ({ name: initialName }) => {
   const [name, setName] = useState(initialName);
   const [isEditing, setIsEditing] = useState(false);
+  const [notificationsEnabled, setNotificationsEnabled] = useState(false);
+  const [hasPermission, setHasPermission] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [showSettings, setShowSettings] = useState(false);
+  const [fontSize, setFontSize] = useState('medium');
+
+  // Check notification permission and apply font size on component mount
+  useEffect(() => {
+    if (typeof window !== 'undefined' && 'Notification' in window) {
+      setHasPermission(Notification.permission === 'granted');
+      if (Notification.permission === 'granted') {
+        setNotificationsEnabled(true);
+      }
+    }
+
+    // Check for saved preferences
+    const savedFontSize = localStorage.getItem('fontSize') || 'medium';
+    setFontSize(savedFontSize);
+    applyFontSize(savedFontSize);
+  }, []);
+
+  const applyFontSize = (size) => {
+    document.documentElement.style.fontSize = 
+      size === 'small' ? '14px' : size === 'large' ? '18px' : '16px';
+  };
 
   const handleNameChange = (e) => setName(e.target.value);
-
   const handleBlur = () => setIsEditing(false);
 
   const handleKeyDown = (e) => {
@@ -15,8 +40,62 @@ const Header = ({ name: initialName }) => {
     }
   };
 
+  const toggleNotifications = async () => {
+    if (!('Notification' in window)) {
+      alert('This browser does not support desktop notifications');
+      return;
+    }
+
+    if (Notification.permission === 'denied') {
+      alert('Notifications have been blocked. Please enable them in your browser settings.');
+      return;
+    }
+
+    if (Notification.permission !== 'granted') {
+      const permission = await Notification.requestPermission();
+      setHasPermission(permission === 'granted');
+      setNotificationsEnabled(permission === 'granted');
+    } else {
+      setNotificationsEnabled(!notificationsEnabled);
+      setUnreadCount(0); // Clear notifications when toggling
+    }
+
+    if (!notificationsEnabled && (hasPermission || Notification.permission === 'granted')) {
+      setTimeout(() => {
+        new Notification('Notifications Enabled', {
+          body: 'You will now receive important updates',
+          icon: ProfileImage
+        });
+        setUnreadCount(1);
+      }, 1000);
+    }
+  };
+
+  const changeFontSize = (size) => {
+    setFontSize(size);
+    localStorage.setItem('fontSize', size);
+    applyFontSize(size);
+  };
+
+  // Demo: Simulate receiving notifications
+  useEffect(() => {
+    if (notificationsEnabled && hasPermission) {
+      const interval = setInterval(() => {
+        if (Math.random() > 0.7) { // 30% chance of notification
+          new Notification('New Update', {
+            body: 'You have new activity in your dashboard',
+            icon: ProfileImage
+          });
+          setUnreadCount(prev => prev + 1);
+        }
+      }, 30000); // Every 30 seconds
+
+      return () => clearInterval(interval);
+    }
+  }, [notificationsEnabled, hasPermission]);
+
   return (
-    <div className="flex justify-between items-center mb-6 p-4 sm:p-6 rounded-[30px] shadow-sm bg-white">
+    <div className="flex justify-between items-center mb-6 p-4 sm:p-6 rounded-[30px] shadow-sm bg-white text-black">
       {/* Profile Section */}
       <div className="flex items-center">
         <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gray-100 rounded-full mr-3 sm:mr-4 overflow-hidden">
@@ -35,7 +114,7 @@ const Header = ({ name: initialName }) => {
               onBlur={handleBlur}
               onKeyDown={handleKeyDown}
               autoFocus
-              className="text-base sm:text-lg font-semibold max-w-[150px] sm:max-w-none border-b border-gray-300 focus:outline-none"
+              className="text-base sm:text-lg font-semibold max-w-[150px] sm:max-w-none border-b border-gray-300 focus:outline-none bg-transparent"
             />
           ) : (
             <h1
@@ -52,48 +131,69 @@ const Header = ({ name: initialName }) => {
       {/* Icons Section */}
       <div className="flex items-center space-x-2 sm:space-x-3">
         <button 
-          className="p-2 rounded-full hover:bg-gray-100 transition-colors"
-          aria-label="Notifications"
+          className="p-2 relative rounded-full hover:bg-gray-100 transition-colors"
+          onClick={toggleNotifications}
+          aria-label={notificationsEnabled ? "Disable notifications" : "Enable notifications"}
         >
-          {/* Bell Icon */}
-          <svg 
-            xmlns="http://www.w3.org/2000/svg" 
-            width="20" 
-            height="20" 
-            viewBox="0 0 24 24" 
-            fill="none" 
-            stroke="currentColor" 
-            strokeWidth="2" 
-            strokeLinecap="round" 
-            strokeLinejoin="round" 
-            className="text-gray-600"
-          >
-            <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
-            <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
-          </svg>
+          {notificationsEnabled ? (
+            <Bell className="w-5 h-5 text-gray-600" />
+          ) : (
+            <BellOff className="w-5 h-5 text-gray-400" />
+          )}
+          {unreadCount > 0 && (
+            <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-4 w-4 flex items-center justify-center">
+              {unreadCount}
+            </span>
+          )}
         </button>
         
-        <button 
-          className="p-2 rounded-full hover:bg-gray-100 transition-colors"
-          aria-label="Settings"
-        >
-          {/* Gear Icon */}
-          <svg 
-            xmlns="http://www.w3.org/2000/svg" 
-            width="20" 
-            height="20" 
-            viewBox="0 0 24 24" 
-            fill="none" 
-            stroke="currentColor" 
-            strokeWidth="2" 
-            strokeLinecap="round" 
-            strokeLinejoin="round" 
-            className="text-gray-600"
+        <div className="relative">
+          <button 
+            className="p-2 rounded-full hover:bg-gray-100 transition-colors"
+            onClick={() => setShowSettings(!showSettings)}
+            aria-label="Settings"
           >
-            <circle cx="12" cy="12" r="3" />
-            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
-          </svg>
-        </button>
+            <Settings className="w-5 h-5 text-gray-600" />
+          </button>
+
+          {showSettings && (
+            <div className="absolute right-0 mt-2 w-64 bg-white rounded-lg shadow-lg border border-gray-200 z-10 p-4">
+              <div className="flex justify-between items-center mb-3">
+                <h3 className="font-medium">Settings</h3>
+                <button 
+                  onClick={() => setShowSettings(false)}
+                  className="p-1 rounded-full hover:bg-gray-100"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <span className="block mb-2">Font Size</span>
+                  <div className="flex gap-2">
+                    {['small', 'medium', 'large'].map((size) => (
+                      <button
+                        key={size}
+                        onClick={() => changeFontSize(size)}
+                        className={`px-3 py-1 text-sm rounded-full ${fontSize === size ? 'bg-blue-100 text-blue-800' : 'bg-gray-100'}`}
+                      >
+                        {size.charAt(0).toUpperCase() + size.slice(1)}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="pt-2 border-t border-gray-200">
+                  <button className="w-full py-2 px-4 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm font-medium flex items-center justify-center gap-2 transition-colors">
+                    <Check className="w-4 h-4" />
+                    Save Preferences
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

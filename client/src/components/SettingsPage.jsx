@@ -1,10 +1,4 @@
 import React, { useState } from 'react';
-import { 
-  FaUserEdit, FaEnvelope, FaPhone, FaMapMarkerAlt, 
-  FaUser, FaLock, FaUserShield, FaUpload, 
-  FaCheckCircle, FaEye, FaEyeSlash, FaBuilding 
-} from 'react-icons/fa';
-import { MdDeveloperMode } from 'react-icons/md';
 import defaultProfileImg from '../assets/header/pfp.png';
 
 const SettingsPage = () => {
@@ -28,25 +22,16 @@ const SettingsPage = () => {
   const [activeTab, setActiveTab] = useState('company');
   const [isUploading, setIsUploading] = useState(false);
 
-  // Handle form input changes
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
-    // Clear error when user starts typing
-    if (errors[name]) {
-      setErrors(prev => ({ ...prev, [name]: '' }));
-    }
+    setFormData(prev => ({ ...prev, [name]: value }));
+    if (errors[name]) setErrors(prev => ({ ...prev, [name]: '' }));
   };
 
-  // Handle profile image upload
   const handleImageChange = (e) => {
     const file = e.target.files[0];
     if (!file) return;
 
-    // Validate image
     if (file.size > 2 * 1024 * 1024) {
       setErrors(prev => ({ ...prev, profileImg: 'Image size should be less than 2MB' }));
       return;
@@ -60,7 +45,6 @@ const SettingsPage = () => {
     setIsUploading(true);
     setErrors(prev => ({ ...prev, profileImg: '' }));
 
-    // Read and display the image
     const reader = new FileReader();
     reader.onload = (event) => {
       setProfileImg(event.target.result);
@@ -73,7 +57,6 @@ const SettingsPage = () => {
     reader.readAsDataURL(file);
   };
 
-  // Form validation
   const validate = () => {
     const newErrors = {};
     
@@ -93,22 +76,18 @@ const SettingsPage = () => {
     return newErrors;
   };
 
-  // Handle form submission
   const handleSubmit = (e) => {
     e.preventDefault();
+    if (isUploading) return;
+
     const validationErrors = validate();
-    
     if (Object.keys(validationErrors).length > 0) {
       setErrors(validationErrors);
       setSuccess(false);
       return;
     }
-    
-    // Simulate API call
     setSuccess(true);
     setTimeout(() => setSuccess(false), 3000);
-    
-    // In a real app, you would send the data to your backend here
     console.log('Form data to submit:', {
       ...formData,
       profileImg: profileImg !== defaultProfileImg ? profileImg : null
@@ -116,36 +95,45 @@ const SettingsPage = () => {
   };
 
   return (
-    <div className="flex-1 overflow-auto bg-white rounded-[16px] shadow-md">
-      <div className="px-4 md:px-6 pb-6">
-        <div className="bg-white p-3">
-          {/* Header with tabs */}
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-800">Settings</h1>
-              <p className="text-gray-500 text-sm">Manage your company and account settings</p>
-            </div>
-            <div className="flex mt-4 md:mt-0">
-              <button
-                onClick={() => setActiveTab('company')}
-                className={`px-4 py-2 text-sm font-medium flex items-center ${activeTab === 'company' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
-              >
-                <FaBuilding className="mr-2" /> Company
-              </button>
-              <button
-                onClick={() => setActiveTab('account')}
-                className={`px-4 py-2 text-sm font-medium flex items-center ${activeTab === 'account' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
-              >
-                <FaUser className="mr-2" /> Account
-              </button>
-            </div>
+    <div className="flex-1 overflow-auto bg-gray-50 rounded-none md:rounded-2xl shadow-sm">
+      <div className="px-4 sm:px-6 py-6 md:py-8">
+        {/* Header with tabs */}
+        <div className="flex flex-col space-y-4 md:space-y-0 md:flex-row justify-between items-start md:items-center mb-6 md:mb-8">
+          <div>
+            <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Settings</h1>
+            <p className="text-gray-500 mt-1 text-sm md:text-base">Manage your company and account preferences</p>
           </div>
+          
+          <div className="flex bg-gray-100 p-1 rounded-lg w-full md:w-auto">
+            <button
+              onClick={() => setActiveTab('company')}
+              className={`px-3 py-1 md:px-4 md:py-2 text-sm font-medium rounded-md transition-colors flex-1 md:flex-none ${
+                activeTab === 'company' 
+                  ? 'bg-white text-blue-600 shadow-sm' 
+                  : 'text-gray-600 hover:text-gray-800'
+              }`}
+            >
+              Company
+            </button>
+            <button
+              onClick={() => setActiveTab('account')}
+              className={`px-3 py-1 md:px-4 md:py-2 text-sm font-medium rounded-md transition-colors flex-1 md:flex-none ${
+                activeTab === 'account' 
+                  ? 'bg-white text-blue-600 shadow-sm' 
+                  : 'text-gray-600 hover:text-gray-800'
+              }`}
+            >
+              Account
+            </button>
+          </div>
+        </div>
 
-          <div className="space-y-6">
-            {/* Profile Image Section */}
-            <div className="flex flex-col sm:flex-row items-center gap-6">
-              <div className="relative">
-                <div className="w-24 h-24 rounded-full bg-gray-200 overflow-hidden border-4 border-white shadow-md relative">
+        <div className="bg-white rounded-lg md:rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+          {/* Profile Image Section */}
+          <div className="p-4 sm:p-6 border-b border-gray-100">
+            <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-6">
+              <div className="relative group">
+                <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-gradient-to-br from-blue-50 to-purple-50 overflow-hidden border-4 border-white shadow-lg relative">
                   <img 
                     src={profileImg}
                     alt="Company Logo"
@@ -156,218 +144,215 @@ const SettingsPage = () => {
                     }}
                   />
                   {isUploading && (
-                    <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
+                    <div className="absolute inset-0 bg-black bg-opacity-30 flex items-center justify-center">
+                      <div className="animate-spin rounded-full h-5 w-5 sm:h-6 sm:w-6 border-2 border-white border-t-transparent"></div>
                     </div>
                   )}
                 </div>
-                <label className="absolute -bottom-2 -right-2 bg-blue-500 hover:bg-blue-600 p-2 rounded-full cursor-pointer transition-colors shadow-lg">
-                  <FaUpload className="text-white text-sm" />
+                <label className="absolute -bottom-1 -right-1 sm:-bottom-2 sm:-right-2 bg-blue-500 hover:bg-blue-600 p-1.5 sm:p-2 rounded-full cursor-pointer transition-all shadow-md group-hover:scale-110">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 sm:h-4 sm:w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                  </svg>
                   <input 
                     type="file" 
                     accept="image/*" 
                     className="hidden" 
                     onChange={handleImageChange}
                     disabled={isUploading}
+                    aria-label="Upload company logo"
                   />
                 </label>
-                {errors.profileImg && (
-                  <span className="absolute -bottom-6 left-0 text-red-500 text-xs">{errors.profileImg}</span>
-                )}
               </div>
               <div className="text-center sm:text-left">
-                <div className="font-medium flex items-center justify-center sm:justify-start gap-2 text-gray-700">
-                  <FaUserEdit className="text-blue-500" /> 
-                  <span>Company Logo</span>
-                </div>
-                <div className="text-xl font-bold text-gray-800 mt-1">{formData.companyName}</div>
-                <p className="text-gray-500 text-sm mt-1">JPG, PNG or GIF (Max. 2MB)</p>
+                <h2 className="text-xl sm:text-2xl font-bold text-gray-900">{formData.companyName}</h2>
+                <p className="text-gray-500 mt-1 text-sm sm:text-base flex items-center justify-center sm:justify-start gap-1 sm:gap-2">
+                  <span>Click to change company logo</span>
+                </p>
+                {errors.profileImg && (
+                  <p className="text-red-500 text-xs sm:text-sm mt-1 sm:mt-2">{errors.profileImg}</p>
+                )}
               </div>
             </div>
-
-            {/* Settings Form */}
-            <form onSubmit={handleSubmit} className="space-y-6">
-              {/* Company Settings Tab */}
-              {activeTab === 'company' && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <label className=" text-gray-700 mb-2 font-medium flex items-center gap-2">
-                      <FaPhone className="text-blue-500" /> Phone Number
-                    </label>
-                    <div className="relative">
-                      <input
-                        type="text"
-                        name="phone"
-                        value={formData.phone}
-                        onChange={handleChange}
-                        placeholder="+92 300 1234567"
-                        className={`w-full px-4 py-3 border ${errors.phone ? 'border-red-400' : 'border-gray-300'} rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent`}
-                      />
-                      {errors.phone && (
-                        <span className="absolute left-0 text-red-500 text-xs mt-1">{errors.phone}</span>
-                      )}
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="  text-gray-700 mb-2 font-medium flex items-center gap-2">
-                      <MdDeveloperMode className="text-blue-500" /> Developed By
-                    </label>
-                    <input
-                      type="text"
-                      name="developBy"
-                      value={formData.developBy}
-                      onChange={handleChange}
-                      placeholder="Development Company"
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    />
-                  </div>
-
-                  <div className="md:col-span-2">
-                    <label className="  text-gray-700 mb-2 font-medium flex items-center gap-2">
-                      <FaEnvelope className="text-blue-500" /> Email Address
-                    </label>
-                    <div className="relative">
-                      <input
-                        type="email"
-                        name="email"
-                        value={formData.email}
-                        onChange={handleChange}
-                        placeholder="contact@company.com"
-                        className={`w-full px-4 py-3 border ${errors.email ? 'border-red-400' : 'border-gray-300'} rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent`}
-                      />
-                      {errors.email && (
-                        <span className="absolute left-0 text-red-500 text-xs mt-1">{errors.email}</span>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="md:col-span-2">
-                    <label className="  text-gray-700 mb-2 font-medium flex items-center gap-2">
-                      <FaMapMarkerAlt className="text-blue-500" /> Company Address
-                    </label>
-                    <textarea
-                      name="address"
-                      value={formData.address}
-                      onChange={handleChange}
-                      placeholder="123 Street, City, Country"
-                      rows="3"
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    />
-                  </div>
-                </div>
-              )}
-
-              {/* Account Settings Tab */}
-              {activeTab === 'account' && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <label className="  text-gray-700 mb-2 font-medium flex items-center gap-2">
-                      <FaUser className="text-blue-500" /> Username
-                    </label>
-                    <div className="relative">
-                      <input
-                        type="text"
-                        name="username"
-                        value={formData.username}
-                        onChange={handleChange}
-                        placeholder="Enter username"
-                        className={`w-full px-4 py-3 border ${errors.username ? 'border-red-400' : 'border-gray-300'} rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent`}
-                      />
-                      {errors.username && (
-                        <span className="absolute left-0 text-red-500 text-xs mt-1">{errors.username}</span>
-                      )}
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="  text-gray-700 mb-2 font-medium flex items-center gap-2">
-                      <FaLock className="text-blue-500" /> Password
-                    </label>
-                    <div className="relative">
-                      <input
-                        type={showPassword ? "text" : "password"}
-                        name="password"
-                        value={formData.password}
-                        onChange={handleChange}
-                        placeholder="Enter password"
-                        className={`w-full px-4 py-3 border ${errors.password ? 'border-red-400' : 'border-gray-300'} rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent pr-10`}
-                      />
-                      <button
-                        type="button"
-                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                        onClick={() => setShowPassword(!showPassword)}
-                      >
-                        {showPassword ? <FaEyeSlash /> : <FaEye />}
-                      </button>
-                      {errors.password && (
-                        <span className="absolute left-0 text-red-500 text-xs mt-1">{errors.password}</span>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="md:col-span-2">
-                    <label className="  text-gray-700 mb-2 font-medium flex items-center gap-2">
-                      <FaUserShield className="text-blue-500" /> User Role
-                    </label>
-                    <div className="relative">
-                      <select
-                        name="role"
-                        value={formData.role}
-                        onChange={handleChange}
-                        className={`w-full px-4 py-3 border ${errors.role ? 'border-red-400' : 'border-gray-300'} rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none bg-white`}
-                      >
-                        <option value="">Select User Role</option>
-                        <option value="admin">Administrator</option>
-                        <option value="manager">Manager</option>
-                        <option value="editor">Editor</option>
-                        <option value="viewer">Viewer</option>
-                      </select>
-                      <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
-                        <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
-                          <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z" />
-                        </svg>
-                      </div>
-                      {errors.role && (
-                        <span className="absolute left-0 text-red-500 text-xs mt-1">{errors.role}</span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Form Actions */}
-              <div className="flex flex-col sm:flex-row justify-between items-center pt-4 border-t border-gray-200">
-                <div className="mb-4 sm:mb-0">
-                  {success && (
-                    <div className="flex items-center gap-2 bg-green-50 text-green-700 px-4 py-2 rounded-lg">
-                      <FaCheckCircle className="text-green-500" />
-                      <span>Settings saved successfully!</span>
-                    </div>
-                  )}
-                </div>
-                <button 
-                  type="submit" 
-                  className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 flex items-center gap-2 transition-colors shadow-md hover:shadow-lg disabled:opacity-75"
-                  disabled={isUploading}
-                >
-                  {isUploading ? (
-                    <>
-                      <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                      </svg>
-                      Saving...
-                    </>
-                  ) : (
-                    <>
-                      <FaCheckCircle /> Save Changes
-                    </>
-                  )}
-                </button>
-              </div>
-            </form>
           </div>
+
+          {/* Settings Form */}
+          <form onSubmit={handleSubmit} className="divide-y divide-gray-100">
+            {/* Company Settings Tab */}
+            {activeTab === 'company' && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 p-4 sm:p-6">
+                <div className="space-y-1">
+                  <label className="text-sm font-medium text-gray-700">
+                    Phone Number
+                  </label>
+                  <input
+                    type="text"
+                    name="phone"
+                    value={formData.phone}
+                    onChange={handleChange}
+                    placeholder="+92 300 1234567"
+                    className={`w-full px-3 py-2 sm:px-4 sm:py-3 border ${errors.phone ? 'border-red-300' : 'border-gray-200'} rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all`}
+                  />
+                  {errors.phone && (
+                    <p className="text-red-500 text-xs mt-1">{errors.phone}</p>
+                  )}
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-sm font-medium text-gray-700">
+                    Developed By
+                  </label>
+                  <input
+                    type="text"
+                    name="developBy"
+                    value={formData.developBy}
+                    onChange={handleChange}
+                    placeholder="Development Company"
+                    className="w-full px-3 py-2 sm:px-4 sm:py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                  />
+                </div>
+
+                <div className="md:col-span-2 space-y-1">
+                  <label className="text-sm font-medium text-gray-700">
+                    Email Address
+                  </label>
+                  <input
+                    type="email"
+                    name="email"
+                    value={formData.email}
+                    onChange={handleChange}
+                    placeholder="contact@company.com"
+                    className={`w-full px-3 py-2 sm:px-4 sm:py-3 border ${errors.email ? 'border-red-300' : 'border-gray-200'} rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all`}
+                  />
+                  {errors.email && (
+                    <p className="text-red-500 text-xs mt-1">{errors.email}</p>
+                  )}
+                </div>
+
+                <div className="md:col-span-2 space-y-1">
+                  <label className="text-sm font-medium text-gray-700">
+                    Company Address
+                  </label>
+                  <textarea
+                    name="address"
+                    value={formData.address}
+                    onChange={handleChange}
+                    placeholder="123 Street, City, Country"
+                    rows="3"
+                    className="w-full px-3 py-2 sm:px-4 sm:py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Account Settings Tab */}
+            {activeTab === 'account' && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 p-4 sm:p-6">
+                <div className="space-y-1">
+                  <label className="text-sm font-medium text-gray-700">
+                    Username
+                  </label>
+                  <input
+                    type="text"
+                    name="username"
+                    value={formData.username}
+                    onChange={handleChange}
+                    placeholder="Enter username"
+                    className={`w-full px-3 py-2 sm:px-4 sm:py-3 border ${errors.username ? 'border-red-300' : 'border-gray-200'} rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all`}
+                  />
+                  {errors.username && (
+                    <p className="text-red-500 text-xs mt-1">{errors.username}</p>
+                  )}
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-sm font-medium text-gray-700">
+                    Password
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={showPassword ? "text" : "password"}
+                      name="password"
+                      value={formData.password}
+                      onChange={handleChange}
+                      placeholder="Enter password"
+                      className={`w-full px-3 py-2 sm:px-4 sm:py-3 border ${errors.password ? 'border-red-300' : 'border-gray-200'} rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent pr-10 transition-all`}
+                    />
+                    <button
+                      type="button"
+                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors text-sm"
+                      onClick={() => setShowPassword(!showPassword)}
+                    >
+                      {showPassword ? (
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+                        </svg>
+                      ) : (
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                        </svg>
+                      )}
+                    </button>
+                  </div>
+                  {errors.password && (
+                    <p className="text-red-500 text-xs mt-1">{errors.password}</p>
+                  )}
+                </div>
+
+                <div className="md:col-span-2 space-y-1">
+                  <label className="text-sm font-medium text-gray-700">
+                    User Role
+                  </label>
+                  <select
+                    name="role"
+                    value={formData.role}
+                    onChange={handleChange}
+                    className={`w-full px-3 py-2 sm:px-4 sm:py-3 border ${errors.role ? 'border-red-300' : 'border-gray-200'} rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all appearance-none bg-white`}
+                  >
+                    <option value="">Select User Role</option>
+                    <option value="admin">Administrator</option>
+                    <option value="manager">Manager</option>
+                    <option value="editor">Editor</option>
+                    <option value="viewer">Viewer</option>
+                  </select>
+                  {errors.role && (
+                    <p className="text-red-500 text-xs mt-1">{errors.role}</p>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Form Actions */}
+            <div className="flex flex-col sm:flex-row justify-between items-center p-4 sm:p-6 bg-gray-50 space-y-3 sm:space-y-0">
+              <div className="w-full sm:w-auto">
+                {success && (
+                  <div className="flex items-center gap-2 bg-green-50 text-green-700 px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg animate-fade-in">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                    </svg>
+                    <span className="text-xs sm:text-sm">Settings saved successfully!</span>
+                  </div>
+                )}
+              </div>
+              <button 
+                type="submit" 
+                className="w-full sm:w-auto bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white px-4 py-2 sm:px-6 sm:py-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all shadow-md hover:shadow-lg disabled:opacity-75"
+                disabled={isUploading}
+              >
+                {isUploading ? (
+                  <span className="flex items-center justify-center">
+                    <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Saving...
+                  </span>
+                ) : (
+                  'Save Changes'
+                )}
+              </button>
+            </div>
+          </form>
         </div>
       </div>
     </div>
