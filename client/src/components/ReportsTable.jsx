@@ -1,8 +1,10 @@
-import React, { useState } from 'react';
-import { Search, Filter, FileDown, Ellipsis } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
+import { Search, Filter, FileDown, Ellipsis, Edit, Trash2, Printer, Download, Copy } from 'lucide-react';
 
 const REPORT_TABS = ['All', 'Pending', 'Being Prepared', 'On The Way', 'Delivered', 'Cancelled'];
 const ITEMS_PER_PAGE = 4;
+const ROW_HEIGHT = 64; // Approximate height of each row in pixels
+const TABLE_HEADER_HEIGHT = 48; // Approximate height of table header in pixels
 
 const ReportsTable = ({ reports: initialReports, activeTab, setActiveTab, onCreateReport }) => {
   const [selectedRows, setSelectedRows] = useState([]);
@@ -10,12 +12,25 @@ const ReportsTable = ({ reports: initialReports, activeTab, setActiveTab, onCrea
   const [searchTerm, setSearchTerm] = useState('');
   const [showFilters, setShowFilters] = useState(false);
   const [filters, setFilters] = useState({
-    customer: '', // Use 'customer' as the filter key
+    customer: '',
     minPrice: '',
     maxPrice: '',
     dateFrom: '',
     dateTo: ''
   });
+  const [activeDropdown, setActiveDropdown] = useState(null);
+  const dropdownRefs = useRef([]);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRefs.current.every(ref => !ref?.contains(event.target))) {
+        setActiveDropdown(null);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const getStatusClass = (status) => {
     switch(status) {
@@ -27,9 +42,6 @@ const ReportsTable = ({ reports: initialReports, activeTab, setActiveTab, onCrea
       default: return 'bg-gray-100 text-gray-800';
     }
   };
-
-  // Get unique customer names for dropdown
-  // const customerOptions = [...new Set(initialReports.map(report => report.customer))];
 
   // Filtering logic
   const filteredReports = initialReports
@@ -55,6 +67,7 @@ const ReportsTable = ({ reports: initialReports, activeTab, setActiveTab, onCrea
   const totalPages = Math.ceil(filteredReports.length / ITEMS_PER_PAGE);
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
   const visibleReports = filteredReports.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+  const tableHeight = TABLE_HEADER_HEIGHT + (Math.min(visibleReports.length, ITEMS_PER_PAGE) * ROW_HEIGHT);
 
   const toggleSelectAll = () => {
     if (selectedRows.length === visibleReports.length) {
@@ -95,6 +108,36 @@ const ReportsTable = ({ reports: initialReports, activeTab, setActiveTab, onCrea
     });
     setSearchTerm('');
     setActiveTab('All');
+  };
+
+  const toggleDropdown = (dropdownKey, e) => {
+    e.stopPropagation();
+    setActiveDropdown(activeDropdown === dropdownKey ? null : dropdownKey);
+  };
+
+  const handleAction = (action, report) => {
+    setActiveDropdown(null);
+    switch (action) {
+      case 'edit':
+        alert(`Editing report: ${report.id}`);
+        break;
+      case 'delete':
+        if (window.confirm(`Are you sure you want to delete report ${report.id}?`)) {
+          alert(`Report ${report.id} deleted`);
+        }
+        break;
+      case 'print':
+        alert(`Printing report: ${report.id}`);
+        break;
+      case 'download':
+        alert(`Downloading report: ${report.id}`);
+        break;
+      case 'duplicate':
+        alert(`Duplicating report: ${report.id}`);
+        break;
+      default:
+        break;
+    }
   };
 
   return (
@@ -146,66 +189,64 @@ const ReportsTable = ({ reports: initialReports, activeTab, setActiveTab, onCrea
 
       {/* Filter Panel */}
       {showFilters && (
-        <div className="mb-4 p-4 border rounded-lg bg-gray-50">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">Customer</label>
-              <input
-                type="text"
-                name="customer"
-                className="w-full p-2 border rounded-md text-xs"
-                value={filters.customer}
-                onChange={handleFilterChange}
-                placeholder="Filter by customer name"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">Min Price</label>
-              <input
-                type="number"
-                name="minPrice"
-                value={filters.minPrice}
-                onChange={handleFilterChange}
-                className="w-full p-2 border rounded-md text-xs"
-                placeholder="Minimum price"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">Max Price</label>
-              <input
-                type="number"
-                name="maxPrice"
-                value={filters.maxPrice}
-                onChange={handleFilterChange}
-                className="w-full p-2 border rounded-md text-xs"
-                placeholder="Maximum price"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">From Date</label>
-              <input
-                type="date"
-                name="dateFrom"
-                value={filters.dateFrom}
-                onChange={handleFilterChange}
-                className="w-full p-2 border rounded-md text-xs"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">To Date</label>
-              <input
-                type="date"
-                name="dateTo"
-                value={filters.dateTo}
-                onChange={handleFilterChange}
-                className="w-full p-2 border rounded-md text-xs"
-              />
-            </div>
+        <div className="bg-gray-50 p-4 rounded-lg mb-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+          <div>
+            <label className="block text-xs font-medium text-gray-700 mb-1">Customer</label>
+            <input
+              type="text"
+              name="customer"
+              className="w-full p-2 border rounded-md text-xs"
+              value={filters.customer}
+              onChange={handleFilterChange}
+              placeholder="Filter by customer name"
+            />
           </div>
-          <div className="flex justify-end mt-3 gap-2">
+          <div>
+            <label className="block text-xs font-medium text-gray-700 mb-1">Min Price</label>
+            <input
+              type="number"
+              name="minPrice"
+              value={filters.minPrice}
+              onChange={handleFilterChange}
+              className="w-full p-2 border rounded-md text-xs"
+              placeholder="Minimum price"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-700 mb-1">Max Price</label>
+            <input
+              type="number"
+              name="maxPrice"
+              value={filters.maxPrice}
+              onChange={handleFilterChange}
+              className="w-full p-2 border rounded-md text-xs"
+              placeholder="Maximum price"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-700 mb-1">From Date</label>
+            <input
+              type="date"
+              name="dateFrom"
+              value={filters.dateFrom}
+              onChange={handleFilterChange}
+              className="w-full p-2 border rounded-md text-xs"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-700 mb-1">To Date</label>
+            <input
+              type="date"
+              name="dateTo"
+              value={filters.dateTo}
+              onChange={handleFilterChange}
+              className="w-full p-2 border rounded-md text-xs"
+            />
+          </div>
+          <div className="md:col-span-5 flex justify-end gap-2">
             <button 
               onClick={resetFilters}
-              className="px-3 py-1 text-xs bg-white border rounded-md hover:bg-gray-100"
+              className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 text-sm"
             >
               Reset Filters
             </button>
@@ -235,75 +276,134 @@ const ReportsTable = ({ reports: initialReports, activeTab, setActiveTab, onCrea
         </div>
       </div>
       
-      {/* Table */}
+      {/* Table with fixed height */}
       <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead>
-            <tr className="text-center text-xs sm:text-sm font-normal text-black">
-              <th className="pb-3 px-2 whitespace-nowrap">
-                <input
-                  type="checkbox"
-                  checked={
-                    visibleReports.length > 0 &&
-                    selectedRows.length === visibleReports.length
-                  }
-                  onChange={toggleSelectAll}
-                  className="rounded text-blue-500 focus:ring-blue-500"
-                />
-              </th>
-              <th className="pb-3 px-2 whitespace-nowrap">Order ID</th>
-              <th className="pb-3 px-2 whitespace-nowrap">Date</th>
-              <th className="pb-3 px-2 whitespace-nowrap">Customer</th>
-              <th className="pb-3 px-2 whitespace-nowrap">Price</th>
-              <th className="pb-3 px-2 whitespace-nowrap">Status</th>
-              <th className="pb-3 px-2 whitespace-nowrap">Action</th>
-            </tr>
-          </thead>
-          <tbody className="text-center divide-y divide-gray-100">
-            {visibleReports.length === 0 ? (
-              <tr>
-                <td colSpan="7" className="py-4 text-center text-sm text-gray-500">
-                  No reports found matching your criteria
-                </td>
+        <div className="relative min-w-full min-h-[350px]">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="sticky top-0 bg-white z-10">
+              <tr className="text-center text-xs sm:text-sm font-normal text-black">
+                <th className="pb-3 px-2 whitespace-nowrap">
+                  <input
+                    type="checkbox"
+                    checked={
+                      visibleReports.length > 0 &&
+                      selectedRows.length === visibleReports.length
+                    }
+                    onChange={toggleSelectAll}
+                    className="rounded text-blue-500 focus:ring-blue-500"
+                  />
+                </th>
+                <th className="pb-3 px-2 whitespace-nowrap">Order ID</th>
+                <th className="pb-3 px-2 whitespace-nowrap">Date</th>
+                <th className="pb-3 px-2 whitespace-nowrap">Customer</th>
+                <th className="pb-3 px-2 whitespace-nowrap">Price</th>
+                <th className="pb-3 px-2 whitespace-nowrap">Status</th>
+                <th className="pb-3 px-2 whitespace-nowrap">Action</th>
               </tr>
-            ) : (
-              visibleReports.map((report) => (
-                <tr key={report.id} className="hover:bg-gray-50">
-                  <td className="px-4 py-4 whitespace-nowrap">
-                    <input
-                      type="checkbox"
-                      checked={selectedRows.includes(report.id)}
-                      onChange={() => toggleSelectRow(report.id)}
-                      className="rounded text-blue-500 focus:ring-blue-500"
-                    />
-                  </td>
-                  <td className="px-4 py-4 text-sm font-medium text-gray-900 whitespace-nowrap">
-                    {report.id}
-                  </td>
-                  <td className="px-4 py-4 text-sm text-gray-500 whitespace-nowrap">
-                    {report.date}
-                  </td>
-                  <td className="px-4 py-4 text-sm text-gray-500 whitespace-nowrap">
-                    {report.customer}
-                  </td>
-                  <td className="px-4 py-4 text-sm font-medium text-gray-900 whitespace-nowrap">
-                    PKR {Number(report.price).toLocaleString()}
-                  </td>
-                  <td className="px-4 py-4 text-sm whitespace-nowrap">
-                    <span className={`px-2 py-1 inline-flex text-xs font-semibold rounded-full ${getStatusClass(report.status)}`}>
-                      {report.status}
-                    </span>
-                  </td>
-                  <td className="px-4 py-4 text-sm whitespace-nowrap">
-                    <button className="text-gray-400 hover:text-gray-600">
-                      <Ellipsis className="h-5 w-5" />
-                    </button>
+            </thead>
+            <tbody className="text-center divide-y divide-gray-100">
+              {visibleReports.length === 0 ? (
+                <tr>
+                  <td colSpan="7" className="py-4 text-center text-sm text-gray-500">
+                    No reports found matching your criteria
                   </td>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+              ) : (
+                visibleReports.map((report, index) => {
+                  const dropdownKey = report.id + '-' + index;
+                  return (
+                    <tr key={dropdownKey} className="hover:bg-gray-50">
+                      <td className="px-4 py-4 whitespace-nowrap">
+                        <input
+                          type="checkbox"
+                          checked={selectedRows.includes(report.id)}
+                          onChange={() => toggleSelectRow(report.id)}
+                          className="rounded text-blue-500 focus:ring-blue-500"
+                        />
+                      </td>
+                      <td className="px-4 py-4 text-sm font-medium text-gray-900 whitespace-nowrap">
+                        {report.id}
+                      </td>
+                      <td className="px-4 py-4 text-sm text-gray-500 whitespace-nowrap">
+                        {report.date}
+                      </td>
+                      <td className="px-4 py-4 text-sm text-gray-500 whitespace-nowrap">
+                        {report.customer}
+                      </td>
+                      <td className="px-4 py-4 text-sm font-medium text-gray-900 whitespace-nowrap">
+                        PKR {Number(report.price).toLocaleString()}
+                      </td>
+                      <td className="px-4 py-4 text-sm whitespace-nowrap">
+                        <span className={`px-2 py-1 inline-flex text-xs font-semibold rounded-full ${getStatusClass(report.status)}`}>
+                          {report.status}
+                        </span>
+                      </td>
+                      <td className="px-4 py-4 text-sm whitespace-nowrap relative">
+                        <div className="flex justify-center">
+                          <button
+                            className="text-gray-400 hover:text-gray-600"
+                            onClick={(e) => toggleDropdown(dropdownKey, e)}
+                          >
+                            <Ellipsis className="h-5 w-5" />
+                          </button>
+                          {activeDropdown === dropdownKey && (
+                            <div
+                              ref={el => dropdownRefs.current[index] = el}
+                              className="absolute right-0 z-50 mt-2 w-48 bg-white rounded-md shadow-lg border border-gray-200"
+                              style={{
+                                top: '100%',
+                                maxHeight: '200px',
+                                overflowY: 'auto'
+                              }}
+                            >
+                              <div className="py-1">
+                                <button
+                                  onClick={() => handleAction('edit', report)}
+                                  className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left"
+                                >
+                                  <Edit className="w-4 h-4 mr-2" />
+                                  Edit
+                                </button>
+                                <button
+                                  onClick={() => handleAction('delete', report)}
+                                  className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left"
+                                >
+                                  <Trash2 className="w-4 h-4 mr-2" />
+                                  Delete
+                                </button>
+                                <button
+                                  onClick={() => handleAction('print', report)}
+                                  className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left"
+                                >
+                                  <Printer className="w-4 h-4 mr-2" />
+                                  Print
+                                </button>
+                                <button
+                                  onClick={() => handleAction('download', report)}
+                                  className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left"
+                                >
+                                  <Download className="w-4 h-4 mr-2" />
+                                  Download
+                                </button>
+                                <button
+                                  onClick={() => handleAction('duplicate', report)}
+                                  className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left"
+                                >
+                                  <Copy className="w-4 h-4 mr-2" />
+                                  Duplicate
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       {/* Pagination */}
@@ -354,7 +454,6 @@ const reports = [
   { id: '813789', date: 'Feb 08, 2022', customer: 'Ahmed Textiles', price: '90000', status: 'Cancelled' },
   { id: '813789', date: 'Feb 08, 2022', customer: 'Ahmed Textiles', price: '90000', status: 'Delivered' },
   { id: '813789', date: 'Feb 08, 2022', customer: 'Zainab Cloth House', price: '90000', status: 'On the way' },
-
 ];
 
 export default function App() {

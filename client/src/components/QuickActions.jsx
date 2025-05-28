@@ -15,13 +15,16 @@ const QuickActions = () => {
       action: () => console.log('Inventory clicked')
     },
     {
-      icon: BarChart3,
-      label: 'Reports',
-      description: 'View business analytics and insights',
-      color: 'bg-blue-100 text-blue-600',
-      hoverColor: 'hover:bg-blue-50',
-      action: () => console.log('Reports clicked')
-    },
+  icon: BarChart3,
+  label: 'Reports',
+  description: 'View business analytics and insights',
+  color: 'bg-blue-100 text-blue-600',
+  hoverColor: 'hover:bg-blue-50',
+  action: () => {
+    console.log('Reports clicked');
+    window.location.href = '/Report'; // or use navigation if using React Router
+  }
+},
     {
       icon: CreditCard,
       label: 'Accounts',

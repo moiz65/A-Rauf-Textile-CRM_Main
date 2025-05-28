@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Search, Filter, FileDown, Ellipsis } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
+import { Search, Filter, FileDown, Ellipsis, Edit, Trash2, Printer, Download, Copy } from 'lucide-react';
 
 const customersData = [
   {
@@ -49,6 +49,8 @@ const customersData = [
 ];
 
 const ITEMS_PER_PAGE = 4;
+const ROW_HEIGHT = 64;
+const TABLE_HEADER_HEIGHT = 48;
 
 const CustomersTable = () => {
   const [selectedRows, setSelectedRows] = useState([]);
@@ -65,8 +67,21 @@ const CustomersTable = () => {
     address: ''
   });
   const [showFilters, setShowFilters] = useState(false);
+  const [activeDropdown, setActiveDropdown] = useState(null);
+  const dropdownRef = useRef(null);
 
   const customerCategories = ['All', 'Dying', 'Weaving', 'Stitching'];
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setActiveDropdown(null);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const filteredCustomers = customersData
     .filter(customer =>
@@ -143,6 +158,36 @@ const CustomersTable = () => {
     setActiveTab('All');
   };
 
+  const toggleDropdown = (customerId, e) => {
+    e.stopPropagation();
+    setActiveDropdown(activeDropdown === customerId ? null : customerId);
+  };
+
+  const handleAction = (action, customer) => {
+    setActiveDropdown(null);
+    switch (action) {
+      case 'edit':
+        alert(`Editing customer: ${customer.name}`);
+        break;
+      case 'delete':
+        if (window.confirm(`Are you sure you want to delete customer ${customer.name}?`)) {
+          alert(`Customer ${customer.name} deleted`);
+        }
+        break;
+      case 'print':
+        alert(`Printing customer: ${customer.name}`);
+        break;
+      case 'download':
+        alert(`Downloading customer: ${customer.name}`);
+        break;
+      case 'duplicate':
+        alert(`Duplicating customer: ${customer.name}`);
+        break;
+      default:
+        break;
+    }
+  };
+
   return (
     <div className="bg-white rounded-xl sm:rounded-[30px] shadow-sm border border-gray-100 p-4 sm:p-5">
       {/* Header Section */}
@@ -184,8 +229,8 @@ const CustomersTable = () => {
           </div>
         </div>
       </div>
-      
-      {/* Filter Panel - Positioned right below the header */}
+
+      {/* Filter Panel */}
       {showFilters && (
         <div className="bg-gray-50 p-4 rounded-lg mb-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
           <div>
@@ -282,8 +327,8 @@ const CustomersTable = () => {
             <button
               key={category}
               className={`px-3 py-2 text-xs sm:text-sm font-medium whitespace-nowrap border-b-2 ${
-                activeTab === category 
-                  ? 'border-blue-500 text-blue-600' 
+                activeTab === category
+                  ? 'border-blue-500 text-blue-600'
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
               }`}
               onClick={() => {
@@ -297,87 +342,139 @@ const CustomersTable = () => {
         </div>
       </div>
       
-      {/* Table */}
+      {/* Table with fixed height */}
       <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead>
-            <tr className="text-center text-xs sm:text-sm font-normal text-black">
-              <th className="pb-3 px-2 whitespace-nowrap">
-                <input
-                  type="checkbox"
-                  checked={
-                    visibleCustomers.length > 0 &&
-                    selectedRows.length === visibleCustomers.length
-                  }
-                  onChange={toggleSelectAll}
-                  className="rounded text-blue-500 focus:ring-blue-500"
-                />
-              </th>
-              <th className="pb-3 px-2 whitespace-nowrap">Customer</th>
-              <th className="pb-3 px-2 whitespace-nowrap">Date</th>
-              <th className="pb-3 px-2 whitespace-nowrap hidden sm:table-cell">Phone</th>
-              <th className="pb-3 px-2 whitespace-nowrap">Price</th>
-              <th className="pb-3 px-2 whitespace-nowrap">Category</th>
-              <th className="pb-3 px-2 whitespace-nowrap hidden md:table-cell">Address</th>
-              <th className="pb-3 px-2 whitespace-nowrap hidden lg:table-cell">Email</th>
-              <th className="pb-3 px-2 whitespace-nowrap hidden xl:table-cell">Start Date</th>
-              <th className="pb-3 px-2 whitespace-nowrap">Action</th>
-            </tr>
-          </thead>
-          <tbody className="text-center divide-y divide-gray-100">
-            {filteredCustomers.length === 0 ? (
-              <tr>
-                <td colSpan="10" className="py-4 text-center text-sm text-gray-500">
-                  No customers found
-                </td>
+        <div className="relative min-w-full">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="sticky top-0 bg-white z-10">
+              <tr className="text-center text-xs sm:text-sm font-normal text-black">
+                <th className="pb-3 px-2 whitespace-nowrap">
+                  <input
+                    type="checkbox"
+                    checked={
+                      visibleCustomers.length > 0 &&
+                      selectedRows.length === visibleCustomers.length
+                    }
+                    onChange={toggleSelectAll}
+                    className="rounded text-blue-500 focus:ring-blue-500"
+                  />
+                </th>
+                <th className="pb-3 px-2 whitespace-nowrap">Customer</th>
+                <th className="pb-3 px-2 whitespace-nowrap">Date</th>
+                <th className="pb-3 px-2 whitespace-nowrap hidden sm:table-cell">Phone</th>
+                <th className="pb-3 px-2 whitespace-nowrap">Price</th>
+                <th className="pb-3 px-2 whitespace-nowrap">Category</th>
+                <th className="pb-3 px-2 whitespace-nowrap hidden md:table-cell">Address</th>
+                <th className="pb-3 px-2 whitespace-nowrap hidden lg:table-cell">Email</th>
+                <th className="pb-3 px-2 whitespace-nowrap hidden xl:table-cell">Start Date</th>
+                <th className="pb-3 px-2 whitespace-nowrap">Action</th>
               </tr>
-            ) : (
-              filteredCustomers.map((customer) => (
-                <tr key={customer.id} className="hover:bg-gray-50">
-                  <td className="px-4 py-4 whitespace-nowrap">
-                    <input
-                      type="checkbox"
-                      checked={selectedRows.includes(customer.id)}
-                      onChange={() => toggleSelectRow(customer.id)}
-                      className="rounded text-blue-500 focus:ring-blue-500"
-                    />
-                  </td>
-                  <td className="px-4 py-4 text-sm font-medium text-gray-900 whitespace-nowrap">
-                    {customer.name}
-                  </td>
-                  <td className="px-4 py-4 text-sm text-gray-500 whitespace-nowrap">
-                    {customer.date}
-                  </td>
-                  <td className="px-4 py-4 text-sm text-gray-500 whitespace-nowrap hidden sm:table-cell">
-                    {customer.phoneNumber}
-                  </td>
-                  <td className="px-4 py-4 text-sm font-medium text-gray-900 whitespace-nowrap">
-                    PKR {customer.price.toLocaleString()}
-                  </td>
-                  <td className="px-4 py-4 text-sm whitespace-nowrap">
-                    <span className={`px-2 py-1 inline-flex text-xs font-semibold rounded-full ${getCategoryClass(customer.category)}`}>
-                      {customer.category}
-                    </span>
-                  </td>
-                  <td className="px-4 py-4 text-sm text-gray-500 whitespace-nowrap hidden md:table-cell">
-                    {customer.address}
-                  </td>
-                  <td className="px-4 py-4 text-sm text-gray-500 whitespace-nowrap hidden lg:table-cell">
-                    {customer.email}
-                  </td>
-                  <td className="px-4 py-4 text-sm text-gray-500 whitespace-nowrap hidden xl:table-cell">
-                    {customer.startDate}
-                  </td>
-                  <td className="px-4 py-4 text-sm whitespace-nowrap">
-                    <button className="text-gray-400 hover:text-gray-600">
-                      <Ellipsis className="h-5 w-5" />
-                    </button>
+            </thead>
+            <tbody className="text-center divide-y divide-gray-100">
+              {filteredCustomers.length === 0 ? (
+                <tr>
+                  <td colSpan="10" className="py-4 text-center text-sm text-gray-500">
+                    No customers found
                   </td>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+              ) : (
+                visibleCustomers.map((customer) => (
+                  <tr key={customer.id} className="hover:bg-gray-50">
+                    <td className="px-4 py-4 whitespace-nowrap">
+                      <input
+                        type="checkbox"
+                        checked={selectedRows.includes(customer.id)}
+                        onChange={() => toggleSelectRow(customer.id)}
+                        className="rounded text-blue-500 focus:ring-blue-500"
+                      />
+                    </td>
+                    <td className="px-4 py-4 text-sm font-medium text-gray-900 whitespace-nowrap">
+                      {customer.name}
+                    </td>
+                    <td className="px-4 py-4 text-sm text-gray-500 whitespace-nowrap">
+                      {customer.date}
+                    </td>
+                    <td className="px-4 py-4 text-sm text-gray-500 whitespace-nowrap hidden sm:table-cell">
+                      {customer.phoneNumber}
+                    </td>
+                    <td className="px-4 py-4 text-sm font-medium text-gray-900 whitespace-nowrap">
+                      PKR {customer.price.toLocaleString()}
+                    </td>
+                    <td className="px-4 py-4 text-sm whitespace-nowrap">
+                      <span className={`px-2 py-1 inline-flex text-xs font-semibold rounded-full ${getCategoryClass(customer.category)}`}>
+                        {customer.category}
+                      </span>
+                    </td>
+                    <td className="px-4 py-4 text-sm text-gray-500 whitespace-nowrap hidden md:table-cell">
+                      {customer.address}
+                    </td>
+                    <td className="px-4 py-4 text-sm text-gray-500 whitespace-nowrap hidden lg:table-cell">
+                      {customer.email}
+                    </td>
+                    <td className="px-4 py-4 text-sm text-gray-500 whitespace-nowrap hidden xl:table-cell">
+                      {customer.startDate}
+                    </td>
+                    <td className="px-4 py-4 text-sm whitespace-nowrap relative">
+                      <div className="flex justify-center">
+                        <button
+                          className="text-gray-400 hover:text-gray-600"
+                          onClick={(e) => toggleDropdown(customer.id, e)}
+                        >
+                          <Ellipsis className="h-5 w-5" />
+                        </button>
+                        
+                        {activeDropdown === customer.id && (
+                          <div
+                            ref={dropdownRef}
+                            className="absolute right-0 z-50 mt-2 w-48 bg-white rounded-md shadow-lg border border-gray-200"
+                          >
+                            <div className="py-1">
+                              <button
+                                onClick={() => handleAction('edit', customer)}
+                                className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left"
+                              >
+                                <Edit className="w-4 h-4 mr-2" />
+                                Edit
+                              </button>
+                              <button
+                                onClick={() => handleAction('delete', customer)}
+                                className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left"
+                              >
+                                <Trash2 className="w-4 h-4 mr-2" />
+                                Delete
+                              </button>
+                              <button
+                                onClick={() => handleAction('print', customer)}
+                                className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left"
+                              >
+                                <Printer className="w-4 h-4 mr-2" />
+                                Print
+                              </button>
+                              <button
+                                onClick={() => handleAction('download', customer)}
+                                className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left"
+                              >
+                                <Download className="w-4 h-4 mr-2" />
+                                Download
+                              </button>
+                              <button
+                                onClick={() => handleAction('duplicate', customer)}
+                                className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left"
+                              >
+                                <Copy className="w-4 h-4 mr-2" />
+                                Duplicate
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       {/* Pagination */}

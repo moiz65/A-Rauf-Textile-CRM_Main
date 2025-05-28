@@ -193,11 +193,13 @@ const PaymentSummary = () => {
 
       {/* Footer */}
       <div className="mt-6 pt-4 border-t border-gray-100/50">
-        <button className="w-full py-2.5 px-4 bg-gray-50 hover:bg-gray-100 rounded-lg text-sm font-medium text-gray-700 flex items-center justify-center gap-2 transition-colors">
-          View full report
-          <ArrowUpRight className="w-4 h-4" />
-        </button>
-      </div>
+  <a href="/Report" className="block">
+    <button className="w-full py-2.5 px-4 bg-gray-50 hover:bg-gray-100 rounded-lg text-sm font-medium text-gray-700 flex items-center justify-center gap-2 transition-colors">
+      View full report
+      <ArrowUpRight className="w-4 h-4" />
+    </button>
+  </a>
+</div>
     </div>
   );
 };
