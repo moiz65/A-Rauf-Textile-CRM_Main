@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Search, Filter, FileDown, Ellipsis, Edit, Trash2, Printer, Download, Copy } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 const invoicesData = [
   {
@@ -185,12 +186,13 @@ const InvoiceTable = ({ onCreateInvoice }) => {
             />
           </div>
           <div className="flex gap-2">
-            <button
-              onClick={onCreateInvoice}
+            <Link
+              to="/invoiceform"
               className="bg-[#1976D2] text-white px-3 sm:px-4 py-1.5 sm:py-2 rounded-md text-xs sm:text-sm font-medium hover:bg-blue-600 transition-colors w-full sm:w-auto text-center"
             >
               Create Invoice
-            </button>
+            </Link>
+
             <button 
               className="flex items-center gap-1 bg-white border rounded-md px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm hover:bg-gray-50"
               onClick={() => setShowFilters(!showFilters)}
@@ -198,6 +200,7 @@ const InvoiceTable = ({ onCreateInvoice }) => {
               <Filter className="w-3 h-3 sm:w-4 sm:h-4" />
               <span className="hidden xs:inline">Filter</span>
             </button>
+
             <button className="flex items-center gap-1 bg-white border rounded-md px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm hover:bg-gray-50">
               <FileDown className="w-3 h-3 sm:w-4 sm:h-4" />
               <span className="hidden xs:inline">Export</span>

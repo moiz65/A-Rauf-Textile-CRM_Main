@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 
-const UNIT_WEIGHT = 10; // 1 unit = 10 kg (adjust as needed)
+const UNIT_WEIGHT = 10;
 
 const InvoiceForm = () => {
   const [formData, setFormData] = useState({
@@ -19,10 +19,13 @@ const InvoiceForm = () => {
     itemAmount: '',
     weight: '',
     totalAmount: '',
+    taxAmount: '', // <-- add this line
     billDate: '',
     paymentDeadline: '',
     note: ''
   });
+
+  const [calculationMode, setCalculationMode] = useState('auto'); // 'auto' or 'manual'
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -49,34 +52,73 @@ const InvoiceForm = () => {
     alert('Invoice sent successfully!');
   };
 
+  // Calculate total amount in both modes
   useEffect(() => {
-    const weight = parseFloat(formData.weight) || 0;
     const rate = parseFloat(formData.rate) || 0;
     const tax = parseFloat(formData.salesTax) || 0;
+    let baseAmount = 0;
 
-    const quantity = weight > 0 ? weight / UNIT_WEIGHT : 0;
-    const baseAmount = quantity * rate;
+    if (calculationMode === 'auto') {
+      const weight = parseFloat(formData.weight) || 0;
+      const quantity = weight > 0 ? weight / UNIT_WEIGHT : 0;
+      baseAmount = quantity * rate;
+      
+      setFormData(prev => ({
+        ...prev,
+        quantity: quantity.toFixed(2),
+        itemAmount: baseAmount.toFixed(2)
+      }));
+    } else {
+      baseAmount = parseFloat(formData.itemAmount) || 0;
+    }
+
     const taxAmount = baseAmount * (tax / 100);
     const total = baseAmount + taxAmount;
 
     setFormData(prev => ({
       ...prev,
-      quantity: quantity.toFixed(2),
-      itemAmount: baseAmount.toFixed(2),
+      taxAmount: taxAmount.toFixed(2), // <-- set taxAmount
       totalAmount: total.toFixed(2)
     }));
-  }, [formData.weight, formData.rate, formData.salesTax]);
+  }, [
+    formData.weight, 
+    formData.rate, 
+    formData.salesTax,
+    formData.itemAmount,
+    calculationMode
+  ]);
+
+  const toggleCalculationMode = () => {
+    const newMode = calculationMode === 'auto' ? 'manual' : 'auto';
+    setCalculationMode(newMode);
+    
+    // Reset relevant fields when switching modes
+    if (newMode === 'manual') {
+      setFormData(prev => ({
+        ...prev,
+        quantity: '',
+        itemAmount: ''
+      }));
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        weight: '',
+        quantity: '',
+        itemAmount: ''
+      }));
+    }
+  };
 
   return (
-    <div className="min-h-screen bg-gray-100 py-10 px-4 sm:px-8">
-      <div className="max-w-5xl mx-auto bg-white shadow-xl rounded-xl p-6 sm:p-10">
-        <h1 className="text-3xl font-semibold text-center text-blue-700 mb-10">Invoice Form</h1>
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 py-10 px-4 sm:px-8">
+      <div className="max-w-5xl mx-auto bg-white rounded-3xl shadow-2xl p-8 sm:p-12 transition-all duration-300">
+        <h1 className="text-4xl font-bold text-center text-blue-800 mb-12 tracking-tight">Create Invoice</h1>
 
-        <form onSubmit={handleSubmit} className="space-y-8">
+        <form onSubmit={handleSubmit} className="space-y-12">
           
           {/* Customer Information */}
           <section>
-            <h2 className="text-xl font-semibold text-gray-800 mb-4 border-b pb-2">Customer Details</h2>
+            <h2 className="text-2xl font-semibold text-gray-800 mb-6 border-b pb-3">Customer Details</h2>
             <div className="grid sm:grid-cols-2 gap-6">
               <Input label="Customer Name *" name="customerName" value={formData.customerName} onChange={handleChange} required />
               <Input label="Customer Email *" type="email" name="customerEmail" value={formData.customerEmail} onChange={handleChange} required />
@@ -90,19 +132,67 @@ const InvoiceForm = () => {
 
           {/* Item Details */}
           <section>
-            <h2 className="text-xl font-semibold text-gray-800 mb-4 border-b pb-2">Item Details</h2>
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-2xl font-semibold text-gray-800 border-b pb-3">Item Details</h2>
+              <button
+                type="button"
+                onClick={toggleCalculationMode}
+                className="text-sm bg-blue-100 hover:bg-blue-200 text-blue-800 px-4 py-2 rounded-lg transition"
+              >
+                {calculationMode === 'auto' ? 'Switch to Manual Entry' : 'Switch to Auto Calculation'}
+              </button>
+            </div>
+            
             <div className="grid sm:grid-cols-2 gap-6">
               <Input label="Item Name" name="itemName" value={formData.itemName} onChange={handleChange} />
               
-              <Input label="Weight (KG)" type="number" name="weight" value={formData.weight} onChange={handleChange} />
-
-              <Input label="Quantity (Auto)" type="number" name="quantity" value={formData.quantity} onChange={handleChange} />
-
+              {calculationMode === 'auto' ? (
+                <>
+                  <Input 
+                    label="Weight (KG) *" 
+                    type="number" 
+                    name="weight" 
+                    value={formData.weight} 
+                    onChange={handleChange}
+                    step="0.01"
+                    min="0"
+                  />
+                  <Input 
+                    label="Quantity (Auto)" 
+                    type="number" 
+                    name="quantity" 
+                    value={formData.quantity} 
+                    readOnly
+                  />
+                </>
+              ) : (
+                <>
+                  <Input 
+                    label="Quantity *" 
+                    type="number" 
+                    name="quantity" 
+                    value={formData.quantity} 
+                    onChange={handleChange}
+                    step="0.01"
+                    min="0"
+                  />
+                  <Input 
+                    label="Item Amount *" 
+                    type="number" 
+                    name="itemAmount" 
+                    value={formData.itemAmount} 
+                    onChange={handleChange}
+                    step="0.01"
+                    min="0"
+                  />
+                </>
+              )}
+              
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Rate</label>
-                <div className="flex">
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Rate *</label>
+                <div className="flex rounded-lg overflow-hidden shadow-sm bg-white border border-gray-300">
                   <select
-                    className="bg-gray-50 border border-gray-300 rounded-md p-2 text-sm w-24"
+                    className="bg-gray-100 px-3 text-sm text-gray-700 outline-none border-r border-gray-300"
                     value={formData.currency}
                     onChange={handleCurrencyChange}
                   >
@@ -117,42 +207,87 @@ const InvoiceForm = () => {
                     placeholder="0.00"
                     value={formData.rate}
                     onChange={handleChange}
-                    className="flex-1 ml-2 p-2 border border-gray-300 rounded-md bg-gray-50 text-sm"
+                    className="flex-1 px-4 py-2 text-sm bg-white outline-none"
+                    step="0.01"
+                    min="0"
+                    required
                   />
                 </div>
               </div>
 
-              <Input label="Sales Tax (%)" type="number" name="salesTax" value={formData.salesTax} onChange={handleChange} />
-              <Input label="Item Amount" type="number" name="itemAmount" value={formData.itemAmount} readOnly />
-              <Input label="Total Amount" type="number" name="totalAmount" value={formData.totalAmount} readOnly />
+              <Input 
+                label="Sales Tax (%) *" 
+                type="number" 
+                name="salesTax" 
+                value={formData.salesTax} 
+                onChange={handleChange}
+                step="0.01"
+                min="0"
+                required
+              />
+              
+              {calculationMode === 'auto' ? (
+                <Input 
+                  label="Item Amount (Auto)" 
+                  type="number" 
+                  name="itemAmount" 
+                  value={formData.itemAmount} 
+                  readOnly 
+                />
+              ) : null}
+              
+              <Input 
+                label="Tax Amount" 
+                type="number" 
+                name="taxAmount" 
+                value={formData.taxAmount} 
+                readOnly
+                className="bg-blue-50 border-blue-200 font-medium"
+              />
+              
+              <Input 
+                label="Total Amount" 
+                type="number" 
+                name="totalAmount" 
+                value={formData.totalAmount} 
+                readOnly
+                className="bg-blue-50 border-blue-200 font-medium"
+              />
             </div>
           </section>
 
           {/* Dates and Note */}
           <section>
-            <h2 className="text-xl font-semibold text-gray-800 mb-4 border-b pb-2">Invoice Info</h2>
+            <h2 className="text-2xl font-semibold text-gray-800 mb-6 border-b pb-3">Invoice Info</h2>
             <div className="grid sm:grid-cols-2 gap-6">
               <Input label="Bill Date" type="date" name="billDate" value={formData.billDate} onChange={handleChange} />
               <Input label="Payment Deadline" type="date" name="paymentDeadline" value={formData.paymentDeadline} onChange={handleChange} />
             </div>
             <div className="mt-6">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Note</label>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">Note</label>
               <textarea
                 name="note"
-                rows={4}
+                rows={5}
                 value={formData.note}
                 onChange={handleChange}
-                className="w-full border border-gray-300 rounded-md p-3 bg-gray-50 text-sm"
-                placeholder="This is a custom message for the customer."
+                className="w-full border border-gray-300 rounded-xl p-3 bg-white shadow-sm focus:ring-2 focus:ring-blue-200 outline-none transition"
+                placeholder="Enter a message for the customer..."
               ></textarea>
             </div>
           </section>
 
           {/* Submit */}
-          <div className="text-center">
+          <div className="text-center mt-10 flex flex-col sm:flex-row justify-center gap-4">
+            <button
+              type="button"
+              className="bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold px-10 py-3 rounded-xl shadow-lg transition duration-300"
+              onClick={() => window.history.back()}
+            >
+              Back
+            </button>
             <button
               type="submit"
-              className="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-8 py-3 rounded-md transition duration-300"
+              className="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-10 py-3 rounded-xl shadow-lg transition duration-300"
             >
               Send Invoice
             </button>
@@ -164,10 +299,13 @@ const InvoiceForm = () => {
   );
 };
 
-// ✅ Reusable Input Component
-const Input = ({ label, name, type = 'text', value, onChange, required = false, readOnly = false }) => (
-  <div>
-    <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
+// Reusable Input Component
+const Input = ({ label, name, type = 'text', value, onChange, required = false, readOnly = false, className = '', ...props }) => (
+  <div className={`flex flex-col ${className}`}>
+    <label className="text-sm font-semibold text-gray-700 mb-2">
+      {label}
+      {required && <span className="text-red-500 ml-1">*</span>}
+    </label>
     <input
       type={type}
       name={name}
@@ -175,7 +313,10 @@ const Input = ({ label, name, type = 'text', value, onChange, required = false, 
       onChange={onChange}
       required={required}
       readOnly={readOnly}
-      className="w-full border border-gray-300 rounded-md p-2 bg-gray-50 text-sm"
+      className={`rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-300 transition ${
+        readOnly ? 'bg-gray-50' : ''
+      }`}
+      {...props}
     />
   </div>
 );
