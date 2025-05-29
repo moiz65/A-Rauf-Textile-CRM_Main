@@ -34,8 +34,6 @@ const invoicesData = [
 
 const STATUS_TABS = ['All', 'Paid', 'Pending', 'Overdue'];
 const ITEMS_PER_PAGE = 4;
-const ROW_HEIGHT = 64; // Approximate height of each row in pixels
-const TABLE_HEADER_HEIGHT = 48; // Approximate height of table header in pixels
 
 const InvoiceTable = ({ onCreateInvoice }) => {
   const [selectedRows, setSelectedRows] = useState([]);
@@ -84,7 +82,6 @@ const InvoiceTable = ({ onCreateInvoice }) => {
   const totalPages = Math.ceil(filteredInvoices.length / ITEMS_PER_PAGE);
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
   const visibleInvoices = filteredInvoices.slice(startIndex, startIndex + ITEMS_PER_PAGE);
-  const tableHeight = TABLE_HEADER_HEIGHT + (Math.min(visibleInvoices.length, ITEMS_PER_PAGE) * ROW_HEIGHT);
 
   const toggleSelectAll = () => {
     if (selectedRows.length === visibleInvoices.length) {

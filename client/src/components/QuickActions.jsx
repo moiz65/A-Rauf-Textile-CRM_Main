@@ -24,7 +24,7 @@ const QuickActions = () => {
     console.log('Reports clicked');
     window.location.href = '/Report'; // or use navigation if using React Router
   }
-},
+  },
     {
       icon: CreditCard,
       label: 'Accounts',

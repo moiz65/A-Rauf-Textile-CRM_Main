@@ -21,7 +21,7 @@ const Header = ({ name: initialName }) => {
     }
 
     // Check for saved preferences
-    const savedFontSize = localStorage.getItem('fontSize') || 'medium';
+    const savedFontSize = localStorage.getItem('fontSize') || 'small';
     setFontSize(savedFontSize);
     applyFontSize(savedFontSize);
   }, []);

@@ -49,8 +49,6 @@ const customersData = [
 ];
 
 const ITEMS_PER_PAGE = 4;
-const ROW_HEIGHT = 64;
-const TABLE_HEADER_HEIGHT = 48;
 
 const CustomersTable = () => {
   const [selectedRows, setSelectedRows] = useState([]);

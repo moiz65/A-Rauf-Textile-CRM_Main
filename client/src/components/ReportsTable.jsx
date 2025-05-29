@@ -3,8 +3,6 @@ import { Search, Filter, FileDown, Ellipsis, Edit, Trash2, Printer, Download, Co
 
 const REPORT_TABS = ['All', 'Pending', 'Being Prepared', 'On The Way', 'Delivered', 'Cancelled'];
 const ITEMS_PER_PAGE = 4;
-const ROW_HEIGHT = 64; // Approximate height of each row in pixels
-const TABLE_HEADER_HEIGHT = 48; // Approximate height of table header in pixels
 
 const ReportsTable = ({ reports: initialReports, activeTab, setActiveTab, onCreateReport }) => {
   const [selectedRows, setSelectedRows] = useState([]);
@@ -67,7 +65,6 @@ const ReportsTable = ({ reports: initialReports, activeTab, setActiveTab, onCrea
   const totalPages = Math.ceil(filteredReports.length / ITEMS_PER_PAGE);
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
   const visibleReports = filteredReports.slice(startIndex, startIndex + ITEMS_PER_PAGE);
-  const tableHeight = TABLE_HEADER_HEIGHT + (Math.min(visibleReports.length, ITEMS_PER_PAGE) * ROW_HEIGHT);
 
   const toggleSelectAll = () => {
     if (selectedRows.length === visibleReports.length) {
