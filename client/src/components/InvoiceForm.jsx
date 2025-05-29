@@ -139,7 +139,7 @@ const InvoiceForm = () => {
               <label className="block text-sm font-medium text-gray-700 mb-1">Note</label>
               <textarea
                 name="note"
-                rows={4}
+                rows={6}
                 value={formData.note}
                 onChange={handleChange}
                 className="w-full border border-gray-300 rounded-md p-3 bg-gray-50 text-sm"
