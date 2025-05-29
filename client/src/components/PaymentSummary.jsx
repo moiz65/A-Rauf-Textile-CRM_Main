@@ -104,7 +104,7 @@ const PaymentSummary = () => {
           <div>
             <p className="text-sm text-gray-600">Current Balance</p>
             <div className="flex items-baseline gap-2">
-              <span className="text-3xl font-bold text-gray-900">Rs9,385</span>
+              <span className="text-3xl font-bold text-gray-900">Rs9,205,385</span>
               <span className="flex items-center px-2 py-1 rounded-full bg-emerald-100 text-emerald-700 text-xs font-medium">
                 +2.5% <ArrowUpRight className="w-3 h-3 ml-1" />
               </span>

@@ -3,7 +3,7 @@ import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, Tooltip, Area, Cart
 import { ArrowUpRight, MoreVertical, Download, Filter, ChevronDown } from 'lucide-react';
 
 const ExpenseChart = ({ showControls = true }) => {
-  const [timeRange, setTimeRange] = useState('3m');
+  const [timeRange, setTimeRange] = useState('1y');
   const [showFilterMenu, setShowFilterMenu] = useState(false);
   const [activeDataset, setActiveDataset] = useState('2025');
 

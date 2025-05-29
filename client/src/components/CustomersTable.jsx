@@ -5,46 +5,46 @@ const customersData = [
   {
     id: '1',
     name: 'Noor Textile',
-    date: 'Feb 08, 2022',
+    date: 'Feb 08, 2025',
     phoneNumber: '0231153636',
     price: 90000,
     category: 'Dying',
     address: 'Karachi',
     email: 'Noor@gmail.com',
-    startDate: 'Feb 08, 2022',
+    startDate: 'Feb 08, 2025',
   },
   {
     id: '2',
     name: 'Malik Fabrics',
-    date: 'Mar 15, 2022',
+    date: 'Mar 15, 2025',
     phoneNumber: '0231156789',
     price: 75000,
     category: 'Weaving',
     address: 'Lahore',
     email: 'malik@gmail.com',
-    startDate: 'Mar 10, 2022',
+    startDate: 'Mar 10, 2025',
   },
   {
     id: '3',
     name: 'Ahmed Textiles',
-    date: 'Apr 22, 2022',
+    date: 'Apr 22, 2025',
     phoneNumber: '0233456789',
     price: 120000,
     category: 'Dying',
     address: 'Islamabad',
     email: 'ahmed@gmail.com',
-    startDate: 'Apr 15, 2022',
+    startDate: 'Apr 15, 2025',
   },
   {
     id: '4',
     name: 'Zainab Cloth House',
-    date: 'May 05, 2022',
+    date: 'May 05, 2025',
     phoneNumber: '0235678901',
     price: 85000,
     category: 'Stitching',
     address: 'Faisalabad',
     email: 'zainab@gmail.com',
-    startDate: 'May 01, 2022',
+    startDate: 'May 01, 2025',
   },
 ];
 
@@ -344,7 +344,7 @@ const CustomersTable = () => {
       
       {/* Table with fixed height */}
       <div className="overflow-x-auto">
-        <div className="relative min-w-full">
+        <div className="relative min-w-full min-h-[350px]">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="sticky top-0 bg-white z-10">
               <tr className="text-center text-xs sm:text-sm font-normal text-black">
