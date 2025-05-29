@@ -6,6 +6,8 @@ import Report from './pages/Report';
 import Customers from './pages/Customers';
 import Settings from './pages/Settings';
 import Dashboard from './pages/Dashboard';
+import Invoiceform from './components/InvoiceForm';
+
 
 // // Import Poppins font weights
 // import '@fontsource/poppins/400.css';  // font-normal
@@ -26,6 +28,7 @@ function App() {
           <Route path="/report" element={<Report />} />
           <Route path="/customers" element={<Customers />} />
           <Route path="/settings" element={<Settings />} />
+          <Route path="/invoiceform" element={<Invoiceform />} />
 
           {/* Add more routes as needed */}
         </Routes>

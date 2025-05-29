@@ -1,20 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
-import { useToast } from "@/components/ui/use-toast";
+
+const UNIT_WEIGHT = 10; // 1 unit = 10 kg (adjust as needed)
 
 const InvoiceForm = () => {
-  const { toast } = useToast();
   const [formData, setFormData] = useState({
     customerName: '',
     customerEmail: '',
     phone: '',
+    phone2: '',
     address: '',
     stRegNo: '',
     ntnNumber: '',
-    phone2: '',
     itemName: '',
     quantity: '',
     rate: '',
@@ -30,296 +26,158 @@ const InvoiceForm = () => {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prevData => ({
-      ...prevData,
+    setFormData(prev => ({
+      ...prev,
       [name]: value
     }));
   };
 
-  const handleCurrencyChange = (value) => {
-    setFormData(prevData => ({
-      ...prevData,
-      currency: value
+  const handleCurrencyChange = (e) => {
+    setFormData(prev => ({
+      ...prev,
+      currency: e.target.value
     }));
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    
     if (!formData.customerName || !formData.customerEmail) {
-      toast({
-        title: "Validation Error",
-        description: "Please fill in all required fields",
-        variant: "destructive",
-      });
+      alert("Please fill in required fields.");
       return;
     }
-
-    console.log('Form submitted:', formData);
-    
-    toast({
-      title: "Invoice Sent",
-      description: "Your invoice has been successfully sent.",
-    });
+    console.log('Form Data:', formData);
+    alert('Invoice sent successfully!');
   };
 
   useEffect(() => {
-    if (formData.quantity && formData.rate) {
-      const quantity = parseFloat(formData.quantity) || 0;
-      const rate = parseFloat(formData.rate) || 0;
-      const amount = quantity * rate;
-      setFormData(prevData => ({
-        ...prevData,
-        itemAmount: amount.toFixed(2)
-      }));
-    }
-  }, [formData.quantity, formData.rate]);
+    const weight = parseFloat(formData.weight) || 0;
+    const rate = parseFloat(formData.rate) || 0;
+    const tax = parseFloat(formData.salesTax) || 0;
+
+    const quantity = weight > 0 ? weight / UNIT_WEIGHT : 0;
+    const baseAmount = quantity * rate;
+    const taxAmount = baseAmount * (tax / 100);
+    const total = baseAmount + taxAmount;
+
+    setFormData(prev => ({
+      ...prev,
+      quantity: quantity.toFixed(2),
+      itemAmount: baseAmount.toFixed(2),
+      totalAmount: total.toFixed(2)
+    }));
+  }, [formData.weight, formData.rate, formData.salesTax]);
 
   return (
-    <div className="bg-gray-50 min-h-screen flex items-center justify-center p-4">
-      <div className="w-full max-w-5xl bg-white rounded-xl shadow-lg p-4 sm:p-6 lg:p-8">
-        <h1 className="text-2xl sm:text-3xl font-medium text-center mb-6 sm:mb-8">Invoice</h1>
-        
-        <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
-            <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-700">Customer Name *</label>
-              <Input 
-                type="text" 
-                name="customerName" 
-                placeholder="Type customer name" 
-                value={formData.customerName} 
-                onChange={handleChange}
-                className="bg-gray-50 text-sm sm:text-base"
-                required
-              />
-            </div>
+    <div className="min-h-screen bg-gray-100 py-10 px-4 sm:px-8">
+      <div className="max-w-5xl mx-auto bg-white shadow-xl rounded-xl p-6 sm:p-10">
+        <h1 className="text-3xl font-semibold text-center text-blue-700 mb-10">Invoice Form</h1>
 
-            <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-700">Customer Email *</label>
-              <Input 
-                type="email" 
-                name="customerEmail" 
-                placeholder="Type customer email" 
-                value={formData.customerEmail} 
-                onChange={handleChange}
-                className="bg-gray-50 text-sm sm:text-base"
-                required
-              />
+        <form onSubmit={handleSubmit} className="space-y-8">
+          
+          {/* Customer Information */}
+          <section>
+            <h2 className="text-xl font-semibold text-gray-800 mb-4 border-b pb-2">Customer Details</h2>
+            <div className="grid sm:grid-cols-2 gap-6">
+              <Input label="Customer Name *" name="customerName" value={formData.customerName} onChange={handleChange} required />
+              <Input label="Customer Email *" type="email" name="customerEmail" value={formData.customerEmail} onChange={handleChange} required />
+              <Input label="Phone Number" name="phone" value={formData.phone} onChange={handleChange} />
+              <Input label="Alternate Phone" name="phone2" value={formData.phone2} onChange={handleChange} />
+              <Input label="Address" name="address" value={formData.address} onChange={handleChange} />
+              <Input label="S.T Reg No" name="stRegNo" value={formData.stRegNo} onChange={handleChange} />
+              <Input label="NTN Number" name="ntnNumber" value={formData.ntnNumber} onChange={handleChange} />
             </div>
+          </section>
 
-            <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-700">Telephone Number</label>
-              <Input 
-                type="tel" 
-                name="phone" 
-                placeholder="Type Telephone Number" 
-                value={formData.phone} 
-                onChange={handleChange}
-                className="bg-gray-50 text-sm sm:text-base"
-              />
-            </div>
+          {/* Item Details */}
+          <section>
+            <h2 className="text-xl font-semibold text-gray-800 mb-4 border-b pb-2">Item Details</h2>
+            <div className="grid sm:grid-cols-2 gap-6">
+              <Input label="Item Name" name="itemName" value={formData.itemName} onChange={handleChange} />
+              
+              <Input label="Weight (KG)" type="number" name="weight" value={formData.weight} onChange={handleChange} />
 
-            <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-700">Address</label>
-              <Input 
-                type="text" 
-                name="address" 
-                placeholder="Type Address" 
-                value={formData.address} 
-                onChange={handleChange}
-                className="bg-gray-50 text-sm sm:text-base"
-              />
-            </div>
+              <Input label="Quantity (Auto)" type="number" name="quantity" value={formData.quantity} onChange={handleChange} />
 
-            <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-700">S.T Reg No</label>
-              <Input 
-                type="text" 
-                name="stRegNo" 
-                placeholder="Type S.T Reg No" 
-                value={formData.stRegNo} 
-                onChange={handleChange}
-                className="bg-gray-50 text-sm sm:text-base"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-700">NTN Number</label>
-              <Input 
-                type="text" 
-                name="ntnNumber" 
-                placeholder="Type NTN Number" 
-                value={formData.ntnNumber} 
-                onChange={handleChange}
-                className="bg-gray-50 text-sm sm:text-base"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-700">Telephone Number 2</label>
-              <Input 
-                type="tel" 
-                name="phone2" 
-                placeholder="Type Telephone Number" 
-                value={formData.phone2} 
-                onChange={handleChange}
-                className="bg-gray-50 text-sm sm:text-base"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-700">Item Name</label>
-              <Input 
-                type="text" 
-                name="itemName" 
-                placeholder="Type Item Name" 
-                value={formData.itemName} 
-                onChange={handleChange}
-                className="bg-gray-50 text-sm sm:text-base"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-700">Quantity</label>
-              <Input 
-                type="number" 
-                name="quantity" 
-                placeholder="Type Quantity" 
-                value={formData.quantity} 
-                onChange={handleChange}
-                min="0"
-                className="bg-gray-50 text-sm sm:text-base"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-700">Rate</label>
-              <div className="flex">
-                <Select value={formData.currency} onValueChange={handleCurrencyChange}>
-                  <SelectTrigger className="w-20 bg-gray-50">
-                    <SelectValue placeholder="PKR" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="PKR">PKR</SelectItem>
-                    <SelectItem value="USD">USD</SelectItem>
-                    <SelectItem value="EUR">EUR</SelectItem>
-                    <SelectItem value="GBP">GBP</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Input 
-                  type="number" 
-                  name="rate" 
-                  placeholder="0.00" 
-                  value={formData.rate} 
-                  onChange={handleChange}
-                  min="0"
-                  step="0.01"
-                  className="ml-2 flex-1 bg-gray-50 text-sm sm:text-base"
-                />
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Rate</label>
+                <div className="flex">
+                  <select
+                    className="bg-gray-50 border border-gray-300 rounded-md p-2 text-sm w-24"
+                    value={formData.currency}
+                    onChange={handleCurrencyChange}
+                  >
+                    <option value="PKR">PKR</option>
+                    <option value="USD">USD</option>
+                    <option value="EUR">EUR</option>
+                    <option value="GBP">GBP</option>
+                  </select>
+                  <input
+                    type="number"
+                    name="rate"
+                    placeholder="0.00"
+                    value={formData.rate}
+                    onChange={handleChange}
+                    className="flex-1 ml-2 p-2 border border-gray-300 rounded-md bg-gray-50 text-sm"
+                  />
+                </div>
               </div>
-            </div>
 
-            <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-700">Sales Tax (%)</label>
-              <Input 
-                type="number" 
-                name="salesTax" 
-                placeholder="Type Sales Tax" 
-                value={formData.salesTax} 
+              <Input label="Sales Tax (%)" type="number" name="salesTax" value={formData.salesTax} onChange={handleChange} />
+              <Input label="Item Amount" type="number" name="itemAmount" value={formData.itemAmount} readOnly />
+              <Input label="Total Amount" type="number" name="totalAmount" value={formData.totalAmount} readOnly />
+            </div>
+          </section>
+
+          {/* Dates and Note */}
+          <section>
+            <h2 className="text-xl font-semibold text-gray-800 mb-4 border-b pb-2">Invoice Info</h2>
+            <div className="grid sm:grid-cols-2 gap-6">
+              <Input label="Bill Date" type="date" name="billDate" value={formData.billDate} onChange={handleChange} />
+              <Input label="Payment Deadline" type="date" name="paymentDeadline" value={formData.paymentDeadline} onChange={handleChange} />
+            </div>
+            <div className="mt-6">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Note</label>
+              <textarea
+                name="note"
+                rows={4}
+                value={formData.note}
                 onChange={handleChange}
-                min="0"
-                max="100"
-                className="bg-gray-50 text-sm sm:text-base"
-              />
+                className="w-full border border-gray-300 rounded-md p-3 bg-gray-50 text-sm"
+                placeholder="This is a custom message for the customer."
+              ></textarea>
             </div>
+          </section>
 
-            <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-700">Item Amount</label>
-              <Input 
-                type="number" 
-                name="itemAmount" 
-                placeholder="Type Item Amount" 
-                value={formData.itemAmount} 
-                onChange={handleChange}
-                className="bg-gray-50 text-sm sm:text-base"
-                readOnly
-              />
-            </div>
-
-            <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-700">Weight (KG)</label>
-              <Input 
-                type="number" 
-                name="weight" 
-                placeholder="Type Weight in KG" 
-                value={formData.weight} 
-                onChange={handleChange}
-                min="0"
-                step="0.1"
-                className="bg-gray-50 text-sm sm:text-base"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-700">Total Amount</label>
-              <Input 
-                type="number" 
-                name="totalAmount" 
-                placeholder="Type Total Amount" 
-                value={formData.totalAmount} 
-                onChange={handleChange}
-                className="bg-gray-50 text-sm sm:text-base"
-                readOnly
-              />
-            </div>
-
-            <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-700">Bill Date</label>
-              <Input 
-                type="date" 
-                name="billDate" 
-                value={formData.billDate} 
-                onChange={handleChange}
-                className="bg-gray-50 text-sm sm:text-base"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-700">Payment Deadline</label>
-              <Input 
-                type="date" 
-                name="paymentDeadline" 
-                value={formData.paymentDeadline} 
-                onChange={handleChange}
-                className="bg-gray-50 text-sm sm:text-base"
-              />
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <label className="block text-sm font-medium text-gray-700">Note</label>
-            <Textarea 
-              name="note" 
-              placeholder="This is a custom message that might be relevant to the customer." 
-              value={formData.note} 
-              onChange={handleChange}
-              className="bg-gray-50 min-h-[100px] text-sm sm:text-base"
-            />
-          </div>
-
-          <div className="flex justify-center mt-6 sm:mt-8">
-            <Button 
-              type="submit" 
-              className="bg-blue-500 hover:bg-blue-600 text-white px-6 sm:px-8 py-2 rounded-md text-sm sm:text-base"
+          {/* Submit */}
+          <div className="text-center">
+            <button
+              type="submit"
+              className="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-8 py-3 rounded-md transition duration-300"
             >
               Send Invoice
-            </Button>
+            </button>
           </div>
+
         </form>
       </div>
     </div>
   );
 };
+
+// ✅ Reusable Input Component
+const Input = ({ label, name, type = 'text', value, onChange, required = false, readOnly = false }) => (
+  <div>
+    <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
+    <input
+      type={type}
+      name={name}
+      value={value}
+      onChange={onChange}
+      required={required}
+      readOnly={readOnly}
+      className="w-full border border-gray-300 rounded-md p-2 bg-gray-50 text-sm"
+    />
+  </div>
+);
 
 export default InvoiceForm;
