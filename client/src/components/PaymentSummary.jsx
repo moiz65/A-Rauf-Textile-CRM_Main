@@ -1,10 +1,8 @@
-import React, { useState } from 'react';
-import { ArrowUpRight, MoreVertical, Lock, TrendingUp, TrendingDown, CreditCard, Banknote, Smartphone, Zap, Check } from 'lucide-react';
+import React from 'react';
+import { ArrowUpRight, MoreVertical, Lock, TrendingUp, TrendingDown,} from 'lucide-react';
 
 const PaymentSummary = () => {
-  const [activeMethod, setActiveMethod] = useState(null);
-  const [showAllMethods, setShowAllMethods] = useState(false);
-  const [showSuccess, setShowSuccess] = useState(false);
+  // const [showSuccess, setShowSuccess] = useState(false);
 
   const payments = [
     {
@@ -37,54 +35,6 @@ const PaymentSummary = () => {
     }
   ];
 
-  const paymentMethods = [
-    { 
-      id: 1,
-      icon: <CreditCard className="w-5 h-5" />, 
-      label: 'Credit Card',
-      color: 'text-purple-600',
-      bg: 'bg-purple-50'
-    },
-    { 
-      id: 2,
-      icon: <Banknote className="w-5 h-5" />, 
-      label: 'Bank Transfer',
-      color: 'text-blue-600',
-      bg: 'bg-blue-50'
-    },
-    { 
-      id: 3,
-      icon: <Smartphone className="w-5 h-5" />, 
-      label: 'Mobile Wallet',
-      color: 'text-green-600',
-      bg: 'bg-green-50'
-    },
-    { 
-      id: 4,
-      icon: <Zap className="w-5 h-5" />, 
-      label: 'Other Methods',
-      color: 'text-amber-600',
-      bg: 'bg-amber-50'
-    }
-  ];
-
-  const handleMethodClick = (method) => {
-    setActiveMethod(method);
-    setShowSuccess(false);
-    
-    // Demo payment method selection logic
-    setTimeout(() => {
-      console.log(`Processing payment via ${method.label}`);
-      // Simulate API call or payment processing
-      setShowSuccess(true);
-      
-      // Reset success message after 3 seconds
-      setTimeout(() => {
-        setShowSuccess(false);
-      }, 3000);
-    }, 1000);
-  };
-
   return (
     <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100/50 hover:shadow-md transition-all w-full group relative">
       {/* Header */}
@@ -111,47 +61,6 @@ const PaymentSummary = () => {
             </div>
           </div>
         </div>
-
-        {/* Payment Methods */}
-        <div className="mt-4">
-          <div className="flex items-center justify-between mb-2">
-            <p className="text-xs text-gray-500">Payment Methods</p>
-            {paymentMethods.length > 4 && (
-              <button 
-                onClick={() => setShowAllMethods(!showAllMethods)}
-                className="text-xs text-blue-600 hover:text-blue-800 flex items-center gap-1"
-              >
-                {showAllMethods ? 'Show less' : 'Show all'}
-              </button>
-            )}
-          </div>
-          <div className="flex justify-between">
-            {(showAllMethods ? paymentMethods : paymentMethods.slice(0, 4)).map((method) => (
-              <button
-                key={method.id}
-                onClick={() => handleMethodClick(method)}
-                className={`flex flex-col items-center transition-all ${activeMethod?.id === method.id ? 'scale-105' : ''}`}
-              >
-                <div className={`w-10 h-10 rounded-lg flex items-center justify-center shadow-xs border border-gray-100 mb-1 transition-colors ${method.bg} ${activeMethod?.id === method.id ? 'ring-2 ring-offset-2 ring-blue-500' : ''}`}>
-                  <span className={method.color}>{method.icon}</span>
-                  {showSuccess && activeMethod?.id === method.id && (
-                    <div className="absolute -top-1 -right-1 bg-green-500 rounded-full p-0.5">
-                      <Check className="w-3 h-3 text-white" />
-                    </div>
-                  )}
-                </div>
-                <span className="text-xs text-gray-500">{method.label}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Demo Payment Status */}
-        {showSuccess && activeMethod && (
-          <div className="mt-3 p-2 bg-green-50 text-green-700 text-xs rounded-lg animate-pulse">
-            Processing payment via {activeMethod.label}...
-          </div>
-        )}
       </div>
 
       {/* Payment Details */}
@@ -193,13 +102,13 @@ const PaymentSummary = () => {
 
       {/* Footer */}
       <div className="mt-6 pt-4 border-t border-gray-100/50">
-  <a href="/Report" className="block">
-    <button className="w-full py-2.5 px-4 bg-gray-50 hover:bg-gray-100 rounded-lg text-sm font-medium text-gray-700 flex items-center justify-center gap-2 transition-colors">
-      View full report
-      <ArrowUpRight className="w-4 h-4" />
-    </button>
-  </a>
-</div>
+        <a href="/Report" className="block">
+          <button className="w-full py-2.5 px-4 bg-gray-50 hover:bg-gray-100 rounded-lg text-sm font-medium text-gray-700 flex items-center justify-center gap-2 transition-colors">
+            View full report
+            <ArrowUpRight className="w-4 h-4" />
+          </button>
+        </a>
+      </div>
     </div>
   );
 };
