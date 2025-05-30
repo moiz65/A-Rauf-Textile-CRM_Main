@@ -267,7 +267,7 @@ const InvoiceForm = () => {
               <label className="block text-sm font-semibold text-gray-700 mb-2">Note</label>
               <textarea
                 name="note"
-                rows={5}
+                rows={4}
                 value={formData.note}
                 onChange={handleChange}
                 className="w-full border border-gray-300 rounded-xl p-3 bg-white shadow-sm focus:ring-2 focus:ring-blue-200 outline-none transition"
