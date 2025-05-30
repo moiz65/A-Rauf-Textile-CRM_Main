@@ -19,14 +19,13 @@ const InvoiceForm = () => {
     itemAmount: '',
     weight: '',
     totalAmount: '',
-    taxAmount: '', // <-- add this line
+    taxAmount: '',
     billDate: '',
     paymentDeadline: '',
     note: ''
   });
 
-  const [calculationMode, setCalculationMode] = useState('auto'); // 'auto' or 'manual'
-
+  // Only one mode: manual entry for quantity and rate
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({
@@ -52,62 +51,23 @@ const InvoiceForm = () => {
     alert('Invoice sent successfully!');
   };
 
-  // Calculate total amount in both modes
+  // Calculate itemAmount, taxAmount, and totalAmount
   useEffect(() => {
+    const quantity = parseFloat(formData.quantity) || 0;
     const rate = parseFloat(formData.rate) || 0;
     const tax = parseFloat(formData.salesTax) || 0;
-    let baseAmount = 0;
 
-    if (calculationMode === 'auto') {
-      const weight = parseFloat(formData.weight) || 0;
-      const quantity = weight > 0 ? weight / UNIT_WEIGHT : 0;
-      baseAmount = quantity * rate;
-      
-      setFormData(prev => ({
-        ...prev,
-        quantity: quantity.toFixed(2),
-        itemAmount: baseAmount.toFixed(2)
-      }));
-    } else {
-      baseAmount = parseFloat(formData.itemAmount) || 0;
-    }
-
-    const taxAmount = baseAmount * (tax / 100);
-    const total = baseAmount + taxAmount;
+    const itemAmount = quantity * rate;
+    const taxAmount = itemAmount * (tax / 100);
+    const totalAmount = itemAmount + taxAmount;
 
     setFormData(prev => ({
       ...prev,
-      taxAmount: taxAmount.toFixed(2), // <-- set taxAmount
-      totalAmount: total.toFixed(2)
+      itemAmount: itemAmount ? itemAmount.toFixed(2) : '',
+      taxAmount: itemAmount ? taxAmount.toFixed(2) : '',
+      totalAmount: itemAmount ? totalAmount.toFixed(2) : ''
     }));
-  }, [
-    formData.weight, 
-    formData.rate, 
-    formData.salesTax,
-    formData.itemAmount,
-    calculationMode
-  ]);
-
-  const toggleCalculationMode = () => {
-    const newMode = calculationMode === 'auto' ? 'manual' : 'auto';
-    setCalculationMode(newMode);
-    
-    // Reset relevant fields when switching modes
-    if (newMode === 'manual') {
-      setFormData(prev => ({
-        ...prev,
-        quantity: '',
-        itemAmount: ''
-      }));
-    } else {
-      setFormData(prev => ({
-        ...prev,
-        weight: '',
-        quantity: '',
-        itemAmount: ''
-      }));
-    }
-  };
+  }, [formData.quantity, formData.rate, formData.salesTax]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 py-10 px-4 sm:px-8">
@@ -132,87 +92,43 @@ const InvoiceForm = () => {
 
           {/* Item Details */}
           <section>
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-2xl font-semibold text-gray-800 border-b pb-3">Item Details</h2>
-              <button
-                type="button"
-                onClick={toggleCalculationMode}
-                className="text-sm bg-blue-100 hover:bg-blue-200 text-blue-800 px-4 py-2 rounded-lg transition"
-              >
-                {calculationMode === 'auto' ? 'Switch to Manual Entry' : 'Switch to Auto Calculation'}
-              </button>
-            </div>
-            
+            <h2 className="text-2xl font-semibold text-gray-800 mb-6 border-b pb-3">Item Details</h2>
             <div className="grid sm:grid-cols-2 gap-6">
               <Input label="Item Name" name="itemName" value={formData.itemName} onChange={handleChange} />
-              
-              {calculationMode === 'auto' ? (
-                <>
-                  <Input 
-                    label="Weight (KG) *" 
-                    type="number" 
-                    name="weight" 
-                    value={formData.weight} 
-                    onChange={handleChange}
-                    step="0.01"
-                    min="0"
-                  />
-                  <Input 
-                    label="Quantity (Auto)" 
-                    type="number" 
-                    name="quantity" 
-                    value={formData.quantity} 
-                    readOnly
-                  />
-                </>
-              ) : (
-                <>
-                  <Input 
-                    label="Quantity *" 
-                    type="number" 
-                    name="quantity" 
-                    value={formData.quantity} 
-                    onChange={handleChange}
-                    step="0.01"
-                    min="0"
-                  />
-                  <Input 
-                    label="Item Amount *" 
-                    type="number" 
-                    name="itemAmount" 
-                    value={formData.itemAmount} 
-                    onChange={handleChange}
-                    step="0.01"
-                    min="0"
-                  />
-                </>
-              )}
-              
+
+              <Input 
+                label="Quantity *" 
+                type="number" 
+                name="quantity" 
+                value={formData.quantity} 
+                onChange={handleChange}
+                step="0.01"
+                min="0"
+                required
+              />
+              <Input 
+                label="Rate *" 
+                type="number" 
+                name="rate" 
+                value={formData.rate} 
+                onChange={handleChange}
+                step="0.01"
+                min="0"
+                required
+              />
+
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Rate *</label>
-                <div className="flex rounded-lg overflow-hidden shadow-sm bg-white border border-gray-300">
-                  <select
-                    className="bg-gray-100 px-3 text-sm text-gray-700 outline-none border-r border-gray-300"
-                    value={formData.currency}
-                    onChange={handleCurrencyChange}
-                  >
-                    <option value="PKR">PKR</option>
-                    <option value="USD">USD</option>
-                    <option value="EUR">EUR</option>
-                    <option value="GBP">GBP</option>
-                  </select>
-                  <input
-                    type="number"
-                    name="rate"
-                    placeholder="0.00"
-                    value={formData.rate}
-                    onChange={handleChange}
-                    className="flex-1 px-4 py-2 text-sm bg-white outline-none"
-                    step="0.01"
-                    min="0"
-                    required
-                  />
-                </div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Currency</label>
+                <select
+                  className="w-full rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-300 transition"
+                  value={formData.currency}
+                  onChange={handleCurrencyChange}
+                >
+                  <option value="PKR">PKR</option>
+                  <option value="USD">USD</option>
+                  <option value="EUR">EUR</option>
+                  <option value="GBP">GBP</option>
+                </select>
               </div>
 
               <Input 
@@ -225,17 +141,16 @@ const InvoiceForm = () => {
                 min="0"
                 required
               />
-              
-              {calculationMode === 'auto' ? (
-                <Input 
-                  label="Item Amount (Auto)" 
-                  type="number" 
-                  name="itemAmount" 
-                  value={formData.itemAmount} 
-                  readOnly 
-                />
-              ) : null}
-              
+
+              <Input 
+                label="Item Amount" 
+                type="number" 
+                name="itemAmount" 
+                value={formData.itemAmount} 
+                readOnly
+                className="bg-blue-50 border-blue-200 font-medium"
+              />
+
               <Input 
                 label="Tax Amount" 
                 type="number" 
@@ -244,7 +159,7 @@ const InvoiceForm = () => {
                 readOnly
                 className="bg-blue-50 border-blue-200 font-medium"
               />
-              
+
               <Input 
                 label="Total Amount" 
                 type="number" 

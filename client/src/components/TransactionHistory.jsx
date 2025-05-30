@@ -13,7 +13,7 @@ const TransactionHistory = () => {
     },
     {
       id: 2,
-      name: "Freelance Payment",
+      name: "Zainab Clothing House",
       amount: 15000,
       type: "income",
       time: "2:15 PM",
