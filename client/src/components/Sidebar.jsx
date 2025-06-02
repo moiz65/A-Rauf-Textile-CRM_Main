@@ -158,7 +158,7 @@ const Sidebar = () => {
         </svg>
       ),
       label: "Expenses",
-      to: "/expenses",
+      to: "/expense",
     },
     {
       icon: (
