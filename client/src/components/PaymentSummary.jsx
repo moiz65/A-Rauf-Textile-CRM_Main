@@ -49,13 +49,13 @@ const PaymentSummary = () => {
       </div>
 
       {/* Balance Overview */}
-      <div className="mb-6 p-4 bg-gradient-to-r from-blue-50/50 to-purple-50/50 rounded-xl">
+      <div className="mb-6 p-4 bg-gradient-to-r from-blue-500 to-blue-500 rounded-xl">
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-sm text-gray-600">Current Balance</p>
+            <p className="text-sm text-white">Current Balance</p>
             <div className="flex items-baseline gap-2">
-              <span className="text-3xl font-bold text-gray-900">Rs9,205,385</span>
-              <span className="flex items-center px-2 py-1 rounded-full bg-emerald-100 text-emerald-700 text-xs font-medium">
+              <span className="text-3xl font-bold text-white">Rs9,205,385</span>
+              <span className="flex items-center px-2 py-1 rounded-full bg-white text-emerald-700 text-xs font-medium">
                 +2.5% <ArrowUpRight className="w-3 h-3 ml-1" />
               </span>
             </div>

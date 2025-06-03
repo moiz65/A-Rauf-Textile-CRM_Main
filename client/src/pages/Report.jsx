@@ -36,11 +36,11 @@ const Report = () => {
   ];
   
  const reports = [
-  { id: '813789', date: 'Feb 08, 2022', customer: 'Noor Textile', price: '90000', status: 'Pending' },
-  { id: '813789', date: 'Feb 08, 2022', customer: 'Malik Fabrics', price: '90000', status: 'Preparing' },
-  { id: '813789', date: 'Feb 08, 2022', customer: 'Ahmed Textiles', price: '90000', status: 'Cancelled' },
-  { id: '813789', date: 'Feb 08, 2022', customer: 'Ahmed Textiles', price: '90000', status: 'Delivered' },
-  { id: '813789', date: 'Feb 08, 2022', customer: 'Zainab Cloth House', price: '90000', status: 'On the way' },
+  { id: '813789', date: 'Feb 08, 2025', customer: 'Noor Textile', price: '90000', status: 'Pending' },
+  { id: '813789', date: 'Feb 08, 2025', customer: 'Malik Fabrics', price: '90000', status: 'Preparing' },
+  { id: '813789', date: 'Feb 08, 2025', customer: 'Ahmed Textiles', price: '90000', status: 'Cancelled' },
+  { id: '813789', date: 'Feb 08, 2025', customer: 'Ahmed Textiles', price: '90000', status: 'Delivered' },
+  { id: '813789', date: 'Feb 08, 2025', customer: 'Zainab Cloth House', price: '90000', status: 'On the way' },
 
 ];
 

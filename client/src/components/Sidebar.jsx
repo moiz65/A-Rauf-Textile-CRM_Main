@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import Logo from "../assets/Logo/Logo.png"; // Ensure this path is correct
+import Logo2 from "../assets/Logo/Logo-2.png"; // Ensure this path is correct
 
 const NavItem = ({
   icon,
@@ -136,7 +137,7 @@ const Sidebar = () => {
         </svg>
       ),
       label: "Employees",
-      to: "/employees",
+      to: "#",
     },
     {
       icon: (
@@ -179,7 +180,7 @@ const Sidebar = () => {
         </svg>
       ),
       label: "Services",
-      to: "/services",
+      to: "#",
     },
     {
       icon: (
@@ -250,9 +251,9 @@ const Sidebar = () => {
           ) : (
             <div className="w-10 h-10 flex items-center justify-center">
               <img
-                src={Logo}
+                src={Logo2}
                 alt="Company Logo"
-                className="h-8 w-auto object-contain"
+                className="h-10 w-auto object-contain"
               />
             </div>
           )}

@@ -5,28 +5,28 @@ import { Link } from 'react-router-dom';
 const invoicesData = [
   {
     id: 'INV-001',
-    date: '2024-05-01',
+    date: '2025-05-01',
     account: 'Noor Textile',
     amount: 90000,
     status: 'Paid',
   },
   {
     id: 'INV-002',
-    date: '2024-05-10',
+    date: '2025-05-10',
     account: 'Malik Fabrics',
     amount: 75000,
     status: 'Pending',
   },
   {
     id: 'INV-003',
-    date: '2024-05-15',
+    date: '2025-05-15',
     account: 'Ahmed Textiles',
     amount: 120000,
     status: 'Overdue',
   },
   {
     id: 'INV-004',
-    date: '2024-05-20',
+    date: '2025-05-20',
     account: 'Zainab Cloth House',
     amount: 85000,
     status: 'Paid',

@@ -21,19 +21,19 @@ const ExpenseChart = ({ showControls = true }) => {
     { month: 'Oct', amount: 38000, trend: 'up', year: '2025' },
     { month: 'Nov', amount: 40000, trend: 'up', year: '2025' },
     { month: 'Dec', amount: 42000, trend: 'up', year: '2025' },
-    // 2024 data for comparison
-    { month: 'Jan', amount: 22000, trend: 'down', year: '2024' },
-    { month: 'Feb', amount: 18000, trend: 'down', year: '2024' },
-    { month: 'Mar', amount: 15000, trend: 'down', year: '2024' },
-    { month: 'Apr', amount: 19000, trend: 'up', year: '2024' },
-    { month: 'May', amount: 24000, trend: 'up', year: '2024' },
-    { month: 'Jun', amount: 30000, trend: 'up', year: '2024' },
-    { month: 'Jul', amount: 27000, trend: 'down', year: '2024' },
-    { month: 'Aug', amount: 29000, trend: 'up', year: '2024' },
-    { month: 'Sep', amount: 32000, trend: 'up', year: '2024' },
-    { month: 'Oct', amount: 35000, trend: 'up', year: '2024' },
-    { month: 'Nov', amount: 37000, trend: 'up', year: '2024' },
-    { month: 'Dec', amount: 39000, trend: 'up', year: '2024' },
+    // 2025 data for comparison
+    { month: 'Jan', amount: 22000, trend: 'down', year: '2025' },
+    { month: 'Feb', amount: 18000, trend: 'down', year: '2025' },
+    { month: 'Mar', amount: 15000, trend: 'down', year: '2025' },
+    { month: 'Apr', amount: 19000, trend: 'up', year: '2025' },
+    { month: 'May', amount: 24000, trend: 'up', year: '2025' },
+    { month: 'Jun', amount: 30000, trend: 'up', year: '2025' },
+    { month: 'Jul', amount: 27000, trend: 'down', year: '2025' },
+    { month: 'Aug', amount: 29000, trend: 'up', year: '2025' },
+    { month: 'Sep', amount: 32000, trend: 'up', year: '2025' },
+    { month: 'Oct', amount: 35000, trend: 'up', year: '2025' },
+    { month: 'Nov', amount: 37000, trend: 'up', year: '2025' },
+    { month: 'Dec', amount: 39000, trend: 'up', year: '2025' },
   ];
 
   // Filter data based on selected time range and active dataset
@@ -231,13 +231,13 @@ const ExpenseChart = ({ showControls = true }) => {
             <span className="text-xs text-gray-500 group-hover:text-gray-700">2025</span>
           </button>
           <button 
-            onClick={() => setActiveDataset('2024')}
+            onClick={() => setActiveDataset('2025')}
             className="flex items-center gap-1.5 cursor-pointer group"
           >
             <div className={`w-3 h-3 rounded-full transition-colors ${
-              activeDataset === '2024' ? 'bg-blue-500' : 'bg-gray-200'
+              activeDataset === '2025' ? 'bg-blue-500' : 'bg-gray-200'
             }`}></div>
-            <span className="text-xs text-gray-500 group-hover:text-gray-700">2024</span>
+            <span className="text-xs text-gray-500 group-hover:text-gray-700">2025</span>
           </button>
         </div>
       </div>
