@@ -9,18 +9,18 @@ const ExpenseChart = ({ showControls = true }) => {
 
   // Full dataset
   const fullData = [
-    { month: 'Jan', amount: 25000, trend: 'down', year: '2025' },
-    { month: 'Feb', amount: 20000, trend: 'down', year: '2025' },
-    { month: 'Mar', amount: 18000, trend: 'down', year: '2025' },
-    { month: 'Apr', amount: 22000, trend: 'up', year: '2025' },
-    { month: 'May', amount: 28000, trend: 'up', year: '2025' },
-    { month: 'Jun', amount: 34742, trend: 'up', year: '2025' },
-    { month: 'Jul', amount: 30000, trend: 'down', year: '2025' },
-    { month: 'Aug', amount: 32000, trend: 'up', year: '2025' },
-    { month: 'Sep', amount: 35000, trend: 'up', year: '2025' },
-    { month: 'Oct', amount: 38000, trend: 'up', year: '2025' },
-    { month: 'Nov', amount: 40000, trend: 'up', year: '2025' },
-    { month: 'Dec', amount: 42000, trend: 'up', year: '2025' },
+    { month: 'Jan', amount: 25000, trend: 'down', year: '2024' },
+    { month: 'Feb', amount: 20000, trend: 'down', year: '2024' },
+    { month: 'Mar', amount: 18000, trend: 'down', year: '2024' },
+    { month: 'Apr', amount: 22000, trend: 'up', year: '2024' },
+    { month: 'May', amount: 28000, trend: 'up', year: '2024' },
+    { month: 'Jun', amount: 34742, trend: 'up', year: '2024' },
+    { month: 'Jul', amount: 30000, trend: 'down', year: '2024' },
+    { month: 'Aug', amount: 32000, trend: 'up', year: '2024' },
+    { month: 'Sep', amount: 35000, trend: 'up', year: '2024' },
+    { month: 'Oct', amount: 38000, trend: 'up', year: '2024' },
+    { month: 'Nov', amount: 40000, trend: 'up', year: '2024' },
+    { month: 'Dec', amount: 42000, trend: 'up', year: '2024' },
     // 2025 data for comparison
     { month: 'Jan', amount: 22000, trend: 'down', year: '2025' },
     { month: 'Feb', amount: 18000, trend: 'down', year: '2025' },
@@ -222,13 +222,13 @@ const ExpenseChart = ({ showControls = true }) => {
 
         <div className="flex items-center gap-3">
           <button 
-            onClick={() => setActiveDataset('2025')}
+            onClick={() => setActiveDataset('2024')}
             className="flex items-center gap-1.5 cursor-pointer group"
           >
             <div className={`w-3 h-3 rounded-full transition-colors ${
-              activeDataset === '2025' ? 'bg-blue-500' : 'bg-gray-200'
+              activeDataset === '2024' ? 'bg-blue-500' : 'bg-gray-200'
             }`}></div>
-            <span className="text-xs text-gray-500 group-hover:text-gray-700">2025</span>
+            <span className="text-xs text-gray-500 group-hover:text-gray-700">2024</span>
           </button>
           <button 
             onClick={() => setActiveDataset('2025')}
