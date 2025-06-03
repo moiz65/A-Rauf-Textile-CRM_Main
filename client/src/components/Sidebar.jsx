@@ -253,7 +253,7 @@ const Sidebar = () => {
               <img
                 src={Logo2}
                 alt="Company Logo"
-                className="h-10 w-auto object-contain"
+                className="h-10 w-15 object-contain"
               />
             </div>
           )}
