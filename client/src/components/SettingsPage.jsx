@@ -21,6 +21,7 @@ const SettingsPage = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [activeTab, setActiveTab] = useState('company');
   const [isUploading, setIsUploading] = useState(false);
+  const [isEditingCompanyName, setIsEditingCompanyName] = useState(false);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -164,7 +165,31 @@ const SettingsPage = () => {
                 </label>
               </div>
               <div className="text-center sm:text-left">
-                <h2 className="text-xl sm:text-2xl font-bold text-gray-900">{formData.companyName}</h2>
+                {/* Editable company name */}
+                <h2
+                  className="text-xl sm:text-2xl font-bold text-gray-900 cursor-pointer inline-block"
+                  title="Click to edit company name"
+                  onClick={() => setIsEditingCompanyName(true)}
+                  style={{ minWidth: 120 }}
+                >
+                  {isEditingCompanyName ? (
+                    <input
+                      type="text"
+                      name="companyName"
+                      value={formData.companyName}
+                      onChange={handleChange}
+                      onBlur={() => setIsEditingCompanyName(false)}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter') setIsEditingCompanyName(false);
+                      }}
+                      autoFocus
+                      className="text-xl sm:text-2xl font-bold text-gray-900 border-b border-blue-400 bg-white px-1 outline-none"
+                      style={{ minWidth: 120 }}
+                    />
+                  ) : (
+                    formData.companyName
+                  )}
+                </h2>
                 <p className="text-gray-500 mt-1 text-sm sm:text-base flex items-center justify-center sm:justify-start gap-1 sm:gap-2">
                   <span>Click to change company logo</span>
                 </p>
