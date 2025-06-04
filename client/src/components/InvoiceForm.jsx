@@ -25,13 +25,13 @@ const InvoiceForm = () => {
   });
 
   // Only one mode: manual entry for quantity and rate
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
-  };
+  // const handleChange = (e) => {
+  //   const { name, value } = e.target;
+  //   setFormData(prev => ({
+  //     ...prev,
+  //     [name]: value
+  //   }));
+  // };
 
   const handleCurrencyChange = (e) => {
     setFormData(prev => ({
