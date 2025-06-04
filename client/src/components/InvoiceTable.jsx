@@ -1,8 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Search, Filter, FileDown, Ellipsis, Edit, Trash2, Printer, Download, Copy } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Search, Filter, FileDown, Ellipsis, Edit, Trash2, Printer, Download, Copy, Plus } from 'lucide-react';
+import InvoiceForm from './InvoiceForm';
 
-const invoicesData = [
+// Initial invoices data
+const initialInvoicesData = [
   {
     id: 'INV-001',
     date: '2025-05-01',
@@ -37,6 +38,7 @@ const STATUS_TABS = ['All', 'Paid', 'Pending', 'Overdue'];
 const ITEMS_PER_PAGE = 4;
 
 const InvoiceTable = ({ onCreateInvoice }) => {
+  const [invoicesData, setInvoicesData] = useState(initialInvoicesData);
   const [selectedRows, setSelectedRows] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState('');
@@ -50,6 +52,9 @@ const InvoiceTable = ({ onCreateInvoice }) => {
   });
   const [showFilters, setShowFilters] = useState(false);
   const [activeDropdown, setActiveDropdown] = useState(null);
+  const [editingInvoice, setEditingInvoice] = useState(null);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [showInvoiceForm, setShowInvoiceForm] = useState(false);
   const dropdownRefs = useRef([]);
 
   // Close dropdown when clicking outside
@@ -139,29 +144,249 @@ const InvoiceTable = ({ onCreateInvoice }) => {
     setActiveDropdown(activeDropdown === invoiceId ? null : invoiceId);
   };
 
-  const handleAction = (action, invoice) => {
+  // Action functions
+  const handleEdit = (invoice) => {
+    setEditingInvoice(invoice);
+    setShowEditModal(true);
     setActiveDropdown(null);
+  };
+
+  const handleDelete = (invoice) => {
+    if (window.confirm(`Are you sure you want to delete invoice ${invoice.id}?`)) {
+      setInvoicesData(prev => prev.filter(item => item.id !== invoice.id));
+    }
+    setActiveDropdown(null);
+  };
+
+  const handlePrint = (invoice) => {
+    const printWindow = window.open('', '_blank');
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>Invoice: ${invoice.id}</title>
+          <style>
+            body { font-family: Arial, sans-serif; padding: 20px; }
+            h1 { color: #333; }
+            .invoice { border: 1px solid #ddd; padding: 20px; max-width: 500px; margin: 0 auto; }
+            .row { display: flex; margin-bottom: 10px; }
+            .label { font-weight: bold; width: 150px; }
+            .value { flex: 1; }
+            .status { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 12px; font-weight: bold; }
+            .paid { background-color: #dcfce7; color: #166534; }
+            .pending { background-color: #fef9c3; color: #854d0e; }
+            .overdue { background-color: #fee2e2; color: #991b1b; }
+          </style>
+        </head>
+        <body>
+          <h1>Invoice Details</h1>
+          <div class="invoice">
+            <div class="row"><div class="label">Invoice ID:</div><div class="value">${invoice.id}</div></div>
+            <div class="row"><div class="label">Date:</div><div class="value">${invoice.date}</div></div>
+            <div class="row"><div class="label">Account:</div><div class="value">${invoice.account}</div></div>
+            <div class="row"><div class="label">Amount:</div><div class="value">RS ${invoice.amount.toLocaleString()}</div></div>
+            <div class="row"><div class="label">Status:</div><div class="value"><span class="status ${invoice.status.toLowerCase()}">${invoice.status}</span></div></div>
+          </div>
+          <script>window.print();</script>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+    setActiveDropdown(null);
+  };
+
+  const handleDownload = (invoice) => {
+    const data = {
+      invoiceId: invoice.id,
+      date: invoice.date,
+      account: invoice.account,
+      amount: `RS ${invoice.amount.toLocaleString()}`,
+      status: invoice.status
+    };
+    
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `invoice_${invoice.id}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    setActiveDropdown(null);
+  };
+
+  const handleDuplicate = (invoice) => {
+    const newInvoice = {
+      ...invoice,
+      id: `INV-${Date.now().toString().slice(-4)}`,
+      date: new Date().toISOString().split('T')[0],
+      status: 'Pending'
+    };
+    
+    setInvoicesData(prev => [...prev, newInvoice]);
+    setActiveDropdown(null);
+  };
+
+  const handleAddInvoice = () => {
+    setShowInvoiceForm(true);
+  };
+
+  const handleCreateInvoice = (newInvoice) => {
+    setInvoicesData(prev => [...prev, newInvoice]);
+    setShowInvoiceForm(false);
+  };
+
+  const handleSaveInvoice = (updatedInvoice) => {
+    if (updatedInvoice.id) {
+      // Update existing invoice
+      setInvoicesData(prev =>
+        prev.map(invoice =>
+          invoice.id === updatedInvoice.id ? updatedInvoice : invoice
+        )
+      );
+    } else {
+      // Add new invoice
+      setInvoicesData(prev => [...prev, updatedInvoice]);
+    }
+    setShowEditModal(false);
+    setEditingInvoice(null);
+  };
+
+  const handleAction = (action, invoice) => {
     switch (action) {
       case 'edit':
-        alert(`Editing invoice: ${invoice.id}`);
+        handleEdit(invoice);
         break;
       case 'delete':
-        if (window.confirm(`Are you sure you want to delete invoice ${invoice.id}?`)) {
-          alert(`Invoice ${invoice.id} deleted`);
-        }
+        handleDelete(invoice);
         break;
       case 'print':
-        alert(`Printing invoice: ${invoice.id}`);
+        handlePrint(invoice);
         break;
       case 'download':
-        alert(`Downloading invoice: ${invoice.id}`);
+        handleDownload(invoice);
         break;
       case 'duplicate':
-        alert(`Duplicating invoice: ${invoice.id}`);
+        handleDuplicate(invoice);
         break;
       default:
         break;
     }
+  };
+
+  // Edit Modal Component
+  const EditInvoiceModal = () => {
+    const [formData, setFormData] = useState(editingInvoice);
+    
+    useEffect(() => {
+      setFormData(editingInvoice);
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    const handleChange = (e) => {
+      const { name, value } = e.target;
+      setFormData(prev => ({
+        ...prev,
+        [name]: value
+      }));
+    };
+
+    const handleSubmit = (e) => {
+      e.preventDefault();
+      handleSaveInvoice(formData);
+    };
+
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="bg-white rounded-lg p-6 w-full max-w-md">
+          <h2 className="text-xl font-semibold mb-4">
+            {formData.id ? 'Edit Invoice' : 'Create New Invoice'}
+          </h2>
+          <form onSubmit={handleSubmit}>
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Invoice ID</label>
+              <input
+                type="text"
+                name="id"
+                value={formData.id}
+                onChange={handleChange}
+                className="w-full p-2 border rounded-md"
+                required
+                disabled={formData.id.startsWith('INV-')}
+              />
+            </div>
+            
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
+              <input
+                type="date"
+                name="date"
+                value={formData.date}
+                onChange={handleChange}
+                className="w-full p-2 border rounded-md"
+                required
+              />
+            </div>
+            
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Account</label>
+              <input
+                type="text"
+                name="account"
+                value={formData.account}
+                onChange={handleChange}
+                className="w-full p-2 border rounded-md"
+                required
+              />
+            </div>
+            
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Amount (RS)</label>
+              <input
+                type="number"
+                name="amount"
+                value={formData.amount}
+                onChange={handleChange}
+                className="w-full p-2 border rounded-md"
+                required
+                min="0"
+              />
+            </div>
+            
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+              <select
+                name="status"
+                value={formData.status}
+                onChange={handleChange}
+                className="w-full p-2 border rounded-md"
+                required
+              >
+                <option value="Paid">Paid</option>
+                <option value="Pending">Pending</option>
+                <option value="Overdue">Overdue</option>
+              </select>
+            </div>
+            
+            <div className="flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setShowEditModal(false)}
+                className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600"
+              >
+                Save
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    );
   };
 
   return (
@@ -186,12 +411,13 @@ const InvoiceTable = ({ onCreateInvoice }) => {
             />
           </div>
           <div className="flex gap-2">
-            <Link
-              to="/invoiceform"
-              className="bg-[#1976D2] text-white px-3 sm:px-4 py-1.5 sm:py-2 rounded-md text-xs sm:text-sm font-medium hover:bg-blue-600 transition-colors w-full sm:w-auto text-center"
+            <button
+              onClick={handleAddInvoice}
+              className="flex items-center gap-1 bg-[#1976D2] text-white px-3 sm:px-4 py-1.5 sm:py-2 rounded-md text-xs sm:text-sm font-medium hover:bg-blue-600 transition-colors"
             >
-              Create Invoice
-            </Link>
+              <Plus className="w-4 h-4" />
+              <span>Create Invoice</span>
+            </button>
 
             <button 
               className="flex items-center gap-1 bg-white border rounded-md px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm hover:bg-gray-50"
@@ -369,11 +595,6 @@ const InvoiceTable = ({ onCreateInvoice }) => {
                           <div 
                             ref={el => dropdownRefs.current[index] = el}
                             className="absolute right-0 z-50 mt-2 w-48 bg-white rounded-md shadow-lg border border-gray-200"
-                            style={{ 
-                              top: '100%',
-                              maxHeight: '200px',
-                              overflowY: 'auto'
-                            }}
                           >
                             <div className="py-1">
                               <button
@@ -426,7 +647,7 @@ const InvoiceTable = ({ onCreateInvoice }) => {
 
       {/* Pagination */}
       {filteredInvoices.length > ITEMS_PER_PAGE && (
-        <div className="flex justify-between items-center px-4 py-3 border-t border-gray-200 bg-white">
+        <div className="flex flex-col sm:flex-row justify-between items-center px-4 py-3 border-t border-gray-200 bg-white gap-3">
           <div className="text-sm text-gray-700">
             Showing {startIndex + 1}-{Math.min(startIndex + ITEMS_PER_PAGE, filteredInvoices.length)} of {filteredInvoices.length}
           </div>
@@ -438,19 +659,51 @@ const InvoiceTable = ({ onCreateInvoice }) => {
             >
               Previous
             </button>
-            {Array.from({ length: totalPages }, (_, i) => (
+            {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+              // Show pages around current page
+              let pageNum;
+              if (totalPages <= 5) {
+                pageNum = i + 1;
+              } else if (currentPage <= 3) {
+                pageNum = i + 1;
+              } else if (currentPage >= totalPages - 2) {
+                pageNum = totalPages - 4 + i;
+              } else {
+                pageNum = currentPage - 2 + i;
+              }
+              
+              return (
+                <button
+                  key={pageNum}
+                  onClick={() => handlePageChange(pageNum)}
+                  className={`px-3 py-1 text-sm rounded-md ${
+                    currentPage === pageNum
+                      ? "bg-blue-500 text-white border-blue-500"
+                      : "bg-white text-gray-700 border-gray-300 hover:bg-gray-100"
+                  } border`}
+                >
+                  {pageNum}
+                </button>
+              );
+            })}
+            
+            {totalPages > 5 && currentPage < totalPages - 2 && (
+              <span className="px-2 text-gray-500">...</span>
+            )}
+            
+            {totalPages > 5 && currentPage < totalPages - 2 && (
               <button
-                key={i + 1}
-                onClick={() => handlePageChange(i + 1)}
-                className={`px-3 py-1 border rounded-md text-sm ${
-                  currentPage === i + 1
+                onClick={() => handlePageChange(totalPages)}
+                className={`px-3 py-1 text-sm rounded-md ${
+                  currentPage === totalPages
                     ? "bg-blue-500 text-white border-blue-500"
                     : "bg-white text-gray-700 border-gray-300 hover:bg-gray-100"
-                }`}
+                } border`}
               >
-                {i + 1}
+                {totalPages}
               </button>
-            ))}
+            )}
+            
             <button
               onClick={() => handlePageChange(currentPage + 1)}
               disabled={currentPage === totalPages}
@@ -458,6 +711,38 @@ const InvoiceTable = ({ onCreateInvoice }) => {
             >
               Next
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Modal */}
+      {showEditModal && <EditInvoiceModal />}
+
+      {/* Invoice Form Modal */}
+      {showInvoiceForm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div
+            className="bg-white rounded-lg p-6 w-full max-w-2xl relative"
+            style={{ maxWidth: 800, height: 800, overflowY: 'auto' }}
+          >
+            <button
+              className="absolute top-2 right-2 text-gray-400 hover:text-gray-600"
+              onClick={() => setShowInvoiceForm(false)}
+            >
+              <span className="text-2xl">&times;</span>
+            </button>
+            <InvoiceForm
+              onSubmit={(data) => {
+                handleCreateInvoice({
+                  id: `INV-${Date.now().toString().slice(-4)}`,
+                  date: data.billDate || new Date().toISOString().split('T')[0],
+                  account: data.customerName,
+                  amount: Number(data.totalAmount) || 0,
+                  status: 'Pending',
+                  ...data
+                });
+              }}
+            />
           </div>
         </div>
       )}

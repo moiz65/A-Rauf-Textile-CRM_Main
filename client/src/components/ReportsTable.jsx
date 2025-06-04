@@ -1,10 +1,11 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Search, Filter, FileDown, Ellipsis, Edit, Trash2, Printer, Download, Copy } from 'lucide-react';
+import { Search, Filter, FileDown, Ellipsis, Edit, Trash2, Printer, Download, Copy, Plus } from 'lucide-react';
 
 const REPORT_TABS = ['All', 'Pending', 'Being Prepared', 'On The Way', 'Delivered', 'Cancelled'];
 const ITEMS_PER_PAGE = 4;
 
 const ReportsTable = ({ reports: initialReports, activeTab, setActiveTab, onCreateReport }) => {
+  const [reports, setReports] = useState(initialReports);
   const [selectedRows, setSelectedRows] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState('');
@@ -17,6 +18,8 @@ const ReportsTable = ({ reports: initialReports, activeTab, setActiveTab, onCrea
     dateTo: ''
   });
   const [activeDropdown, setActiveDropdown] = useState(null);
+  const [editingReport, setEditingReport] = useState(null);
+  const [showEditModal, setShowEditModal] = useState(false);
   const dropdownRefs = useRef([]);
 
   // Close dropdown when clicking outside
@@ -42,7 +45,7 @@ const ReportsTable = ({ reports: initialReports, activeTab, setActiveTab, onCrea
   };
 
   // Filtering logic
-  const filteredReports = initialReports
+  const filteredReports = reports
     .filter(report =>
       report.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
       report.customer.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -112,29 +115,263 @@ const ReportsTable = ({ reports: initialReports, activeTab, setActiveTab, onCrea
     setActiveDropdown(activeDropdown === dropdownKey ? null : dropdownKey);
   };
 
-  const handleAction = (action, report) => {
+  // Action functions
+  const handleEdit = (report) => {
+    setEditingReport(report);
+    setShowEditModal(true);
     setActiveDropdown(null);
+  };
+
+  const handleDelete = (report) => {
+    if (window.confirm(`Are you sure you want to delete report ${report.id}?`)) {
+      setReports(prev => prev.filter(item => item.id !== report.id));
+    }
+    setActiveDropdown(null);
+  };
+
+  const handlePrint = (report) => {
+    const printWindow = window.open('', '_blank');
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>Report: ${report.id}</title>
+          <style>
+            body { font-family: Arial, sans-serif; padding: 20px; }
+            h1 { color: #333; }
+            .report { border: 1px solid #ddd; padding: 20px; max-width: 500px; margin: 0 auto; }
+            .row { display: flex; margin-bottom: 10px; }
+            .label { font-weight: bold; width: 150px; }
+            .value { flex: 1; }
+            .status {
+              display: inline-block;
+              padding: 2px 8px;
+              border-radius: 12px;
+              font-size: 12px;
+              font-weight: bold;
+            }
+            .Pending { background-color: #fef3c7; color: #92400e; }
+            .Preparing { background-color: #dbeafe; color: #1e40af; }
+            .Cancelled { background-color: #fee2e2; color: #991b1b; }
+            .Delivered { background-color: #dcfce7; color: #166534; }
+            .On\\ the\\ way { background-color: #dbeafe; color: #1e40af; }
+          </style>
+        </head>
+        <body>
+          <h1>Order Report</h1>
+          <div class="report">
+            <div class="row"><div class="label">Order ID:</div><div class="value">${report.id}</div></div>
+            <div class="row"><div class="label">Date:</div><div class="value">${report.date}</div></div>
+            <div class="row"><div class="label">Customer:</div><div class="value">${report.customer}</div></div>
+            <div class="row"><div class="label">Price:</div><div class="value">PKR ${Number(report.price).toLocaleString()}</div></div>
+            <div class="row"><div class="label">Status:</div><div class="value"><span class="status ${report.status.replace(' ', '\\ ')}">${report.status}</span></div></div>
+          </div>
+          <script>window.print();</script>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+    setActiveDropdown(null);
+  };
+
+  const handleDownload = (report) => {
+    const data = {
+      orderId: report.id,
+      date: report.date,
+      customer: report.customer,
+      price: `PKR ${Number(report.price).toLocaleString()}`,
+      status: report.status
+    };
+    
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `report_${report.id}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    setActiveDropdown(null);
+  };
+
+  const handleDuplicate = (report) => {
+    const newReport = {
+      ...report,
+      id: `${report.id}-COPY-${Date.now().toString().slice(-4)}`,
+      date: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }),
+      status: 'Pending'
+    };
+    
+    setReports(prev => [...prev, newReport]);
+    setActiveDropdown(null);
+  };
+
+  const handleAddReport = () => {
+    const newReport = {
+      id: `ORD-${Date.now().toString().slice(-4)}`,
+      date: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }),
+      customer: '',
+      price: 0,
+      status: 'Pending'
+    };
+    
+    setEditingReport(newReport);
+    setShowEditModal(true);
+  };
+
+  const handleSaveReport = (updatedReport) => {
+    if (updatedReport.id) {
+      // Update existing report
+      setReports(prev =>
+        prev.map(report =>
+          report.id === updatedReport.id ? updatedReport : report
+        )
+      );
+    } else {
+      // Add new report
+      setReports(prev => [...prev, updatedReport]);
+    }
+    setShowEditModal(false);
+    setEditingReport(null);
+  };
+
+  const handleAction = (action, report) => {
     switch (action) {
       case 'edit':
-        alert(`Editing report: ${report.id}`);
+        handleEdit(report);
         break;
       case 'delete':
-        if (window.confirm(`Are you sure you want to delete report ${report.id}?`)) {
-          alert(`Report ${report.id} deleted`);
-        }
+        handleDelete(report);
         break;
       case 'print':
-        alert(`Printing report: ${report.id}`);
+        handlePrint(report);
         break;
       case 'download':
-        alert(`Downloading report: ${report.id}`);
+        handleDownload(report);
         break;
       case 'duplicate':
-        alert(`Duplicating report: ${report.id}`);
+        handleDuplicate(report);
         break;
       default:
         break;
     }
+  };
+
+  // Edit Modal Component
+  const EditReportModal = () => {
+    const [formData, setFormData] = useState(editingReport);
+    
+    useEffect(() => {
+      setFormData(editingReport);
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    const handleChange = (e) => {
+      const { name, value } = e.target;
+      setFormData(prev => ({
+        ...prev,
+        [name]: value
+      }));
+    };
+
+    const handleSubmit = (e) => {
+      e.preventDefault();
+      handleSaveReport(formData);
+    };
+
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="bg-white rounded-lg p-6 w-full max-w-md">
+          <h2 className="text-xl font-semibold mb-4">
+            {formData.id ? 'Edit Report' : 'Create New Report'}
+          </h2>
+          <form onSubmit={handleSubmit}>
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Order ID</label>
+              <input
+                type="text"
+                name="id"
+                value={formData.id}
+                onChange={handleChange}
+                className="w-full p-2 border rounded-md"
+                required
+                disabled={formData.id.startsWith('ORD-')}
+              />
+            </div>
+            
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
+              <input
+                type="date"
+                name="date"
+                value={formData.date}
+                onChange={handleChange}
+                className="w-full p-2 border rounded-md"
+                required
+              />
+            </div>
+            
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Customer</label>
+              <input
+                type="text"
+                name="customer"
+                value={formData.customer}
+                onChange={handleChange}
+                className="w-full p-2 border rounded-md"
+                required
+              />
+            </div>
+            
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Price (PKR)</label>
+              <input
+                type="number"
+                name="price"
+                value={formData.price}
+                onChange={handleChange}
+                className="w-full p-2 border rounded-md"
+                required
+                min="0"
+              />
+            </div>
+            
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+              <select
+                name="status"
+                value={formData.status}
+                onChange={handleChange}
+                className="w-full p-2 border rounded-md"
+                required
+              >
+                <option value="Pending">Pending</option>
+                <option value="Preparing">Being Prepared</option>
+                <option value="On the way">On The Way</option>
+                <option value="Delivered">Delivered</option>
+                <option value="Cancelled">Cancelled</option>
+              </select>
+            </div>
+            
+            <div className="flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setShowEditModal(false)}
+                className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600"
+              >
+                Save
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    );
   };
 
   return (
@@ -162,10 +399,11 @@ const ReportsTable = ({ reports: initialReports, activeTab, setActiveTab, onCrea
           
           <div className="flex gap-2">
             <button 
-              onClick={onCreateReport}
-              className="bg-[#1976D2] text-white px-3 sm:px-4 py-1.5 sm:py-2 rounded-md text-xs sm:text-sm font-medium hover:bg-blue-600 transition-colors w-full sm:w-auto text-center"
+              onClick={handleAddReport}
+              className="flex items-center gap-1 bg-[#1976D2] text-white px-3 sm:px-4 py-1.5 sm:py-2 rounded-md text-xs sm:text-sm font-medium hover:bg-blue-600 transition-colors"
             >
-              Create New Report
+              <Plus className="w-4 h-4" />
+              <span>Create New Report</span>
             </button>
             
             <button 
@@ -405,7 +643,7 @@ const ReportsTable = ({ reports: initialReports, activeTab, setActiveTab, onCrea
 
       {/* Pagination */}
       {filteredReports.length > ITEMS_PER_PAGE && (
-        <div className="flex justify-between items-center px-4 py-3 border-t border-gray-200 bg-white">
+        <div className="flex flex-col sm:flex-row justify-between items-center px-4 py-3 border-t border-gray-200 bg-white gap-3">
           <div className="text-sm text-gray-700">
             Showing {startIndex + 1}-{Math.min(startIndex + ITEMS_PER_PAGE, filteredReports.length)} of {filteredReports.length}
           </div>
@@ -417,19 +655,51 @@ const ReportsTable = ({ reports: initialReports, activeTab, setActiveTab, onCrea
             >
               Previous
             </button>
-            {Array.from({ length: totalPages }, (_, i) => (
+            {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+              // Show pages around current page
+              let pageNum;
+              if (totalPages <= 5) {
+                pageNum = i + 1;
+              } else if (currentPage <= 3) {
+                pageNum = i + 1;
+              } else if (currentPage >= totalPages - 2) {
+                pageNum = totalPages - 4 + i;
+              } else {
+                pageNum = currentPage - 2 + i;
+              }
+              
+              return (
+                <button
+                  key={pageNum}
+                  onClick={() => handlePageChange(pageNum)}
+                  className={`px-3 py-1 text-sm rounded-md ${
+                    currentPage === pageNum
+                      ? "bg-blue-500 text-white border-blue-500"
+                      : "bg-white text-gray-700 border-gray-300 hover:bg-gray-100"
+                  } border`}
+                >
+                  {pageNum}
+                </button>
+              );
+            })}
+            
+            {totalPages > 5 && currentPage < totalPages - 2 && (
+              <span className="px-2 text-gray-500">...</span>
+            )}
+            
+            {totalPages > 5 && currentPage < totalPages - 2 && (
               <button
-                key={i + 1}
-                onClick={() => handlePageChange(i + 1)}
-                className={`px-3 py-1 border rounded-md text-sm ${
-                  currentPage === i + 1
+                onClick={() => handlePageChange(totalPages)}
+                className={`px-3 py-1 text-sm rounded-md ${
+                  currentPage === totalPages
                     ? "bg-blue-500 text-white border-blue-500"
                     : "bg-white text-gray-700 border-gray-300 hover:bg-gray-100"
-                }`}
+                } border`}
               >
-                {i + 1}
+                {totalPages}
               </button>
-            ))}
+            )}
+            
             <button
               onClick={() => handlePageChange(currentPage + 1)}
               disabled={currentPage === totalPages}
@@ -440,6 +710,9 @@ const ReportsTable = ({ reports: initialReports, activeTab, setActiveTab, onCrea
           </div>
         </div>
       )}
+
+      {/* Edit Modal */}
+      {showEditModal && <EditReportModal />}
     </div>
   );
 };
@@ -447,10 +720,10 @@ const ReportsTable = ({ reports: initialReports, activeTab, setActiveTab, onCrea
 // Example usage with your provided data
 const reports = [
   { id: '813789', date: 'Feb 08, 2025', customer: 'Noor Textile', price: '90000', status: 'Pending' },
-  { id: '813789', date: 'Feb 08, 2025', customer: 'Malik Fabrics', price: '90000', status: 'Preparing' },
-  { id: '813789', date: 'Feb 08, 2025', customer: 'Ahmed Textiles', price: '90000', status: 'Cancelled' },
-  { id: '813789', date: 'Feb 08, 2025', customer: 'Ahmed Textiles', price: '90000', status: 'Delivered' },
-  { id: '813789', date: 'Feb 08, 2025', customer: 'Zainab Cloth House', price: '90000', status: 'On the way' },
+  { id: '813790', date: 'Feb 08, 2025', customer: 'Malik Fabrics', price: '90000', status: 'Preparing' },
+  { id: '813791', date: 'Feb 08, 2025', customer: 'Ahmed Textiles', price: '90000', status: 'Cancelled' },
+  { id: '813792', date: 'Feb 08, 2025', customer: 'Ahmed Textiles', price: '90000', status: 'Delivered' },
+  { id: '813793', date: 'Feb 08, 2025', customer: 'Zainab Cloth House', price: '90000', status: 'On the way' },
 ];
 
 export default function App() {

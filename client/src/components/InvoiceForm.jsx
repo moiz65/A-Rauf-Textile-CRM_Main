@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 
-const UNIT_WEIGHT = 10;
 
 const InvoiceForm = () => {
   const [formData, setFormData] = useState({

@@ -1,7 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Search, Filter, FileDown, Ellipsis, Edit, Trash2, Printer, Download, Copy, Plus } from 'lucide-react';
 
-const expensesData = [
+// Initial expenses data
+const initialExpensesData = [
   {
     id: '1',
     title: 'Fabric Purchase',
@@ -73,6 +74,7 @@ const expensesData = [
 const ITEMS_PER_PAGE = 4;
 
 const ExpenseTable = () => {
+  const [expensesData, setExpensesData] = useState(initialExpensesData);
   const [selectedRows, setSelectedRows] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState('');
@@ -89,10 +91,13 @@ const ExpenseTable = () => {
   });
   const [showFilters, setShowFilters] = useState(false);
   const [activeDropdown, setActiveDropdown] = useState(null);
+  const [editingExpense, setEditingExpense] = useState(null);
+  const [showEditModal, setShowEditModal] = useState(false);
   const dropdownRef = useRef(null);
 
   const expenseCategories = ['All', 'Materials', 'Equipment', 'Administrative', 'Utilities', 'Payroll', 'Logistics'];
   const statusOptions = ['All', 'Paid', 'Pending'];
+  const paymentMethods = ['Bank Transfer', 'Cash', 'Credit Card', 'Check', 'Online Payment'];
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -198,29 +203,299 @@ const ExpenseTable = () => {
     setActiveDropdown(activeDropdown === expenseId ? null : expenseId);
   };
 
-  const handleAction = (action, expense) => {
+  // Action functions
+  const handleEdit = (expense) => {
+    setEditingExpense(expense);
+    setShowEditModal(true);
     setActiveDropdown(null);
+  };
+
+  const handleDelete = (expense) => {
+    if (window.confirm(`Are you sure you want to delete expense "${expense.title}"?`)) {
+      setExpensesData(prev => prev.filter(item => item.id !== expense.id));
+    }
+    setActiveDropdown(null);
+  };
+
+  const handlePrint = (expense) => {
+    const printWindow = window.open('', '_blank');
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>Expense Receipt: ${expense.title}</title>
+          <style>
+            body { font-family: Arial, sans-serif; padding: 20px; }
+            h1 { color: #333; }
+            .receipt { border: 1px solid #ddd; padding: 20px; max-width: 500px; margin: 0 auto; }
+            .row { display: flex; margin-bottom: 10px; }
+            .label { font-weight: bold; width: 150px; }
+            .value { flex: 1; }
+          </style>
+        </head>
+        <body>
+          <h1>Expense Receipt</h1>
+          <div class="receipt">
+            <div class="row"><div class="label">Title:</div><div class="value">${expense.title}</div></div>
+            <div class="row"><div class="label">Date:</div><div class="value">${expense.date}</div></div>
+            <div class="row"><div class="label">Vendor:</div><div class="value">${expense.vendor}</div></div>
+            <div class="row"><div class="label">Amount:</div><div class="value">PKR ${expense.price.toLocaleString()}</div></div>
+            <div class="row"><div class="label">Category:</div><div class="value">${expense.category}</div></div>
+            <div class="row"><div class="label">Payment Method:</div><div class="value">${expense.paymentMethod}</div></div>
+            <div class="row"><div class="label">Status:</div><div class="value">${expense.status}</div></div>
+            <div class="row"><div class="label">Description:</div><div class="value">${expense.Reasons}</div></div>
+          </div>
+          <script>window.print();</script>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+    setActiveDropdown(null);
+  };
+
+  const handleDownload = (expense) => {
+    const data = {
+      title: expense.title,
+      date: expense.date,
+      vendor: expense.vendor,
+      amount: `PKR ${expense.price.toLocaleString()}`,
+      category: expense.category,
+      paymentMethod: expense.paymentMethod,
+      status: expense.status,
+      description: expense.Reasons
+    };
+    
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `expense_${expense.id}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    setActiveDropdown(null);
+  };
+
+  const handleDuplicate = (expense) => {
+    const newExpense = {
+      ...expense,
+      id: Date.now().toString(),
+      title: `${expense.title} (Copy)`,
+      date: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }),
+      status: 'Pending'
+    };
+    
+    setExpensesData(prev => [...prev, newExpense]);
+    setActiveDropdown(null);
+  };
+
+  const handleAddExpense = () => {
+    const newExpense = {
+      id: Date.now().toString(),
+      title: 'New Expense',
+      date: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }),
+      vendor: '',
+      price: 0,
+      category: 'Materials',
+      paymentMethod: 'Cash',
+      Reasons: '',
+      status: 'Pending'
+    };
+    
+    setEditingExpense(newExpense);
+    setShowEditModal(true);
+  };
+
+  const handleSaveExpense = (updatedExpense) => {
+    if (updatedExpense.id) {
+      // Update existing expense
+      setExpensesData(prev =>
+        prev.map(expense =>
+          expense.id === updatedExpense.id ? updatedExpense : expense
+        )
+      );
+    } else {
+      // Add new expense
+      setExpensesData(prev => [...prev, updatedExpense]);
+    }
+    setShowEditModal(false);
+    setEditingExpense(null);
+  };
+
+  const handleAction = (action, expense) => {
     switch (action) {
       case 'edit':
-        alert(`Editing expense: ${expense.title}`);
+        handleEdit(expense);
         break;
       case 'delete':
-        if (window.confirm(`Are you sure you want to delete expense ${expense.title}?`)) {
-          alert(`Expense ${expense.title} deleted`);
-        }
+        handleDelete(expense);
         break;
       case 'print':
-        alert(`Printing expense: ${expense.title}`);
+        handlePrint(expense);
         break;
       case 'download':
-        alert(`Downloading expense: ${expense.title}`);
+        handleDownload(expense);
         break;
       case 'duplicate':
-        alert(`Duplicating expense: ${expense.title}`);
+        handleDuplicate(expense);
         break;
       default:
         break;
     }
+  };
+
+  // Edit Modal Component
+  const EditExpenseModal = () => {
+    const [formData, setFormData] = useState(editingExpense);
+    
+    useEffect(() => {
+      setFormData(editingExpense);
+    }, []);
+
+    const handleChange = (e) => {
+      const { name, value } = e.target;
+      setFormData(prev => ({
+        ...prev,
+        [name]: value
+      }));
+    };
+
+    const handleSubmit = (e) => {
+      e.preventDefault();
+      handleSaveExpense(formData);
+    };
+
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="bg-white rounded-lg p-6 w-full max-w-md">
+          <h2 className="text-xl font-semibold mb-4">
+            {formData.id ? 'Edit Expense' : 'Add New Expense'}
+          </h2>
+          <form onSubmit={handleSubmit}>
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Title</label>
+              <input
+                type="text"
+                name="title"
+                value={formData.title}
+                onChange={handleChange}
+                className="w-full p-2 border rounded-md"
+                required
+              />
+            </div>
+            
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
+              <input
+                type="date"
+                name="date"
+                value={formData.date}
+                onChange={handleChange}
+                className="w-full p-2 border rounded-md"
+                required
+              />
+            </div>
+            
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Vendor</label>
+              <input
+                type="text"
+                name="vendor"
+                value={formData.vendor}
+                onChange={handleChange}
+                className="w-full p-2 border rounded-md"
+                required
+              />
+            </div>
+            
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Amount (PKR)</label>
+              <input
+                type="number"
+                name="price"
+                value={formData.price}
+                onChange={handleChange}
+                className="w-full p-2 border rounded-md"
+                required
+                min="0"
+              />
+            </div>
+            
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
+              <select
+                name="category"
+                value={formData.category}
+                onChange={handleChange}
+                className="w-full p-2 border rounded-md"
+                required
+              >
+                {expenseCategories.filter(cat => cat !== 'All').map(category => (
+                  <option key={category} value={category}>{category}</option>
+                ))}
+              </select>
+            </div>
+            
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Payment Method</label>
+              <select
+                name="paymentMethod"
+                value={formData.paymentMethod}
+                onChange={handleChange}
+                className="w-full p-2 border rounded-md"
+                required
+              >
+                {paymentMethods.map(method => (
+                  <option key={method} value={method}>{method}</option>
+                ))}
+              </select>
+            </div>
+            
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+              <select
+                name="status"
+                value={formData.status}
+                onChange={handleChange}
+                className="w-full p-2 border rounded-md"
+                required
+              >
+                {statusOptions.filter(stat => stat !== 'All').map(status => (
+                  <option key={status} value={status}>{status}</option>
+                ))}
+              </select>
+            </div>
+            
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+              <textarea
+                name="Reasons"
+                value={formData.Reasons}
+                onChange={handleChange}
+                className="w-full p-2 border rounded-md"
+                rows="3"
+              />
+            </div>
+            
+            <div className="flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setShowEditModal(false)}
+                className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600"
+              >
+                Save
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    );
   };
 
   return (
@@ -247,7 +522,10 @@ const ExpenseTable = () => {
           </div>
           
           <div className="flex gap-2">
-            <button className="flex items-center gap-1 bg-[#1976D2] text-white px-3 sm:px-4 py-1.5 sm:py-2 rounded-md text-xs sm:text-sm font-medium hover:bg-blue-600 transition-colors">
+            <button 
+              className="flex items-center gap-1 bg-[#1976D2] text-white px-3 sm:px-4 py-1.5 sm:py-2 rounded-md text-xs sm:text-sm font-medium hover:bg-blue-600 transition-colors"
+              onClick={handleAddExpense}
+            >
               <Plus className="w-4 h-4" />
               <span>Add Expense</span>
             </button>
@@ -600,6 +878,9 @@ const ExpenseTable = () => {
           </div>
         </div>
       )}
+
+      {/* Edit Modal */}
+      {showEditModal && <EditExpenseModal />}
     </div>
   );
 };
