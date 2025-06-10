@@ -1,12 +1,13 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom'; // <-- Add this import
+import { useNavigate } from 'react-router-dom';
 import { Search, Filter, FileDown, Ellipsis, Edit, Trash2, Printer, Download, Copy, Plus, Eye } from 'lucide-react';
+import reportsData from '../data/ReportData'; // <-- Import the shared data
 
 const REPORT_TABS = ['All', 'Pending', 'Being Prepared', 'On The Way', 'Delivered', 'Cancelled'];
 const ITEMS_PER_PAGE = 4;
 
-const ReportsTable = ({ reports: initialReports, activeTab, setActiveTab, onCreateReport }) => {
-  const [reports, setReports] = useState(initialReports);
+const ReportsTable = ({ activeTab, setActiveTab, onCreateReport }) => {
+  const [reports, setReports] = useState(reportsData); // <-- Use imported data
   const [selectedRows, setSelectedRows] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState('');
@@ -119,7 +120,7 @@ const ReportsTable = ({ reports: initialReports, activeTab, setActiveTab, onCrea
 
   const handleView = (report) => {
     // navigate to DataTable.jsx, passing report id or data if needed
-    navigate('/datatable', { state: { report } });
+    navigate('/reportdata', { state: { report } });
     setActiveDropdown(null);
   };
 
@@ -780,22 +781,4 @@ const ReportsTable = ({ reports: initialReports, activeTab, setActiveTab, onCrea
   );
 };
 
-const reports = [
-  { id: '813789', date: 'Feb 08, 2025', customer: 'Noor Textile', price: '90000', status: 'Pending' },
-  { id: '813790', date: 'Feb 08, 2025', customer: 'Malik Fabrics', price: '90000', status: 'Preparing' },
-  { id: '813791', date: 'Feb 08, 2025', customer: 'Ahmed Textiles', price: '90000', status: 'Cancelled' },
-  { id: '813792', date: 'Feb 08, 2025', customer: 'Ahmed Textiles', price: '90000', status: 'Delivered' },
-  { id: '813793', date: 'Feb 08, 2025', customer: 'Zainab Cloth House', price: '90000', status: 'On the way' },
-];
-
-export default function App() {
-  const [activeTab, setActiveTab] = useState('All');
-  return (
-    <ReportsTable 
-      reports={reports} 
-      activeTab={activeTab} 
-      setActiveTab={setActiveTab} 
-      onCreateReport={() => console.log('Create new report')} 
-    />
-  );
-}
+export default ReportsTable;

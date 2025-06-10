@@ -1,12 +1,14 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Sidebar from '../components/Sidebar';
 import Header from '../components/Header';
 import ReportsTable from '../components/ReportsTable';
 import SummaryCard from '../components/SummaryCard';
 import RecentActivity from '../components/RecentActivity';
+import reportsData from '../data/ReportData';
 
 const Report = () => {
   const [activeTab, setActiveTab] = useState('All');
+  const [reports, setReports] = useState(reportsData);
 
   const summaryData = [
     {
@@ -35,15 +37,6 @@ const Report = () => {
     },
   ];
   
- const reports = [
-  { id: '813789', date: 'Feb 08, 2025', customer: 'Noor Textile', price: '90000', status: 'Pending' },
-  { id: '813789', date: 'Feb 08, 2025', customer: 'Malik Fabrics', price: '90000', status: 'Preparing' },
-  { id: '813789', date: 'Feb 08, 2025', customer: 'Ahmed Textiles', price: '90000', status: 'Cancelled' },
-  { id: '813789', date: 'Feb 08, 2025', customer: 'Ahmed Textiles', price: '90000', status: 'Delivered' },
-  { id: '813789', date: 'Feb 08, 2025', customer: 'Zainab Cloth House', price: '90000', status: 'On the way' },
-
-];
-
   const recentActivities = [
     {
       id: '1',
@@ -111,7 +104,6 @@ const Report = () => {
           <section className="grid grid-cols-1 lg:grid-cols-4 gap-5">
             <div className="lg:col-span-3">
               <ReportsTable 
-                reports={reports} 
                 activeTab={activeTab} 
                 setActiveTab={setActiveTab}
               />

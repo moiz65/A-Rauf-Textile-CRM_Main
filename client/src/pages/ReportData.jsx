@@ -5,9 +5,28 @@ import Header from '../components/Header';
 // import SummaryCard from '../components/SummaryCard';
 // import RecentActivity from '../components/RecentActivity';
 import DataTable from '../components/DataTable';
+import React from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 const ReportData = () => {
-  
+  const location = useLocation();
+  const navigate = useNavigate();
+  const report = location.state?.report;
+
+  if (!report) {
+    return (
+      <div className="p-8 text-center">
+        <p className="text-lg text-gray-600 mb-4">No report data found.</p>
+        <button
+          onClick={() => navigate(-1)}
+          className="px-4 py-2 bg-blue-500 text-white rounded"
+        >
+          Go Back
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className="flex bg-[#F5F5F5] min-h-screen p-3">
       {/* Left Sidebar */}
