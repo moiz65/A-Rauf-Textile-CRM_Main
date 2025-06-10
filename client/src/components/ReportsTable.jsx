@@ -1,13 +1,13 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Search, Filter, FileDown, Ellipsis, Edit, Trash2, Printer, Download, Copy, Plus, Eye } from 'lucide-react';
-import reportsData from '../data/ReportData'; // <-- Import the shared data
+import reportsData from '../data/ReportData'; // Import from ReportData
 
 const REPORT_TABS = ['All', 'Pending', 'Being Prepared', 'On The Way', 'Delivered', 'Cancelled'];
 const ITEMS_PER_PAGE = 4;
 
 const ReportsTable = ({ activeTab, setActiveTab, onCreateReport }) => {
-  const [reports, setReports] = useState(reportsData); // <-- Use imported data
+  const [reports, setReports] = useState([]);
   const [selectedRows, setSelectedRows] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState('');
@@ -35,6 +35,10 @@ const ReportsTable = ({ activeTab, setActiveTab, onCreateReport }) => {
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  useEffect(() => {
+    setReports(reportsData); // Fetch from ReportData.js
   }, []);
 
   const getStatusClass = (status) => {
