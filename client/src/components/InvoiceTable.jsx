@@ -720,29 +720,42 @@ const InvoiceTable = ({ onCreateInvoice }) => {
 
       {/* Invoice Form Modal */}
       {showInvoiceForm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          {/* Blurred background */}
+          <div className="absolute inset-0 bg-gray-900/60 backdrop-blur-sm"></div>
+          {/* Modal */}
           <div
-            className="bg-white rounded-lg p-6 w-full max-w-2xl relative"
-            style={{ maxWidth: 800, height: 800, overflowY: 'auto' }}
+            className="relative bg-white rounded-2xl shadow-xl w-full max-w-xl sm:max-w-2xl p-0 overflow-hidden flex flex-col"
+            style={{ maxWidth: 700, maxHeight: '90vh' }}
           >
+            {/* Close button */}
             <button
-              className="absolute top-2 right-2 text-gray-400 hover:text-gray-600"
+              className="absolute top-3 right-3 text-gray-400 hover:text-gray-600 z-10"
               onClick={() => setShowInvoiceForm(false)}
+              aria-label="Close"
             >
-              <span className="text-2xl">&times;</span>
+              <span className="text-2xl leading-none">&times;</span>
             </button>
-            <InvoiceForm
-              onSubmit={(data) => {
-                handleCreateInvoice({
-                  id: `INV-${Date.now().toString().slice(-4)}`,
-                  date: data.billDate || new Date().toISOString().split('T')[0],
-                  account: data.customerName,
-                  amount: Number(data.totalAmount) || 0,
-                  status: 'Pending',
-                  ...data
-                });
-              }}
-            />
+            {/* Header */}
+            <div className="px-8 pt-8 pb-4 border-b">
+              <h2 className="text-xl font-semibold text-gray-800">Create Invoice</h2>
+              <p className="text-sm text-gray-500">Fill in the invoice details below.</p>
+            </div>
+            {/* Form */}
+            <div className="flex-1 overflow-y-auto px-8 py-6">
+              <InvoiceForm
+                onSubmit={(data) => {
+                  handleCreateInvoice({
+                    id: `INV-${Date.now().toString().slice(-4)}`,
+                    date: data.billDate || new Date().toISOString().split('T')[0],
+                    account: data.customerName,
+                    amount: Number(data.totalAmount) || 0,
+                    status: 'Pending',
+                    ...data
+                  });
+                }}
+              />
+            </div>
           </div>
         </div>
       )}

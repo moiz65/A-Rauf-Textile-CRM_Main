@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Search, Filter, FileDown, Ellipsis, Edit, Trash2, Printer, Download, Copy, Plus } from 'lucide-react';
+import { Search, Filter, FileDown, Ellipsis, Edit, Trash2, Printer, Download, Copy, Plus, Eye } from 'lucide-react';
 
 const REPORT_TABS = ['All', 'Pending', 'Being Prepared', 'On The Way', 'Delivered', 'Cancelled'];
 const ITEMS_PER_PAGE = 4;
@@ -20,9 +20,10 @@ const ReportsTable = ({ reports: initialReports, activeTab, setActiveTab, onCrea
   const [activeDropdown, setActiveDropdown] = useState(null);
   const [editingReport, setEditingReport] = useState(null);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [showViewModal, setShowViewModal] = useState(false);
+  const [viewingReport, setViewingReport] = useState(null);
   const dropdownRefs = useRef([]);
 
-  // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (dropdownRefs.current.every(ref => !ref?.contains(event.target))) {
@@ -44,7 +45,6 @@ const ReportsTable = ({ reports: initialReports, activeTab, setActiveTab, onCrea
     }
   };
 
-  // Filtering logic
   const filteredReports = reports
     .filter(report =>
       report.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -115,7 +115,12 @@ const ReportsTable = ({ reports: initialReports, activeTab, setActiveTab, onCrea
     setActiveDropdown(activeDropdown === dropdownKey ? null : dropdownKey);
   };
 
-  // Action functions
+  const handleView = (report) => {
+    setViewingReport(report);
+    setShowViewModal(true);
+    setActiveDropdown(null);
+  };
+
   const handleEdit = (report) => {
     setEditingReport(report);
     setShowEditModal(true);
@@ -221,14 +226,12 @@ const ReportsTable = ({ reports: initialReports, activeTab, setActiveTab, onCrea
 
   const handleSaveReport = (updatedReport) => {
     if (updatedReport.id) {
-      // Update existing report
       setReports(prev =>
         prev.map(report =>
           report.id === updatedReport.id ? updatedReport : report
         )
       );
     } else {
-      // Add new report
       setReports(prev => [...prev, updatedReport]);
     }
     setShowEditModal(false);
@@ -237,6 +240,9 @@ const ReportsTable = ({ reports: initialReports, activeTab, setActiveTab, onCrea
 
   const handleAction = (action, report) => {
     switch (action) {
+      case 'view':
+        handleView(report);
+        break;
       case 'edit':
         handleEdit(report);
         break;
@@ -257,13 +263,11 @@ const ReportsTable = ({ reports: initialReports, activeTab, setActiveTab, onCrea
     }
   };
 
-  // Edit Modal Component
   const EditReportModal = () => {
     const [formData, setFormData] = useState(editingReport);
     
     useEffect(() => {
       setFormData(editingReport);
-      // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     const handleChange = (e) => {
@@ -369,6 +373,56 @@ const ReportsTable = ({ reports: initialReports, activeTab, setActiveTab, onCrea
               </button>
             </div>
           </form>
+        </div>
+      </div>
+    );
+  };
+
+  const ViewReportModal = () => {
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="bg-white rounded-lg p-6 w-full max-w-md">
+          <h2 className="text-xl font-semibold mb-4">View Report Details</h2>
+          
+          <div className="space-y-4">
+            <div>
+              <h3 className="text-sm font-medium text-gray-500">Order ID</h3>
+              <p className="mt-1 text-sm text-gray-900">{viewingReport.id}</p>
+            </div>
+            
+            <div>
+              <h3 className="text-sm font-medium text-gray-500">Date</h3>
+              <p className="mt-1 text-sm text-gray-900">{viewingReport.date}</p>
+            </div>
+            
+            <div>
+              <h3 className="text-sm font-medium text-gray-500">Customer</h3>
+              <p className="mt-1 text-sm text-gray-900">{viewingReport.customer}</p>
+            </div>
+            
+            <div>
+              <h3 className="text-sm font-medium text-gray-500">Price</h3>
+              <p className="mt-1 text-sm text-gray-900">PKR {Number(viewingReport.price).toLocaleString()}</p>
+            </div>
+            
+            <div>
+              <h3 className="text-sm font-medium text-gray-500">Status</h3>
+              <p className="mt-1">
+                <span className={`px-2 py-1 inline-flex text-xs font-semibold rounded-full ${getStatusClass(viewingReport.status)}`}>
+                  {viewingReport.status}
+                </span>
+              </p>
+            </div>
+          </div>
+          
+          <div className="mt-6 flex justify-end">
+            <button
+              onClick={() => setShowViewModal(false)}
+              className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600"
+            >
+              Close
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -593,6 +647,13 @@ const ReportsTable = ({ reports: initialReports, activeTab, setActiveTab, onCrea
                             >
                               <div className="py-1">
                                 <button
+                                  onClick={() => handleAction('view', report)}
+                                  className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left"
+                                >
+                                  <Eye className="w-4 h-4 mr-2" />
+                                  View
+                                </button>
+                                <button
                                   onClick={() => handleAction('edit', report)}
                                   className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left"
                                 >
@@ -656,7 +717,6 @@ const ReportsTable = ({ reports: initialReports, activeTab, setActiveTab, onCrea
               Previous
             </button>
             {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-              // Show pages around current page
               let pageNum;
               if (totalPages <= 5) {
                 pageNum = i + 1;
@@ -711,13 +771,13 @@ const ReportsTable = ({ reports: initialReports, activeTab, setActiveTab, onCrea
         </div>
       )}
 
-      {/* Edit Modal */}
+      {/* Modals */}
       {showEditModal && <EditReportModal />}
+      {showViewModal && <ViewReportModal />}
     </div>
   );
 };
 
-// Example usage with your provided data
 const reports = [
   { id: '813789', date: 'Feb 08, 2025', customer: 'Noor Textile', price: '90000', status: 'Pending' },
   { id: '813790', date: 'Feb 08, 2025', customer: 'Malik Fabrics', price: '90000', status: 'Preparing' },
