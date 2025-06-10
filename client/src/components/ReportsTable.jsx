@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom'; // <-- Add this import
 import { Search, Filter, FileDown, Ellipsis, Edit, Trash2, Printer, Download, Copy, Plus, Eye } from 'lucide-react';
 
 const REPORT_TABS = ['All', 'Pending', 'Being Prepared', 'On The Way', 'Delivered', 'Cancelled'];
@@ -21,8 +22,9 @@ const ReportsTable = ({ reports: initialReports, activeTab, setActiveTab, onCrea
   const [editingReport, setEditingReport] = useState(null);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showViewModal, setShowViewModal] = useState(false);
-  const [viewingReport, setViewingReport] = useState(null);
+  const [viewingReport] = useState(null);
   const dropdownRefs = useRef([]);
+  const navigate = useNavigate(); // <-- Add this line
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -116,8 +118,8 @@ const ReportsTable = ({ reports: initialReports, activeTab, setActiveTab, onCrea
   };
 
   const handleView = (report) => {
-    setViewingReport(report);
-    setShowViewModal(true);
+    // navigate to DataTable.jsx, passing report id or data if needed
+    navigate('/datatable', { state: { report } });
     setActiveDropdown(null);
   };
 
