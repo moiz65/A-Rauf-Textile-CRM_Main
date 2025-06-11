@@ -9,14 +9,14 @@ import TransactionHistory from '../components/TransactionHistory';
 
 const Dashboard = () => {
   return (
-    <div className="flex bg-[#F5F5F5] min-h-screen p-3">
+    <div className="flex bg-[#F5F5F5] min-h-screen p-4 ">
       {/* Sidebar */}
-      <div className="hidden md:block">
+      <div className="hidden md:block fixed h-screen w-64 z-20">
         <Sidebar />
       </div>
       
       {/* Main Content */}
-      <div className="flex-1 p-6 bg-[#F5F5F5]">
+      <div className="flex-1 p-6 bg-[#F5F5F5] md:ml-64">
         {/* Header */}
         <Header name="A RAUF TEXTILE" />
         
@@ -26,7 +26,6 @@ const Dashboard = () => {
           <QuickActions />
           <div className="lg:col-span-2">
               <PaymentSummary />
-              
             </div>
           
           {/* Stats Cards */}
