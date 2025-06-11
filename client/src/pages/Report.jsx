@@ -1,14 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import Sidebar from '../components/Sidebar';
 import Header from '../components/Header';
 import ReportsTable from '../components/ReportsTable';
 import SummaryCard from '../components/SummaryCard';
 import RecentActivity from '../components/RecentActivity';
-import reportsData from '../data/ReportData';
 
 const Report = () => {
   const [activeTab, setActiveTab] = useState('All');
-  const [reports, setReports] = useState(reportsData);
+  // Removed unused 'reports' state
 
   const summaryData = [
     {

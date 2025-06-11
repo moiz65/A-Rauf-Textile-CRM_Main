@@ -15,10 +15,9 @@ const Settings = () => {
           {/* Header */}
           <Header name="A RAUF TEXTILE" />
           
-          {/* Page Content Goes Here */}
           <div>
             <SettingsPage />
-            {/* You can render children or other components here */}
+            
           </div>
         </div>
       </div>
