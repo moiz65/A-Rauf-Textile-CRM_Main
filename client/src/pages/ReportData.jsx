@@ -42,7 +42,7 @@ const ReportData = () => {
           
 
           {/* Reports Table and Recent Activity */}
-          <section className="grid grid-cols-1 lg:grid-cols-4 gap-5">
+          <section className="grid grid-cols-1 lg:grid-cols-1 gap-5">
             
             <div className="lg:col-span-3">
               <DataTable/>
