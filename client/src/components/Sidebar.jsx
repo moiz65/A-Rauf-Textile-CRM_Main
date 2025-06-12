@@ -234,7 +234,7 @@ const Sidebar = () => {
         ${isCollapsed ? "w-16" : "w-56 sm:w-64"}
         ${isMobileOpen ? "left-0" : "-left-full sm:left-0"}
         min-w-[80px] bg-white border-r border-gray-200 p-2 sm:p-4
-        flex flex-col h-screen transition-all duration-300 ease-in-out
+        flex flex-col h-[920px] transition-all duration-300 ease-in-out
         shadow-lg sm:shadow-none rounded-[30px]
       `}
       >
