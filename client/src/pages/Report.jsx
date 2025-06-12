@@ -7,7 +7,6 @@ import RecentActivity from '../components/RecentActivity';
 
 const Report = () => {
   const [activeTab, setActiveTab] = useState('All');
-  // Removed unused 'reports' state
 
   const summaryData = [
     {
