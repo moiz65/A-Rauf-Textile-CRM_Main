@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Sidebar from '../components/Sidebar';
 import Header from '../components/Header';
 import ReportsTable from '../components/ReportsTable';
@@ -7,6 +7,7 @@ import RecentActivity from '../components/RecentActivity';
 
 const Report = () => {
   const [activeTab, setActiveTab] = useState('All');
+  const [reports, setReports] = useState([]);
 
   const summaryData = [
     {
@@ -104,6 +105,7 @@ const Report = () => {
             <ReportsTable 
               activeTab={activeTab} 
               setActiveTab={setActiveTab}
+              reports={reports}
             />
           </div>
           <div className="lg:col-span-1">

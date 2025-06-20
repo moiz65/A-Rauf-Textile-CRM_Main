@@ -20,12 +20,17 @@ const pool = mysql.createPool({
   queueLimit: 0
 });
 
-app.get('/health', (req, res) => res.status(200).json({ status: 'ok' }));
+app.post('/health', (req, res) => res.status(200).json({ status: 'ok' }));
 
-app.get('/api/v1/reports', async (req, res, next) => {
+// POST /api/v1/reports - Add a new report
+app.post('/api/v1/reports', async (req, res, next) => {
+  const { date, customer, price, status } = req.body;
   try {
-    const [results] = await pool.query('SELECT * FROM reports');
-    res.json(results);
+    await pool.query(
+      'INSERT INTO reports (date, customer, price, status) VALUES (?, ?, ?, ?)',
+      [date, customer, price, status]
+    );
+    res.status(201).json({ message: 'Report added' });
   } catch (err) {
     next(err);
   }
