@@ -199,7 +199,7 @@ const ReportsTable = ({
       date: new Date().toISOString().slice(0, 10),
       customer: "",
       price: 0,
-      status: "",
+      status: "Pending",
     };
     setEditingReport(newReport);
     setShowEditModal(true);
@@ -290,6 +290,17 @@ const ReportsTable = ({
   const EditReportModal = () => {
     const [formData, setFormData] = useState(editingReport);
 
+    // Always keep ID field disabled and auto-generate for new/duplicate
+    useEffect(() => {
+      // If creating a new report (id is empty or not in ORD- format), generate a new one
+      if (!formData.id || !/^ORD-\d{13}-\d{4}$/.test(formData.id)) {
+        setFormData((prev) => ({
+          ...prev,
+          id: generateUniqueReportId(),
+        }));
+      }
+    }, [formData.id]);
+
     const handleChange = (e) => {
       const { name, value } = e.target;
       setFormData((prev) => ({
@@ -311,7 +322,7 @@ const ReportsTable = ({
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
         <div className="bg-white rounded-lg p-6 w-full max-w-md">
           <h2 className="text-xl font-semibold mb-4">
-            {formData.id ? "Edit Report" : "Create New Report"}
+            {editingReport && editingReport.id ? "Edit Report" : "Create New Report"}
           </h2>
           <form onSubmit={handleSubmit}>
             <div className="mb-4">
@@ -322,10 +333,9 @@ const ReportsTable = ({
                 type="text"
                 name="id"
                 value={formData.id}
-                onChange={handleChange}
-                className="w-full p-2 border rounded-md"
+                className="w-full p-2 border rounded-md bg-gray-100 cursor-not-allowed"
                 required
-                disabled={formData.id.startsWith("ORD-")}
+                disabled
               />
             </div>
 
