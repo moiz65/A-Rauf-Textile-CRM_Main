@@ -1,5 +1,4 @@
 import React, { useState, useRef } from "react";
-import { useNavigate } from "react-router-dom";
 import { useEffect } from "react";
 import {
   Search,
@@ -18,8 +17,8 @@ import {
 const REPORT_TABS = [
   "All",
   "Pending",
-  "Being Prepared",
-  "On The Way",
+  "Preparing",
+  "On the way",
   "Delivered",
   "Cancelled",
 ];
@@ -47,9 +46,8 @@ const ReportsTable = ({
   const [editingReport, setEditingReport] = useState(null);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showViewModal, setShowViewModal] = useState(false);
-  const [viewingReport] = useState(null);
+  const [viewingReport, setViewingReport] = useState(null); // FIXED
   const dropdownRefs = useRef([]);
-  const navigate = useNavigate();
 
   const getStatusClass = (status) => {
     switch (status) {
@@ -75,12 +73,10 @@ const ReportsTable = ({
         report.customer.toLowerCase().includes(searchTerm.toLowerCase()) ||
         report.date.toLowerCase().includes(searchTerm.toLowerCase())
     )
-    .filter(
-      (report) =>
-        activeTab === "All" ||
-        (activeTab === "Being Prepared" && report.status === "Preparing") ||
-        (activeTab === "On The Way" && report.status === "On the way") ||
-        report.status === activeTab
+    .filter((report) =>
+      activeTab === "All"
+        ? true
+        : report.status === activeTab
     )
     .filter(
       (report) =>
@@ -152,8 +148,8 @@ const ReportsTable = ({
   };
 
   const handleView = (report) => {
-    // navigate to DataTable.jsx, passing report id or data if needed
-    navigate("/reportdata", { state: { report } });
+    setViewingReport(report);
+    setShowViewModal(true);
     setActiveDropdown(null);
   };
 
@@ -248,14 +244,10 @@ const ReportsTable = ({
   const handleAddReport = () => {
     const newReport = {
       id: `ORD-${Date.now().toString().slice(-4)}`,
-      date: new Date().toLocaleDateString("en-US", {
-        year: "numeric",
-        month: "short",
-        day: "numeric",
-      }),
+      date: new Date().toISOString().slice(0, 10), // FIXED: YYYY-MM-DD
       customer: "",
       price: 0,
-      status: "Pending",
+      status: "",
     };
 
     setEditingReport(newReport);
@@ -270,7 +262,17 @@ const ReportsTable = ({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData)
       });
-      if (!response.ok) throw new Error('Failed to save report');
+      if (!response.ok) {
+        let errorMsg = 'Failed to save report';
+        try {
+          const errorData = await response.json();
+          errorMsg = errorData.error || errorMsg;
+          console.error('Backend error:', errorData);
+        } catch (e) {
+          // response was not JSON
+        }
+        throw new Error(errorMsg);
+      }
       setShowEditModal(false);
       setEditingReport(null);
       // Refresh reports
@@ -317,7 +319,11 @@ const ReportsTable = ({
 
     const handleSubmit = (e) => {
       e.preventDefault();
-      handleSaveReport(formData);
+      // Ensure status is always one of the allowed MySQL values
+      let status = formData.status;
+      if (status === "Being Prepared") status = "Preparing";
+      if (status === "On The Way") status = "On the way";
+      handleSaveReport({ ...formData, status });
     };
 
     return (
@@ -397,8 +403,8 @@ const ReportsTable = ({
                 required
               >
                 <option value="Pending">Pending</option>
-                <option value="Preparing">Being Prepared</option>
-                <option value="On the way">On The Way</option>
+                <option value="Preparing">Preparing</option>
+                <option value="On the way">On the way</option>
                 <option value="Delivered">Delivered</option>
                 <option value="Cancelled">Cancelled</option>
               </select>
@@ -663,14 +669,6 @@ const ReportsTable = ({
               </tr>
             </thead>
             <tbody className="text-center divide-y divide-gray-100">
-              <tr>
-                <td className="py-4 text-center text-sm text-gray-500">dsf</td>
-                <td className="py-4 text-center text-sm text-gray-500">dsf</td>
-                <td className="py-4 text-center text-sm text-gray-500">dsf</td>
-                <td className="py-4 text-center text-sm text-gray-500">dsf</td>
-                <td className="py-4 text-center text-sm text-gray-500">dsf</td>
-                <td className="py-4 text-center text-sm text-gray-500">dsf</td>
-              </tr>
               {visibleReports.length === 0 ? (
                 <tr>
                   <td
@@ -868,7 +866,7 @@ const ReportsTable = ({
 
       {/* Modals */}
       {showEditModal && <EditReportModal />}
-      {showViewModal && <ViewReportModal />}
+      {showViewModal && viewingReport && <ViewReportModal />}
     </div>
   );
 };

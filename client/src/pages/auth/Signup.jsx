@@ -27,6 +27,38 @@ const Input = ({ className = "", ...props }) => {
 // Main component
 const Signup = () => {
   const [showPassword, setShowPassword] = useState(false);
+  const [form, setForm] = useState({
+    firstName: "",
+    lastName: "",
+    email: "",
+    password: ""
+  });
+  const [message, setMessage] = useState("");
+
+  const handleChange = (e) => {
+    setForm({ ...form, [e.target.id]: e.target.value });
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setMessage("");
+    try {
+      const res = await fetch("http://localhost:5000/signup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form)
+      });
+      const data = await res.json();
+      if (data.success) {
+        setMessage("Account created successfully!");
+        setForm({ firstName: "", lastName: "", email: "", password: "" });
+      } else {
+        setMessage(data.error || "Signup failed.");
+      }
+    } catch (err) {
+      setMessage("Server error.");
+    }
+  };
 
   return (
     <div className="flex min-h-screen w-full p-2 sm:p-4">
@@ -89,7 +121,7 @@ const Signup = () => {
             <p className="mt-2 text-sm text-gray-600 sm:text-base">Enter your personal data to create your account.</p>
           </div>
 
-          <div className="space-y-4 sm:space-y-6">
+          <form className="space-y-4 sm:space-y-6" onSubmit={handleSubmit}>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
                 <label htmlFor="firstName" className="block text-sm font-medium text-gray-700 sm:text-base">
@@ -100,6 +132,9 @@ const Signup = () => {
                   type="text"
                   placeholder="John"
                   className="mt-1 h-10 w-full sm:h-12"
+                  value={form.firstName}
+                  onChange={handleChange}
+                  required
                 />
               </div>
               <div>
@@ -111,6 +146,9 @@ const Signup = () => {
                   type="text"
                   placeholder="Doe"
                   className="mt-1 h-10 w-full sm:h-12"
+                  value={form.lastName}
+                  onChange={handleChange}
+                  required
                 />
               </div>
             </div>
@@ -124,6 +162,9 @@ const Signup = () => {
                 type="email"
                 placeholder="eg. johnfrans@gmail.com"
                 className="mt-1 h-10 w-full sm:h-12 "
+                value={form.email}
+                onChange={handleChange}
+                required
               />
             </div>
 
@@ -137,6 +178,9 @@ const Signup = () => {
                   type={showPassword ? "text" : "password"}
                   placeholder="Enter your password"
                   className="h-10 w-full pr-10 sm:h-12"
+                  value={form.password}
+                  onChange={handleChange}
+                  required
                 />
                 <button
                   type="button"
@@ -149,9 +193,13 @@ const Signup = () => {
               <p className="mt-1 text-xs text-gray-600 sm:text-sm">Must be at least 8 characters.</p>
             </div>
 
-            <Button className="w-full bg-blue-500 py-2 text-white hover:bg-blue-600 sm:py-3">
+            <Button className="w-full bg-blue-500 py-2 text-white hover:bg-blue-600 sm:py-3" type="submit">
               Create Account
             </Button>
+
+            {message && (
+              <p className="text-center text-xs text-red-600 sm:text-sm">{message}</p>
+            )}
 
             <p className="text-center text-xs text-gray-600 sm:text-sm">
               Already have an account?{" "}
@@ -159,7 +207,7 @@ const Signup = () => {
                 Sign in
               </a>
             </p>
-          </div>
+          </form>
         </div>
       </div>
     </div>

@@ -27,14 +27,14 @@ const Input = ({ className = "", ...props }) => {
 
 // Main component
 const Index = () => {
-  const navigate = useNavigate();
-  const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState({
     email: "",
     password: ""
   });
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const navigate = useNavigate();
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -44,7 +44,7 @@ const Index = () => {
     }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
 
@@ -69,13 +69,24 @@ const Index = () => {
 
     setIsLoading(true);
 
-    // Simulate API call
-    setTimeout(() => {
-      // This is just a mock login - in a real app you would call your backend
-      // For demo purposes, we'll consider any valid email and password combination as successful
+    try {
+      const res = await fetch("http://localhost:5000/login", {
+        method: "POST", // <-- Change GET to POST
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(formData),
+      });
+      const data = await res.json();
       setIsLoading(false);
-      navigate("/dashboard"); // Redirect to invoice page
-    }, 1000);
+      if (data.success) {
+        // You can store user info in localStorage/sessionStorage if needed
+        navigate("/dashboard");
+      } else {
+        setError(data.message || "Login failed");
+      }
+    } catch (err) {
+      setIsLoading(false);
+      setError("Server error");
+    }
   };
 
   return (
