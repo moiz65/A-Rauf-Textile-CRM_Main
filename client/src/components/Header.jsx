@@ -9,7 +9,16 @@ const Header = ({ name: initialName }) => {
   const users = storedUsers ? JSON.parse(storedUsers) : (localStorage.getItem('user') ? [JSON.parse(localStorage.getItem('user'))] : []);
   const storedActiveUser = localStorage.getItem('activeUser');
   const [activeUser, setActiveUser] = useState(storedActiveUser ? JSON.parse(storedActiveUser) : users[0] || null);
-  const [name, setName] = useState(activeUser?.name || initialName || 'User');
+  const [name, setName] = useState(() => {
+    const settings = localStorage.getItem('settings');
+    if (settings) {
+      try {
+        const parsed = JSON.parse(settings);
+        if (parsed.companyName) return parsed.companyName;
+      } catch {}
+    }
+    return activeUser?.name || initialName || 'User';
+  });
   const [isEditing, setIsEditing] = useState(false);
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
   const [hasPermission, setHasPermission] = useState(false);
@@ -48,6 +57,21 @@ const Header = ({ name: initialName }) => {
     }
     // eslint-disable-next-line
   }, [name, profileImg]);
+
+  // When settings change, update name if companyName changes
+  useEffect(() => {
+    const handleStorage = () => {
+      const settings = localStorage.getItem('settings');
+      if (settings) {
+        try {
+          const parsed = JSON.parse(settings);
+          if (parsed.companyName) setName(parsed.companyName);
+        } catch {}
+      }
+    };
+    window.addEventListener('storage', handleStorage);
+    return () => window.removeEventListener('storage', handleStorage);
+  }, []);
 
   const handleNameChange = (e) => setName(e.target.value);
   const handleBlur = () => setIsEditing(false);
@@ -151,6 +175,9 @@ const Header = ({ name: initialName }) => {
           <div className="text-xs text-blue-600 font-semibold mb-1">
             {activeUser?.email ? `Logged in as: ${activeUser.email}` : ''}
           </div>
+          {activeUser?.username && (
+            <div className="text-xs text-gray-500 mb-1">Username: <span className="font-semibold">{activeUser.username}</span></div>
+          )}
           {isEditing ? (
             <input
               value={name}
