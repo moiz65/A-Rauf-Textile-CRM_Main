@@ -154,107 +154,88 @@ const ReportsTable = ({
   };
 
   const handleEdit = (report) => {
-    alert("Edit functionality is disabled in live mode.");
+    setEditingReport(report);
+    setShowEditModal(true);
     setActiveDropdown(null);
   };
 
-  const handleDelete = (report) => {
-    alert("Delete functionality is disabled in live mode.");
+  // Enable delete functionality in live mode
+  const handleDelete = async (report) => {
+    if (!window.confirm(`Are you sure you want to delete report ${report.id}?`)) {
+      setActiveDropdown(null);
+      return;
+    }
+    try {
+      const response = await fetch(`http://localhost:5000/api/v1/reports/${report.id}` , {
+        method: 'DELETE',
+      });
+      if (!response.ok) {
+        let errorMsg = 'Failed to delete report';
+        try {
+          const errorData = await response.json();
+          errorMsg = errorData.error || errorMsg;
+        } catch {}
+        throw new Error(errorMsg);
+      }
+      // Refresh reports
+      fetch("http://localhost:5000/api/v1/reports")
+        .then((res) => res.json())
+        .then((data) => setReports(data));
+    } catch (err) {
+      alert('Error deleting report: ' + err.message);
+    }
     setActiveDropdown(null);
   };
 
-  const handlePrint = (report) => {
-    const printWindow = window.open("", "_blank");
-    printWindow.document.write(`
-      <html>
-        <head>
-          <title>Report: ${report.id}</title>
-          <style>
-            body { font-family: Arial, sans-serif; padding: 20px; }
-            h1 { color: #333; }
-            .report { border: 1px solid #ddd; padding: 20px; max-width: 500px; margin: 0 auto; }
-            .row { display: flex; margin-bottom: 10px; }
-            .label { font-weight: bold; width: 150px; }
-            .value { flex: 1; }
-            .status {
-              display: inline-block;
-              padding: 2px 8px;
-              border-radius: 12px;
-              font-size: 12px;
-              font-weight: bold;
-            }
-            .Pending { background-color: #fef3c7; color: #92400e; }
-            .Preparing { background-color: #dbeafe; color: #1e40af; }
-            .Cancelled { background-color: #fee2e2; color: #991b1b; }
-            .Delivered { background-color: #dcfce7; color: #166534; }
-            .On\\ the\\ way { background-color: #dbeafe; color: #1e40af; }
-          </style>
-        </head>
-        <body>
-          <h1>Order Report</h1>
-          <div class="report">
-            <div class="row"><div class="label">Order ID:</div><div class="value">${
-              report.id
-            }</div></div>
-            <div class="row"><div class="label">Date:</div><div class="value">${
-              report.date
-            }</div></div>
-            <div class="row"><div class="label">Customer:</div><div class="value">${
-              report.customer
-            }</div></div>
-            <div class="row"><div class="label">Price:</div><div class="value">PKR ${Number(
-              report.price
-            ).toLocaleString()}</div></div>
-            <div class="row"><div class="label">Status:</div><div class="value"><span class="status ${report.status.replace(
-              " ",
-              "\\ "
-            )}">${report.status}</span></div></div>
-          </div>
-          <script>window.print();</script>
-        </body>
-      </html>
-    `);
-    printWindow.document.close();
-    setActiveDropdown(null);
-  };
-
-  const handleDownload = (report) => {
-    const data = {
-      orderId: report.id,
-      date: report.date,
-      customer: report.customer,
-      price: `PKR ${Number(report.price).toLocaleString()}`,
-      status: report.status,
-    };
-
-    const blob = new Blob([JSON.stringify(data, null, 2)], {
-      type: "application/json",
-    });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `report_${report.id}.json`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-    setActiveDropdown(null);
-  };
+  // Generate a robust unique ID for new reports
+  function generateUniqueReportId() {
+    // Use full timestamp and a random 4-digit number for uniqueness
+    return `ORD-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`;
+  }
 
   const handleAddReport = () => {
     const newReport = {
-      id: `ORD-${Date.now().toString().slice(-4)}`,
-      date: new Date().toISOString().slice(0, 10), // FIXED: YYYY-MM-DD
+      id: generateUniqueReportId(),
+      date: new Date().toISOString().slice(0, 10),
       customer: "",
       price: 0,
-      status: "",
+      status: "Pending",
     };
-
     setEditingReport(newReport);
     setShowEditModal(true);
   };
 
-  // Replace handleSaveReport with async POST to backend
+  // Enable duplicate functionality in live mode
+  const handleDuplicate = async (report) => {
+    const duplicate = {
+      ...report,
+      id: generateUniqueReportId(),
+      date: new Date().toISOString().slice(0, 10),
+    };
+    try {
+      const response = await fetch('http://localhost:5000/api/v1/reports', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(duplicate)
+      });
+      if (!response.ok) {
+        let errorMsg = 'Failed to duplicate report';
+        try {
+          const errorData = await response.json();
+          errorMsg = errorData.error || errorMsg;
+        } catch {}
+        throw new Error(errorMsg);
+      }
+      // Refresh reports
+      fetch("http://localhost:5000/api/v1/reports")
+        .then((res) => res.json())
+        .then((data) => setReports(data));
+    } catch (err) {
+      alert('Error duplicating report: ' + err.message);
+    }
+    setActiveDropdown(null);
+  };
+
   const handleSaveReport = async (formData) => {
     try {
       const response = await fetch('http://localhost:5000/api/v1/reports', {
@@ -309,6 +290,17 @@ const ReportsTable = ({
   const EditReportModal = () => {
     const [formData, setFormData] = useState(editingReport);
 
+    // Always keep ID field disabled and auto-generate for new/duplicate
+    useEffect(() => {
+      // If creating a new report (id is empty or not in ORD- format), generate a new one
+      if (!formData.id || !/^ORD-\d{13}-\d{4}$/.test(formData.id)) {
+        setFormData((prev) => ({
+          ...prev,
+          id: generateUniqueReportId(),
+        }));
+      }
+    }, [formData.id]);
+
     const handleChange = (e) => {
       const { name, value } = e.target;
       setFormData((prev) => ({
@@ -330,7 +322,7 @@ const ReportsTable = ({
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
         <div className="bg-white rounded-lg p-6 w-full max-w-md">
           <h2 className="text-xl font-semibold mb-4">
-            {formData.id ? "Edit Report" : "Create New Report"}
+            {editingReport && editingReport.id ? "Edit Report" : "Create New Report"}
           </h2>
           <form onSubmit={handleSubmit}>
             <div className="mb-4">
@@ -341,10 +333,9 @@ const ReportsTable = ({
                 type="text"
                 name="id"
                 value={formData.id}
-                onChange={handleChange}
-                className="w-full p-2 border rounded-md"
+                className="w-full p-2 border rounded-md bg-gray-100 cursor-not-allowed"
                 required
-                disabled={formData.id.startsWith("ORD-")}
+                disabled
               />
             </div>
 
@@ -495,6 +486,83 @@ const ReportsTable = ({
       .then((data) => setReports(data))
       .catch((err) => console.error("Error fetching reports:", err));
   }, []);
+
+  const handlePrint = (report) => {
+    const printWindow = window.open("", "_blank");
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>Report: ${report.id}</title>
+          <style>
+            body { font-family: Arial, sans-serif; padding: 20px; }
+            h1 { color: #333; }
+            .report { border: 1px solid #ddd; padding: 20px; max-width: 500px; margin: 0 auto; }
+            .row { display: flex; margin-bottom: 10px; }
+            .label { font-weight: bold; width: 150px; }
+            .value { flex: 1; }
+            .status {
+              display: inline-block;
+              padding: 2px 8px;
+              border-radius: 12px;
+              font-size: 12px;
+              font-weight: bold;
+            }
+            .Pending { background-color: #fef3c7; color: #92400e; }
+            .Preparing { background-color: #dbeafe; color: #1e40af; }
+            .Cancelled { background-color: #fee2e2; color: #991b1b; }
+            .Delivered { background-color: #dcfce7; color: #166534; }
+            .On\\ the\\ way { background-color: #dbeafe; color: #1e40af; }
+          </style>
+        </head>
+        <body>
+          <h1>Order Report</h1>
+          <div class="report">
+            <div class="row"><div class="label">Order ID:</div><div class="value">${
+              report.id
+            }</div></div>
+            <div class="row"><div class="label">Date:</div><div class="value">${
+              report.date
+            }</div></div>
+            <div class="row"><div class="label">Customer:</div><div class="value">${
+              report.customer
+            }</div></div>
+            <div class="row"><div class="label">Price:</div><div class="value">PKR ${Number(
+              report.price
+            ).toLocaleString()}</div></div>
+            <div class="row"><div class="label">Status:</div><div class="value"><span class="status ${report.status.replace(
+              " ",
+              "\\ "
+            )}">${report.status}</span></div></div>
+          </div>
+          <script>window.print();</script>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+    setActiveDropdown(null);
+  };
+
+  const handleDownload = (report) => {
+    const data = {
+      orderId: report.id,
+      date: report.date,
+      customer: report.customer,
+      price: `PKR ${Number(report.price).toLocaleString()}`,
+      status: report.status,
+    };
+    const blob = new Blob([JSON.stringify(data, null, 2)], {
+      type: "application/json",
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `report_${report.id}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    setActiveDropdown(null);
+  };
 
   return (
     <div className="bg-white rounded-xl sm:rounded-[30px] shadow-sm border border-gray-100 p-4 sm:p-5">
@@ -769,11 +837,7 @@ const ReportsTable = ({
                                   Download
                                 </button>
                                 <button
-                                  onClick={() =>
-                                    alert(
-                                      "Duplicate functionality is disabled in live mode."
-                                    )
-                                  }
+                                  onClick={() => handleDuplicate(report)}
                                   className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left"
                                 >
                                   <Copy className="w-4 h-4 mr-2" />
