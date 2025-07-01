@@ -60,6 +60,7 @@ app.get("/api/v1/reports", (req, res) => {
   });
 });
 
+
 // Create a new report
 app.post("/api/v1/reports", (req, res) => {
   const { id, date, customer, price, status } = req.body;
@@ -68,6 +69,18 @@ app.post("/api/v1/reports", (req, res) => {
   db.query(sql, [id, date, customer, price, status], (err, result) => {
     if (err) return res.status(500).json({ error: err.sqlMessage });
     res.json({ success: true, reportId: result.insertId });
+  });
+});
+
+// Delete a report by id (or orderId for compatibility)
+app.delete("/api/v1/reports/:id", (req, res) => {
+  const id = req.params.id;
+  // Try to delete by id or orderId (if you have orderId column)
+  const sql = "DELETE FROM reporttable WHERE id = ? OR orderId = ?";
+  db.query(sql, [id, id], (err, result) => {
+    if (err) return res.status(500).json({ error: err.sqlMessage });
+    if (result.affectedRows === 0) return res.status(404).json({ error: "Report not found" });
+    res.json({ success: true });
   });
 });
 

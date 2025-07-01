@@ -1,5 +1,4 @@
-import React, { useState, useRef } from "react";
-import { useEffect } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import {
   Search,
   Filter,
@@ -22,7 +21,8 @@ const REPORT_TABS = [
   "Delivered",
   "Cancelled",
 ];
-const ITEMS_PER_PAGE = 4;
+const ITEMS_PER_PAGE_OPTIONS = [4, 10, 20, 50];
+const DEFAULT_ITEMS_PER_PAGE = 4;
 
 const ReportsTable = ({
   activeTab,
@@ -33,6 +33,13 @@ const ReportsTable = ({
   const [reports, setReports] = useState(initialReports);
   const [selectedRows, setSelectedRows] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(DEFAULT_ITEMS_PER_PAGE);
+  // Notification system
+  const [notification, setNotification] = useState(null);
+  const showNotification = (title, description, duration = 3000) => {
+    setNotification({ title, description });
+    setTimeout(() => setNotification(null), duration);
+  };
   const [searchTerm, setSearchTerm] = useState("");
   const [showFilters, setShowFilters] = useState(false);
   const [filters, setFilters] = useState({
@@ -47,6 +54,7 @@ const ReportsTable = ({
   const [showEditModal, setShowEditModal] = useState(false);
   const [showViewModal, setShowViewModal] = useState(false);
   const [viewingReport, setViewingReport] = useState(null); // FIXED
+  const [reportDetails, setReportDetails] = useState(null);
   const dropdownRefs = useRef([]);
 
   const getStatusClass = (status) => {
@@ -94,11 +102,11 @@ const ReportsTable = ({
             .includes(filters.customer.toLowerCase()))
     );
 
-  const totalPages = Math.ceil(filteredReports.length / ITEMS_PER_PAGE);
-  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+  const totalPages = Math.ceil(filteredReports.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
   const visibleReports = filteredReports.slice(
     startIndex,
-    startIndex + ITEMS_PER_PAGE
+    startIndex + itemsPerPage
   );
 
   const toggleSelectAll = () => {
@@ -140,6 +148,8 @@ const ReportsTable = ({
     });
     setSearchTerm("");
     setActiveTab("All");
+    setCurrentPage(1);
+    showNotification("Filters reset", "All filters have been cleared");
   };
 
   const toggleDropdown = (dropdownKey, e) => {
@@ -148,9 +158,18 @@ const ReportsTable = ({
   };
 
   const handleView = (report) => {
-    setViewingReport(report);
-    setShowViewModal(true);
-    setActiveDropdown(null);
+    // Try to find detailed data from ReportData.js by id or orderId
+    import("../data/ReportData.js").then((module) => {
+      const reportData = module.default;
+      // Try to match by id or orderId
+      const detail = reportData.find(
+        (r) => r.id === report.id || r.orderId === report.id
+      );
+      setReportDetails(detail || null);
+      setViewingReport(report);
+      setShowViewModal(true);
+      setActiveDropdown(null);
+    });
   };
 
   const handleEdit = (report) => {
@@ -166,23 +185,36 @@ const ReportsTable = ({
       return;
     }
     try {
-      const response = await fetch(`http://localhost:5000/api/v1/reports/${report.id}` , {
-        method: 'DELETE',
-      });
+      // Try both id and orderId for compatibility
+      let deleteUrl = `http://localhost:5000/api/v1/reports/${encodeURIComponent(report.id)}`;
+      let response = await fetch(deleteUrl, { method: 'DELETE' });
+      // If not ok, try with orderId if present and different
+      if (!response.ok && report.orderId && report.orderId !== report.id) {
+        deleteUrl = `http://localhost:5000/api/v1/reports/${encodeURIComponent(report.orderId)}`;
+        response = await fetch(deleteUrl, { method: 'DELETE' });
+      }
       if (!response.ok) {
+        // Try to get backend error message
         let errorMsg = 'Failed to delete report';
         try {
           const errorData = await response.json();
           errorMsg = errorData.error || errorMsg;
-        } catch {}
+        } catch (e) {
+          // If not JSON, try text
+          try {
+            const errorText = await response.text();
+            if (errorText) errorMsg = errorText;
+          } catch {}
+        }
         throw new Error(errorMsg);
       }
       // Refresh reports
       fetch("http://localhost:5000/api/v1/reports")
         .then((res) => res.json())
         .then((data) => setReports(data));
+      showNotification("Report deleted", `Report ${report.id} has been deleted`);
     } catch (err) {
-      alert('Error deleting report: ' + err.message);
+      showNotification('Error', 'Error deleting report: ' + err.message);
     }
     setActiveDropdown(null);
   };
@@ -230,38 +262,54 @@ const ReportsTable = ({
       fetch("http://localhost:5000/api/v1/reports")
         .then((res) => res.json())
         .then((data) => setReports(data));
+      showNotification("Report duplicated", `New report created from ${report.id}`);
     } catch (err) {
-      alert('Error duplicating report: ' + err.message);
+      showNotification('Error', 'Error duplicating report: ' + err.message);
     }
     setActiveDropdown(null);
   };
 
+  // DRY: fetch all reports
+  const fetchReports = () => {
+    fetch("http://localhost:5000/api/v1/reports")
+      .then((res) => res.json())
+      .then((data) => setReports(data))
+      .catch((err) => console.error("Error fetching reports:", err));
+  };
+
+  // Save (Create or Update) report
   const handleSaveReport = async (formData) => {
     try {
-      const response = await fetch('http://localhost:5000/api/v1/reports', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
-      });
+      let response;
+      if (reports.some((r) => r.id === formData.id)) {
+        // Update existing report
+        response = await fetch(`http://localhost:5000/api/v1/reports/${formData.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(formData)
+        });
+      } else {
+        // Create new report
+        response = await fetch('http://localhost:5000/api/v1/reports', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(formData)
+        });
+      }
       if (!response.ok) {
         let errorMsg = 'Failed to save report';
         try {
           const errorData = await response.json();
           errorMsg = errorData.error || errorMsg;
-          console.error('Backend error:', errorData);
-        } catch (e) {
-          // response was not JSON
-        }
+        } catch {}
         throw new Error(errorMsg);
       }
       setShowEditModal(false);
       setEditingReport(null);
-      // Refresh reports
-      fetch("http://localhost:5000/api/v1/reports")
-        .then((res) => res.json())
-        .then((data) => setReports(data));
+      fetchReports();
+      showNotification("Report saved", `Report ${formData.id} has been saved`);
     } catch (err) {
-      alert('Error saving report: ' + err.message);
+      showNotification('Error', 'Error saving report: ' + err.message);
     }
   };
 
@@ -423,6 +471,9 @@ const ReportsTable = ({
   };
 
   const ViewReportModal = () => {
+    // Use reportDetails if available, else fallback to viewingReport
+    const data = reportDetails || viewingReport;
+    if (!data) return null;
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
         <div className="bg-white rounded-lg p-6 w-full max-w-md">
@@ -431,45 +482,98 @@ const ReportsTable = ({
           <div className="space-y-4">
             <div>
               <h3 className="text-sm font-medium text-gray-500">Order ID</h3>
-              <p className="mt-1 text-sm text-gray-900">{viewingReport.id}</p>
+              <p className="mt-1 text-sm text-gray-900">{data.id || data.orderId}</p>
             </div>
 
             <div>
               <h3 className="text-sm font-medium text-gray-500">Date</h3>
-              <p className="mt-1 text-sm text-gray-900">{viewingReport.date}</p>
+              <p className="mt-1 text-sm text-gray-900">{data.date}</p>
             </div>
 
             <div>
               <h3 className="text-sm font-medium text-gray-500">Customer</h3>
-              <p className="mt-1 text-sm text-gray-900">
-                {viewingReport.customer}
-              </p>
+              <p className="mt-1 text-sm text-gray-900">{data.customer}</p>
             </div>
 
             <div>
               <h3 className="text-sm font-medium text-gray-500">Price</h3>
-              <p className="mt-1 text-sm text-gray-900">
-                PKR {Number(viewingReport.price).toLocaleString()}
-              </p>
+              <p className="mt-1 text-sm text-gray-900">PKR {Number(data.price).toLocaleString()}</p>
             </div>
 
             <div>
               <h3 className="text-sm font-medium text-gray-500">Status</h3>
               <p className="mt-1">
-                <span
-                  className={`px-2 py-1 inline-flex text-xs font-semibold rounded-full ${getStatusClass(
-                    viewingReport.status
-                  )}`}
-                >
-                  {viewingReport.status}
+                <span className={`px-2 py-1 inline-flex text-xs font-semibold rounded-full ${getStatusClass(data.status)}`}>
+                  {data.status}
                 </span>
               </p>
             </div>
+            {/* Show extra details if available */}
+            {data.particulars && (
+              <div>
+                <h3 className="text-sm font-medium text-gray-500">Particulars</h3>
+                <p className="mt-1 text-sm text-gray-900">{data.particulars}</p>
+              </div>
+            )}
+            {data.rate !== undefined && (
+              <div>
+                <h3 className="text-sm font-medium text-gray-500">Rate</h3>
+                <p className="mt-1 text-sm text-gray-900">{data.rate}</p>
+              </div>
+            )}
+            {data.quantity !== undefined && (
+              <div>
+                <h3 className="text-sm font-medium text-gray-500">Quantity</h3>
+                <p className="mt-1 text-sm text-gray-900">{data.quantity}</p>
+              </div>
+            )}
+            {data.mtr && (
+              <div>
+                <h3 className="text-sm font-medium text-gray-500">Meters</h3>
+                <p className="mt-1 text-sm text-gray-900">{data.mtr}</p>
+              </div>
+            )}
+            {data.credit && (
+              <div>
+                <h3 className="text-sm font-medium text-gray-500">Credit</h3>
+                <p className="mt-1 text-sm text-gray-900">{data.credit}</p>
+              </div>
+            )}
+            {data.debit && (
+              <div>
+                <h3 className="text-sm font-medium text-gray-500">Debit</h3>
+                <p className="mt-1 text-sm text-gray-900">{data.debit}</p>
+              </div>
+            )}
+            {data.balance && (
+              <div>
+                <h3 className="text-sm font-medium text-gray-500">Balance</h3>
+                <p className="mt-1 text-sm text-gray-900">{data.balance}</p>
+              </div>
+            )}
+            {data.billsCHQ && (
+              <div>
+                <h3 className="text-sm font-medium text-gray-500">Bills/CHQ</h3>
+                <p className="mt-1 text-sm text-gray-900">{data.billsCHQ}</p>
+              </div>
+            )}
+            {data.days && (
+              <div>
+                <h3 className="text-sm font-medium text-gray-500">Days</h3>
+                <p className="mt-1 text-sm text-gray-900">{data.days}</p>
+              </div>
+            )}
+            {data.dueDate && (
+              <div>
+                <h3 className="text-sm font-medium text-gray-500">Due Date</h3>
+                <p className="mt-1 text-sm text-gray-900">{data.dueDate}</p>
+              </div>
+            )}
           </div>
 
           <div className="mt-6 flex justify-end">
             <button
-              onClick={() => setShowViewModal(false)}
+              onClick={() => { setShowViewModal(false); setReportDetails(null); }}
               className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600"
             >
               Close
@@ -481,11 +585,27 @@ const ReportsTable = ({
   };
   
   useEffect(() => {
-    fetch("http://localhost:5000/api/v1/reports")
-      .then((res) => res.json())
-      .then((data) => setReports(data))
-      .catch((err) => console.error("Error fetching reports:", err));
+    fetchReports();
   }, []);
+
+  // Bulk delete selected reports
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+  const handleBulkDelete = async () => {
+    if (selectedRows.length === 0) return;
+    if (!window.confirm(`Delete ${selectedRows.length} selected reports?`)) return;
+    setIsBulkDeleting(true);
+    try {
+      await Promise.all(selectedRows.map(id =>
+        fetch(`http://localhost:5000/api/v1/reports/${id}`, { method: 'DELETE' })
+      ));
+      setSelectedRows([]);
+      fetchReports();
+      showNotification("Bulk delete successful", `${selectedRows.length} reports have been deleted`);
+    } catch (err) {
+      showNotification('Error', 'Error deleting selected reports.');
+    }
+    setIsBulkDeleting(false);
+  };
 
   const handlePrint = (report) => {
     const printWindow = window.open("", "_blank");
@@ -564,8 +684,17 @@ const ReportsTable = ({
     setActiveDropdown(null);
   };
 
+  // --- MAIN RENDER ---
   return (
-    <div className="bg-white rounded-xl sm:rounded-[30px] shadow-sm border border-gray-100 p-4 sm:p-5">
+    <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-5">
+      {/* Notification */}
+      {notification && (
+        <div className="fixed top-4 right-4 z-50 bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded">
+          <div className="font-bold">{notification.title}</div>
+          <div>{notification.description}</div>
+        </div>
+      )}
+
       {/* Header Section */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-5">
         <div>
@@ -583,7 +712,10 @@ const ReportsTable = ({
               placeholder="Search reports..."
               className="pl-10 pr-3 py-1.5 sm:py-2 border rounded-md text-xs sm:text-sm w-full focus:outline-none focus:ring-2 focus:ring-blue-500"
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                setCurrentPage(1);
+              }}
             />
           </div>
 
@@ -593,32 +725,59 @@ const ReportsTable = ({
               className="flex items-center gap-1 bg-[#1976D2] text-white px-3 sm:px-4 py-1.5 sm:py-2 rounded-md text-xs sm:text-sm font-medium hover:bg-blue-600 transition-colors"
             >
               <Plus className="w-4 h-4" />
-              <span>Create New Report</span>
+              <span className="hidden sm:inline">Create Report</span>
             </button>
 
             <button
-              className="flex items-center gap-1 bg-white border rounded-md px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm hover:bg-gray-50"
+              className={`flex items-center gap-1 border rounded-md px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm transition-colors ${
+                showFilters ? 'bg-gray-100 border-gray-300' : 'bg-white hover:bg-gray-50'
+              }`}
               onClick={() => setShowFilters(!showFilters)}
             >
               <Filter className="w-3 h-3 sm:w-4 sm:h-4" />
               <span className="hidden xs:inline">Filter</span>
             </button>
 
-            <button className="flex items-center gap-1 bg-white border rounded-md px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm hover:bg-gray-50">
-              <FileDown className="w-3 h-3 sm:w-4 sm:h-4" />
-              <span className="hidden xs:inline">Export</span>
-            </button>
+            <div className="relative">
+              <button className="flex items-center gap-1 bg-white border rounded-md px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm hover:bg-gray-50">
+                <FileDown className="w-3 h-3 sm:w-4 sm:h-4" />
+                <span className="hidden xs:inline">Export</span>
+              </button>
+            </div>
           </div>
         </div>
       </div>
+
+      {/* Bulk Actions */}
+      {selectedRows.length > 0 && (
+        <div className="mb-4 p-3 bg-blue-50 rounded-md flex justify-between items-center">
+          <div className="text-sm text-blue-800">
+            {selectedRows.length} report(s) selected
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={handleBulkDelete}
+              disabled={isBulkDeleting}
+              className="flex items-center gap-1 px-3 py-1.5 bg-red-50 text-red-600 rounded-md text-xs hover:bg-red-100 disabled:opacity-50"
+            >
+              {isBulkDeleting ? (
+                'Deleting...'
+              ) : (
+                <>
+                  <Trash2 className="w-3 h-3" />
+                  <span>Delete Selected</span>
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Filter Panel */}
       {showFilters && (
         <div className="bg-gray-50 p-4 rounded-lg mb-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
           <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">
-              Customer
-            </label>
+            <label className="block text-xs font-medium text-gray-700 mb-1">Customer</label>
             <input
               type="text"
               name="customer"
@@ -629,9 +788,7 @@ const ReportsTable = ({
             />
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">
-              Min Price
-            </label>
+            <label className="block text-xs font-medium text-gray-700 mb-1">Min Price</label>
             <input
               type="number"
               name="minPrice"
@@ -642,9 +799,7 @@ const ReportsTable = ({
             />
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">
-              Max Price
-            </label>
+            <label className="block text-xs font-medium text-gray-700 mb-1">Max Price</label>
             <input
               type="number"
               name="maxPrice"
@@ -655,9 +810,7 @@ const ReportsTable = ({
             />
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">
-              From Date
-            </label>
+            <label className="block text-xs font-medium text-gray-700 mb-1">From Date</label>
             <input
               type="date"
               name="dateFrom"
@@ -667,9 +820,7 @@ const ReportsTable = ({
             />
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">
-              To Date
-            </label>
+            <label className="block text-xs font-medium text-gray-700 mb-1">To Date</label>
             <input
               type="date"
               name="dateTo"
@@ -678,13 +829,30 @@ const ReportsTable = ({
               className="w-full p-2 border rounded-md text-xs"
             />
           </div>
-          <div className="md:col-span-5 flex justify-end gap-2">
-            <button
-              onClick={resetFilters}
-              className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 text-sm"
-            >
-              Reset Filters
-            </button>
+          <div className="md:col-span-5 flex justify-between items-center">
+            <div className="flex items-center gap-2">
+              <label className="text-xs font-medium text-gray-700">Items per page:</label>
+              <select
+                value={itemsPerPage}
+                onChange={(e) => {
+                  setItemsPerPage(Number(e.target.value));
+                  setCurrentPage(1);
+                }}
+                className="p-1 border rounded text-xs"
+              >
+                {ITEMS_PER_PAGE_OPTIONS.map(option => (
+                  <option key={option} value={option}>{option}</option>
+                ))}
+              </select>
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={resetFilters}
+                className="px-3 py-1.5 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 text-xs"
+              >
+                Reset Filters
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -858,12 +1026,10 @@ const ReportsTable = ({
       </div>
 
       {/* Pagination */}
-      {filteredReports.length > ITEMS_PER_PAGE && (
+      {totalPages > 1 && (
         <div className="flex flex-col sm:flex-row justify-between items-center px-4 py-3 border-t border-gray-200 bg-white gap-3">
           <div className="text-sm text-gray-700">
-            Showing {startIndex + 1}-
-            {Math.min(startIndex + ITEMS_PER_PAGE, filteredReports.length)} of{" "}
-            {filteredReports.length}
+            Showing {startIndex + 1}-{Math.min(startIndex + itemsPerPage, filteredReports.length)} of {filteredReports.length} reports
           </div>
           <div className="flex gap-1">
             <button
@@ -884,12 +1050,11 @@ const ReportsTable = ({
               } else {
                 pageNum = currentPage - 2 + i;
               }
-
               return (
                 <button
                   key={pageNum}
                   onClick={() => handlePageChange(pageNum)}
-                  className={`px-3 py-1 text-sm rounded-md ${
+                  className={`px-3 py-1 text-sm rounded-md min-w-[36px] ${
                     currentPage === pageNum
                       ? "bg-blue-500 text-white border-blue-500"
                       : "bg-white text-gray-700 border-gray-300 hover:bg-gray-100"
@@ -899,15 +1064,13 @@ const ReportsTable = ({
                 </button>
               );
             })}
-
             {totalPages > 5 && currentPage < totalPages - 2 && (
-              <span className="px-2 text-gray-500">...</span>
+              <span className="px-1 flex items-center">...</span>
             )}
-
             {totalPages > 5 && currentPage < totalPages - 2 && (
               <button
                 onClick={() => handlePageChange(totalPages)}
-                className={`px-3 py-1 text-sm rounded-md ${
+                className={`px-3 py-1 text-sm rounded-md min-w-[36px] ${
                   currentPage === totalPages
                     ? "bg-blue-500 text-white border-blue-500"
                     : "bg-white text-gray-700 border-gray-300 hover:bg-gray-100"
@@ -916,7 +1079,6 @@ const ReportsTable = ({
                 {totalPages}
               </button>
             )}
-
             <button
               onClick={() => handlePageChange(currentPage + 1)}
               disabled={currentPage === totalPages}
