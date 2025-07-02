@@ -72,12 +72,11 @@ app.post("/api/v1/reports", (req, res) => {
   });
 });
 
-// Delete a report by id (or orderId for compatibility)
+// Delete a report by id
 app.delete("/api/v1/reports/:id", (req, res) => {
-  const id = req.params.id;
-  // Try to delete by id or orderId (if you have orderId column)
-  const sql = "DELETE FROM reporttable WHERE id = ? OR orderId = ?";
-  db.query(sql, [id, id], (err, result) => {
+  const reportId = req.params.id;
+  const sql = "DELETE FROM reporttable WHERE id = ?";
+  db.query(sql, [reportId], (err, result) => {
     if (err) return res.status(500).json({ error: err.sqlMessage });
     if (result.affectedRows === 0) return res.status(404).json({ error: "Report not found" });
     res.json({ success: true });

@@ -189,8 +189,8 @@ const ReportsTable = ({
       let deleteUrl = `http://localhost:5000/api/v1/reports/${encodeURIComponent(report.id)}`;
       let response = await fetch(deleteUrl, { method: 'DELETE' });
       // If not ok, try with orderId if present and different
-      if (!response.ok && report.orderId && report.orderId !== report.id) {
-        deleteUrl = `http://localhost:5000/api/v1/reports/${encodeURIComponent(report.orderId)}`;
+      if (!response.ok && report.id !== report.id) {
+        deleteUrl = `http://localhost:5000/api/v1/reports/${encodeURIComponent(report.id)}`;
         response = await fetch(deleteUrl, { method: 'DELETE' });
       }
       if (!response.ok) {
