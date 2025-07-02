@@ -189,8 +189,8 @@ const ReportsTable = ({
       let deleteUrl = `http://localhost:5000/api/v1/reports/${encodeURIComponent(report.id)}`;
       let response = await fetch(deleteUrl, { method: 'DELETE' });
       // If not ok, try with orderId if present and different
-      if (!response.ok && report.id !== report.id) {
-        deleteUrl = `http://localhost:5000/api/v1/reports/${encodeURIComponent(report.id)}`;
+      if (!response.ok && report.orderId && report.id !== report.orderId) {
+        deleteUrl = `http://localhost:5000/api/v1/reports/${encodeURIComponent(report.orderId)}`;
         response = await fetch(deleteUrl, { method: 'DELETE' });
       }
       if (!response.ok) {
@@ -219,10 +219,24 @@ const ReportsTable = ({
     setActiveDropdown(null);
   };
 
-  // Generate a robust unique ID for new reports
+
+  // Generate a sequential ID for new reports, starting from 01
   function generateUniqueReportId() {
-    // Use full timestamp and a random 4-digit number for uniqueness
-    return `ORD-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`;
+    // Find the highest numeric id in the current reports
+    let maxId = 0;
+    reports.forEach(r => {
+      // Accept both string and number ids, e.g. '01', '02', ...
+      let num = 0;
+      if (typeof r.id === 'string' && /^\d+$/.test(r.id)) {
+        num = parseInt(r.id, 10);
+      } else if (typeof r.id === 'number') {
+        num = r.id;
+      }
+      if (num > maxId) maxId = num;
+    });
+    // Next id, padded to 2 digits
+    const nextId = (maxId + 1).toString().padStart(2, '0');
+    return nextId;
   }
 
   const handleAddReport = () => {

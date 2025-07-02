@@ -172,11 +172,31 @@ const CustomersTable = () => {
     setActiveDropdown(null);
   };
 
+  // Delete a single customer with notification
+  const [notification, setNotification] = useState(null);
+  const showNotification = (title, description, duration = 3000) => {
+    setNotification({ title, description });
+    setTimeout(() => setNotification(null), duration);
+  };
   const handleDelete = (customer) => {
     if (window.confirm(`Are you sure you want to delete customer "${customer.name}"?`)) {
       setCustomersData(prev => prev.filter(item => item.id !== customer.id));
+      showNotification("Customer deleted", `Customer '${customer.name}' has been deleted.`);
     }
     setActiveDropdown(null);
+  };
+  // Bulk delete selected customers
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+  const handleBulkDelete = async () => {
+    if (selectedRows.length === 0) return;
+    if (window.confirm(`Are you sure you want to delete ${selectedRows.length} selected customers?`)) {
+      setIsBulkDeleting(true);
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      setCustomersData(prev => prev.filter(item => !selectedRows.includes(item.id)));
+      setSelectedRows([]);
+      setIsBulkDeleting(false);
+      showNotification("Bulk delete successful", `${selectedRows.length} customers have been deleted`);
+    }
   };
 
   const handlePrint = (customer) => {
@@ -456,6 +476,37 @@ const CustomersTable = () => {
 
   return (
     <div className="bg-white rounded-xl sm:rounded-[30px] shadow-sm border border-gray-100 p-4 sm:p-5">
+      {/* Notification */}
+      {notification && (
+        <div className="fixed top-4 right-4 z-50 bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded shadow-lg">
+          <div className="font-bold">{notification.title}</div>
+          <div>{notification.description}</div>
+        </div>
+      )}
+      {/* Bulk Actions */}
+      {selectedRows.length > 0 && (
+        <div className="mb-4 p-3 bg-blue-50 rounded-md flex justify-between items-center">
+          <div className="text-sm text-blue-800">
+            {selectedRows.length} customer(s) selected
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={handleBulkDelete}
+              disabled={isBulkDeleting}
+              className="flex items-center gap-1 px-3 py-1.5 bg-red-50 text-red-600 rounded-md text-xs hover:bg-red-100 disabled:opacity-50"
+            >
+              {isBulkDeleting ? (
+                'Deleting...'
+              ) : (
+                <>
+                  <Trash2 className="w-3 h-3" />
+                  <span>Delete Selected</span>
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+      )}
       {/* Header Section */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-5">
         <div>
