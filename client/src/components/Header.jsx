@@ -285,8 +285,9 @@ const Header = ({ name: initialName }) => {
             <Settings className="w-5 h-5 text-gray-600" />
           </button>
           {showSettings && (
-            <div className="absolute right-0 mt-2 w-80 bg-white rounded-2xl shadow-2xl border border-gray-200 z-30 p-6 animate-fade-in">
-              <div className="flex justify-between items-center mb-4">
+            <div className="fixed top-0 left-0 w-full h-full flex items-center justify-center z-50 bg-black bg-opacity-30">
+              <div className="relative w-full max-w-xl bg-white rounded-2xl shadow-2xl border border-gray-200 p-8 animate-fade-in mx-2">
+                <div className="flex justify-between items-center mb-4">
                 <h3 className="font-semibold text-lg text-gray-800 flex items-center gap-2">
                   <Settings className="w-5 h-5 text-blue-500" /> Settings
                 </h3>
@@ -298,15 +299,25 @@ const Header = ({ name: initialName }) => {
                   <X className="w-5 h-5 text-gray-500" />
                 </button>
               </div>
-              <div className="space-y-6">
+                <div className="space-y-8">
                 {/* Profile Settings */}
                 <div>
                   <div className="font-medium text-gray-700 mb-2">Profile</div>
-                  <div className="flex items-center gap-3">
-                    <img src={profileImg} alt="Profile" className="w-10 h-10 rounded-full border border-gray-300 object-cover" />
+                  <div className="flex items-center gap-4">
+                    <img src={profileImg} alt="Profile" className="w-14 h-14 rounded-full border-2 border-blue-400 object-cover" />
                     <div>
-                      <div className="font-semibold text-gray-900">{name}</div>
+                      <div className="font-semibold text-gray-900 text-lg">{name}</div>
                       <div className="text-xs text-gray-500">{activeUser?.email}</div>
+                      <label className="block mt-2 text-xs text-blue-600 cursor-pointer hover:underline">
+                        Change Photo
+                        <input
+                          type="file"
+                          accept="image/*"
+                          ref={fileInputRef}
+                          style={{ display: 'none' }}
+                          onChange={handleProfileImgChange}
+                        />
+                      </label>
                     </div>
                   </div>
                 </div>
@@ -315,27 +326,62 @@ const Header = ({ name: initialName }) => {
                   <div className="font-medium text-gray-700 mb-2">Company Name</div>
                   <input
                     type="text"
-                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-blue-200"
                     value={name}
                     onChange={handleNameChange}
                     placeholder="Enter company name"
                   />
                 </div>
-                {/* Preferences */}
+                {/* Professional Preferences */}
                 <div>
                   <div className="font-medium text-gray-700 mb-2">Preferences</div>
-                  <label className="flex items-center gap-2 cursor-pointer select-none">
-                    <input
-                      type="checkbox"
-                      checked={notificationsEnabled}
-                      onChange={toggleNotifications}
-                      className="accent-blue-500 w-4 h-4"
-                    />
-                    <span className="text-sm text-gray-600">Enable notifications</span>
-                  </label>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <label className="flex items-center gap-2 cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        checked={notificationsEnabled}
+                        onChange={toggleNotifications}
+                        className="accent-blue-500 w-4 h-4"
+                      />
+                      <span className="text-sm text-gray-600">Enable notifications</span>
+                    </label>
+                    <label className="flex items-center gap-2 cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        // Placeholder for dark mode toggle
+                        checked={false}
+                        onChange={() => {}}
+                        className="accent-blue-500 w-4 h-4"
+                        disabled
+                      />
+                      <span className="text-sm text-gray-400">Dark mode (coming soon)</span>
+                    </label>
+                    <label className="flex items-center gap-2 cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        // Placeholder for email reports
+                        checked={false}
+                        onChange={() => {}}
+                        className="accent-blue-500 w-4 h-4"
+                        disabled
+                      />
+                      <span className="text-sm text-gray-400">Email weekly reports (coming soon)</span>
+                    </label>
+                    <label className="flex items-center gap-2 cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        // Placeholder for 2FA
+                        checked={false}
+                        onChange={() => {}}
+                        className="accent-blue-500 w-4 h-4"
+                        disabled
+                      />
+                      <span className="text-sm text-gray-400">Two-factor authentication (coming soon)</span>
+                    </label>
+                  </div>
                 </div>
                 {/* Save & Logout */}
-                <div className="flex gap-2 pt-2 border-t border-gray-200">
+                <div className="flex gap-2 pt-4 border-t border-gray-200">
                   <button
                     className="flex-1 py-2 px-4 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-semibold flex items-center justify-center gap-2 transition-colors shadow-sm"
                     onClick={() => {
@@ -357,6 +403,7 @@ const Header = ({ name: initialName }) => {
                 </div>
               </div>
             </div>
+          </div>
           )}
         </div>
       </div>
