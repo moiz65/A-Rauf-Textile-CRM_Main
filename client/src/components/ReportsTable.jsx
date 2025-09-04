@@ -30,7 +30,8 @@ const ReportsTable = ({
   onCreateReport,
   reports: initialReports = [],
 }) => {
-  const [reports, setReports] = useState(initialReports);
+  // Ensure reports is always an array
+  const [reports, setReports] = useState(Array.isArray(initialReports) ? initialReports : []);
   const [selectedRows, setSelectedRows] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(DEFAULT_ITEMS_PER_PAGE);
@@ -53,9 +54,14 @@ const ReportsTable = ({
   const [editingReport, setEditingReport] = useState(null);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showViewModal, setShowViewModal] = useState(false);
-  const [viewingReport, setViewingReport] = useState(null); // FIXED
+  const [viewingReport, setViewingReport] = useState(null);
   const [reportDetails, setReportDetails] = useState(null);
   const dropdownRefs = useRef([]);
+
+  // Update internal state when prop changes
+  useEffect(() => {
+    setReports(Array.isArray(initialReports) ? initialReports : []);
+  }, [initialReports]);
 
   const getStatusClass = (status) => {
     switch (status) {
@@ -74,7 +80,8 @@ const ReportsTable = ({
     }
   };
 
-  const filteredReports = reports
+  // Ensure filteredReports is always an array
+  const filteredReports = Array.isArray(reports) ? reports
     .filter(
       (report) =>
         report.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -100,7 +107,7 @@ const ReportsTable = ({
           report.customer
             .toLowerCase()
             .includes(filters.customer.toLowerCase()))
-    );
+    ) : [];
 
   const totalPages = Math.ceil(filteredReports.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
@@ -159,17 +166,33 @@ const ReportsTable = ({
 
   const handleView = (report) => {
     // Try to find detailed data from ReportData.js by id or orderId
-    import("../data/ReportData.js").then((module) => {
-      const reportData = module.default;
-      // Try to match by id or orderId
-      const detail = reportData.find(
-        (r) => r.id === report.id || r.orderId === report.id
-      );
-      setReportDetails(detail || null);
+    try {
+      import("../data/ReportData.js").then((module) => {
+        const reportData = module.default;
+        // Try to match by id or orderId
+        const detail = reportData.find(
+          (r) => r.id === report.id || r.orderId === report.id
+        );
+        setReportDetails(detail || null);
+        setViewingReport(report);
+        setShowViewModal(true);
+        setActiveDropdown(null);
+      }).catch(error => {
+        console.error("Error loading report details:", error);
+        // Fallback to basic report data
+        setReportDetails(null);
+        setViewingReport(report);
+        setShowViewModal(true);
+        setActiveDropdown(null);
+      });
+    } catch (error) {
+      console.error("Error loading report details:", error);
+      // Fallback to basic report data
+      setReportDetails(null);
       setViewingReport(report);
       setShowViewModal(true);
       setActiveDropdown(null);
-    });
+    }
   };
 
   const handleEdit = (report) => {
@@ -196,6 +219,7 @@ const ReportsTable = ({
       if (!response.ok) {
         // Try to get backend error message
         let errorMsg = 'Failed to delete report';
+
         try {
           const errorData = await response.json();
           errorMsg = errorData.error || errorMsg;
@@ -287,8 +311,11 @@ const ReportsTable = ({
   const fetchReports = () => {
     fetch("http://localhost:5000/api/v1/reports")
       .then((res) => res.json())
-      .then((data) => setReports(data))
-      .catch((err) => console.error("Error fetching reports:", err));
+      .then((data) => setReports(Array.isArray(data) ? data : []))
+      .catch((err) => {
+        console.error("Error fetching reports:", err);
+        setReports([]);
+      });
   };
 
   // Save (Create or Update) report
@@ -487,7 +514,26 @@ const ReportsTable = ({
   const ViewReportModal = () => {
     // Use reportDetails if available, else fallback to viewingReport
     const data = reportDetails || viewingReport;
-    if (!data) return null;
+    
+    if (!data) {
+      return (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md">
+            <h2 className="text-xl font-semibold mb-4">View Report Details</h2>
+            <p className="text-gray-500">No report data available.</p>
+            <div className="mt-6 flex justify-end">
+              <button
+                onClick={() => { setShowViewModal(false); setReportDetails(null); }}
+                className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+    
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
         <div className="bg-white rounded-lg p-6 w-full max-w-md">
@@ -1106,7 +1152,7 @@ const ReportsTable = ({
 
       {/* Modals */}
       {showEditModal && <EditReportModal />}
-      {showViewModal && viewingReport && <ViewReportModal />}
+      {showViewModal && <ViewReportModal />}
     </div>
   );
 };

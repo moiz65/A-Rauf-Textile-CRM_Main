@@ -8,6 +8,32 @@ import RecentActivity from '../components/RecentActivity';
 const Report = () => {
   const [activeTab, setActiveTab] = useState('All');
   const [reports, setReports] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Fetch reports data from API
+  useEffect(() => {
+    const fetchReports = async () => {
+      try {
+        setIsLoading(true);
+        const response = await fetch('http://localhost:5000/api/v1/reports');
+        
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        // Ensure we always set an array, even if the response is null/undefined
+        setReports(Array.isArray(data) ? data : []);
+      } catch (error) {
+        console.error('Error fetching reports:', error);
+        setReports([]); // Set to empty array on error
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    fetchReports();
+  }, []);
 
   const summaryData = [
     {
@@ -102,11 +128,17 @@ const Report = () => {
         {/* Reports Table and Recent Activity */}
         <section className="grid grid-cols-1 lg:grid-cols-4 gap-5">
           <div className="lg:col-span-3">
-            <ReportsTable 
-              activeTab={activeTab} 
-              setActiveTab={setActiveTab}
-              reports={reports}
-            />
+            {isLoading ? (
+              <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 text-center">
+                <p>Loading reports...</p>
+              </div>
+            ) : (
+              <ReportsTable 
+                activeTab={activeTab} 
+                setActiveTab={setActiveTab}
+                reports={reports}
+              />
+            )}
           </div>
           <div className="lg:col-span-1">
             <RecentActivity customers={recentActivities} />
