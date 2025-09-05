@@ -2,14 +2,31 @@
 const express = require("express");
 const cors = require("cors");
 const path = require("path");
+const mysql = require("mysql2");
+const bodyParser = require("body-parser");
 
 // --- Initialize Express App ---
 const app = express();
 app.use(cors());
 app.use(express.json());
+app.use(bodyParser.json());
 
 // --- MySQL Database Connection ---
-const db = require("./src/config/db");
+const db = mysql.createConnection({
+  host: "localhost",
+  user: "root",
+  password: "",
+  database: "arauf_crm"
+});
+
+// Connect to MySQL
+db.connect((err) => {
+  if (err) {
+    console.error("Error connecting to MySQL:", err);
+    return;
+  }
+  console.log("Connected to MySQL database");
+});
 
 // --- Customer Routes ---
 
@@ -205,590 +222,130 @@ app.delete("/api/v1/reports/:id", (req, res) => {
   });
 });
 
-// --- InvoiceTable Routes ---
-
-// // Get all invoices
-// app.get("/api/v1/invoiceTable", (req, res) => {
-//   db.query("SELECT * FROM invoiceTable", (err, results) => {
-//     if (err) {
-//       console.error("Error fetching invoices:", err.message);
-//       return res.status(500).json({ message: "Failed to fetch invoices", error: err.message });
-//     }
-//     res.json(results);
-//   });
-// });
-
-// // Create a new invoice
-// app.post("/api/v1/invoiceTable", (req, res) => {
-//   const { invoice_id, date, customer, amount, status, items, due_date } = req.body;
-
-//   // Validate required fields
-//   if (!invoice_id || !date || !customer || !amount || !status) {
-//     return res.status(400).json({ message: "Missing required fields" });
-//   }
-
-//   const query = `
-//     INSERT INTO invoiceTable (invoice_id, date, customer, amount, status, items, due_date)
-//     VALUES (?, ?, ?, ?, ?, ?, ?)
-//   `;
-//   const values = [invoice_id, date, customer, amount, status, JSON.stringify(items), due_date];
-
-//   db.query(query, values, (err, result) => {
-//     if (err) {
-//       console.error("Error creating invoice:", err.message);
-//       return res.status(500).json({ message: "Failed to create invoice", error: err.message });
-//     }
-//     res.status(201).json({ message: "Invoice created successfully", insertId: result.insertId });
-//   });
-// });
-
-// // Get a single invoice by ID
-// app.get("/api/v1/invoiceTable/:id", (req, res) => {
-//   const invoiceId = req.params.id;
-
-//   const query = "SELECT * FROM invoiceTable WHERE invoice_id = ?";
-  
-//   db.query(query, [invoiceId], (err, results) => {
-//     if (err) {
-//       console.error("Error fetching invoice:", err.message);
-//       return res.status(500).json({ message: "Failed to fetch invoice", error: err.message });
-//     }
-//     if (results.length === 0) {
-//       return res.status(404).json({ message: "Invoice not found" });
-//     }
-    
-//     // Parse items JSON string back to object
-//     const invoice = results[0];
-//     if (invoice.items) {
-//       try {
-//         invoice.items = JSON.parse(invoice.items);
-//       } catch (e) {
-//         console.error("Error parsing items JSON:", e.message);
-//         invoice.items = [];
-//       }
-//     }
-    
-//     res.json(invoice);
-//   });
-// });
-
-// // Update an invoice
-// app.put("/api/v1/invoiceTable/:id", (req, res) => {
-//   const invoiceId = req.params.id;
-//   const { date, customer, amount, status, items, due_date } = req.body;
-
-//   // Validate required fields
-//   if (!date || !customer || !amount || !status) {
-//     return res.status(400).json({ message: "Missing required fields" });
-//   }
-
-//   const query = `
-//     UPDATE invoiceTable 
-//     SET date = ?, customer = ?, amount = ?, status = ?, items = ?, due_date = ?
-//     WHERE invoice_id = ?
-//   `;
-//   const values = [date, customer, amount, status, JSON.stringify(items), due_date, invoiceId];
-
-//   db.query(query, values, (err, result) => {
-//     if (err) {
-//       console.error("Error updating invoice:", err.message);
-//       return res.status(500).json({ message: "Failed to update invoice", error: err.message });
-//     }
-//     if (result.affectedRows === 0) return res.status(404).json({ message: "Invoice not found" });
-//     res.json({ message: "Invoice updated successfully" });
-//   });
-// });
-
-// // Delete an invoice
-// app.delete("/api/v1/invoiceTable/:id", (req, res) => {
-//   const invoiceId = req.params.id;
-
-//   const query = "DELETE FROM invoiceTable WHERE invoice_id = ?";
-//   db.query(query, [invoiceId], (err, result) => {
-//     if (err) {
-//       console.error("Error deleting invoice:", err.message);
-//       return res.status(500).json({ message: "Failed to delete invoice", error: err.message });
-//     }
-//     if (result.affectedRows === 0) return res.status(404).json({ message: "Invoice not found" });
-//     res.json({ message: "Invoice deleted successfully" });
-//   });
-// });
-
-// // Get invoices with filtering and pagination
-// app.get("/api/v1/invoiceTable/filter", (req, res) => {
-//   const { page = 1, limit = 10, status, search, startDate, endDate } = req.query;
-//   const offset = (page - 1) * limit;
-
-//   let query = "SELECT * FROM invoiceTable WHERE 1=1";
-//   let countQuery = "SELECT COUNT(*) as total FROM invoiceTable WHERE 1=1";
-//   let queryParams = [];
-//   let countParams = [];
-
-//   // Add status filter
-//   if (status && status !== 'All') {
-//     query += " AND status = ?";
-//     countQuery += " AND status = ?";
-//     queryParams.push(status);
-//     countParams.push(status);
-//   }
-
-//   // Add search filter
-//   if (search) {
-//     const searchParam = `%${search}%`;
-//     query += " AND (customer LIKE ? OR invoice_id LIKE ?)";
-//     countQuery += " AND (customer LIKE ? OR invoice_id LIKE ?)";
-//     queryParams.push(searchParam, searchParam);
-//     countParams.push(searchParam, searchParam);
-//   }
-
-//   // Add date range filter
-//   if (startDate) {
-//     query += " AND date >= ?";
-//     countQuery += " AND date >= ?";
-//     queryParams.push(startDate);
-//     countParams.push(startDate);
-//   }
-  
-//   if (endDate) {
-//     query += " AND date <= ?";
-//     countQuery += " AND date <= ?";
-//     queryParams.push(endDate);
-//     countParams.push(endDate);
-//   }
-
-//   // Add pagination
-//   query += " ORDER BY date DESC LIMIT ? OFFSET ?";
-//   queryParams.push(parseInt(limit), parseInt(offset));
-
-//   // First get total count
-//   db.query(countQuery, countParams, (err, countResult) => {
-//     if (err) {
-//       console.error("Error counting invoices:", err.message);
-//       return res.status(500).json({ message: "Failed to fetch invoices", error: err.message });
-//     }
-
-//     // Then get paginated data
-//     db.query(query, queryParams, (err, results) => {
-//       if (err) {
-//         console.error("Error fetching invoices:", err.message);
-//         return res.status(500).json({ message: "Failed to fetch invoices", error: err.message });
-//       }
-
-//       // Parse items JSON for each invoice
-//       results.forEach(invoice => {
-//         if (invoice.items) {
-//           try {
-//             invoice.items = JSON.parse(invoice.items);
-//           } catch (e) {
-//             console.error("Error parsing items JSON:", e.message);
-//             invoice.items = [];
-//           }
-//         }
-//       });
-
-//       res.json({
-//         invoices: results,
-//         total: countResult[0].total,
-//         page: parseInt(page),
-//         totalPages: Math.ceil(countResult[0].total / limit)
-//       });
-//     });
-//   });
-// });
-
-// // Get invoice statistics
-// app.get("/api/v1/invoiceTable/stats", (req, res) => {
-//   const queries = [
-//     "SELECT COUNT(*) as total FROM invoiceTable",
-//     "SELECT COUNT(*) as paid FROM invoiceTable WHERE status = 'Paid'",
-//     "SELECT COUNT(*) as pending FROM invoiceTable WHERE status = 'Pending'",
-//     "SELECT COUNT(*) as overdue FROM invoiceTable WHERE status = 'Overdue'",
-//     "SELECT SUM(amount) as total_revenue FROM invoiceTable WHERE status = 'Paid'",
-//     "SELECT SUM(amount) as pending_amount FROM invoiceTable WHERE status = 'Pending'",
-//     "SELECT SUM(amount) as overdue_amount FROM invoiceTable WHERE status = 'Overdue'"
-//   ];
-
-//   db.query(queries.join(';'), (err, results) => {
-//     if (err) {
-//       console.error("Error fetching invoice stats:", err.message);
-//       return res.status(500).json({ message: "Failed to fetch invoice statistics", error: err.message });
-//     }
-
-//     res.json({
-//       total: results[0][0].total,
-//       paid: results[1][0].paid,
-//       pending: results[2][0].pending,
-//       overdue: results[3][0].overdue,
-//       totalRevenue: results[4][0].total_revenue || 0,
-//       pendingAmount: results[5][0].pending_amount || 0,
-//       overdueAmount: results[6][0].overdue_amount || 0
-//     });
-//   });
-// });
-
-// // Bulk delete invoices
-// app.post("/api/v1/invoiceTable/bulk-delete", (req, res) => {
-//   const { ids } = req.body;
-
-//   if (!ids || !Array.isArray(ids) || ids.length === 0) {
-//     return res.status(400).json({ message: "No invoice IDs provided" });
-//   }
-
-//   const query = "DELETE FROM invoiceTable WHERE invoice_id IN (?)";
-  
-//   db.query(query, [ids], (err, result) => {
-//     if (err) {
-//       console.error("Error deleting invoices:", err.message);
-//       return res.status(500).json({ message: "Failed to delete invoices", error: err.message });
-//     }
-//     res.json({ 
-//       message: `${result.affectedRows} invoices deleted successfully` 
-//     });
-//   });
-// });
-
-// // Update invoice status
-// app.put("/api/v1/invoiceTable/:id/status", (req, res) => {
-//   const invoiceId = req.params.id;
-//   const { status } = req.body;
-
-//   if (!status) {
-//     return res.status(400).json({ message: "Status is required" });
-//   }
-
-//   const query = "UPDATE invoiceTable SET status = ? WHERE invoice_id = ?";
-//   const values = [status, invoiceId];
-
-//   db.query(query, values, (err, result) => {
-//     if (err) {
-//       console.error("Error updating invoice status:", err.message);
-//       return res.status(500).json({ message: "Failed to update invoice status", error: err.message });
-//     }
-//     if (result.affectedRows === 0) {
-//       return res.status(404).json({ message: "Invoice not found" });
-//     }
-//     res.json({ message: "Invoice status updated successfully" });
-//   });
-// });
-
-// // Error handling middleware
-// app.use((err, req, res, next) => {
-//   console.error(err.stack);
-//   res.status(500).json({ message: 'Something went wrong!', error: err.message });
-// });
-
-// // 404 handler
-// app.use((req, res) => {
-//   res.status(404).json({ message: 'Route not found' });
-// });
-
-
-// --- Invoice Routes (using `invoice` table) ---
+// --- Invoice Routes (using the provided implementation) ---
 
 // Get all invoices
-app.get("/api/v1/invoices", (req, res) => {
-  db.query("SELECT * FROM invoice", (err, results) => {
+app.get("/api/invoices", (req, res) => {
+  const query = "SELECT * FROM invoice ORDER BY bill_date DESC";
+  db.query(query, (err, results) => {
     if (err) {
-      console.error("Error fetching invoices:", err.message);
-      return res.status(500).json({ message: "Failed to fetch invoices", error: err.message });
+      console.error("Error fetching invoices:", err);
+      res.status(500).json({ error: "Failed to fetch invoices" });
+      return;
     }
     res.json(results);
-  });
-});
-
-// Create a new invoice
-app.post("/api/v1/invoices", (req, res) => {
-  const { invoice_id, date, customer, amount, status, items, due_date } = req.body;
-
-  if (!invoice_id || !date || !customer || !amount || !status) {
-    return res.status(400).json({ message: "Missing required fields" });
-  }
-
-  const query = `
-    INSERT INTO invoice (invoice_id, date, customer, amount, status, items, due_date)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
-  `;
-  const values = [invoice_id, date, customer, amount, status, JSON.stringify(items), due_date];
-
-  db.query(query, values, (err, result) => {
-    if (err) {
-      console.error("Error creating invoice:", err.message);
-      return res.status(500).json({ message: "Failed to create invoice", error: err.message });
-    }
-    res.status(201).json({ message: "Invoice created successfully", insertId: result.insertId });
   });
 });
 
 // Get single invoice by ID
-app.get("/api/v1/invoices/:id", (req, res) => {
-  const invoiceId = req.params.id;
-
-  const query = "SELECT * FROM invoice WHERE invoice_id = ?";
-
-  db.query(query, [invoiceId], (err, results) => {
+app.get("/api/invoices/:id", (req, res) => {
+  const { id } = req.params;
+  const query = "SELECT * FROM invoice WHERE id = ?";
+  db.query(query, [id], (err, results) => {
     if (err) {
-      console.error("Error fetching invoice:", err.message);
-      return res.status(500).json({ message: "Failed to fetch invoice", error: err.message });
+      console.error("Error fetching invoice:", err);
+      res.status(500).json({ error: "Failed to fetch invoice" });
+      return;
     }
     if (results.length === 0) {
-      return res.status(404).json({ message: "Invoice not found" });
+      res.status(404).json({ error: "Invoice not found" });
+      return;
     }
-
-    const invoice = results[0];
-    if (invoice.items) {
-      try {
-        invoice.items = JSON.parse(invoice.items);
-      } catch {
-        invoice.items = [];
-      }
-    }
-
-    res.json(invoice);
+    res.json(results[0]);
   });
 });
 
-// Update an invoice
-app.put("/api/v1/invoices/:id", (req, res) => {
-  const invoiceId = req.params.id;
-  const { date, customer, amount, status, items, due_date } = req.body;
-
-  if (!date || !customer || !amount || !status) {
-    return res.status(400).json({ message: "Missing required fields" });
-  }
+// Create new invoice
+app.post("/api/invoices", (req, res) => {
+  const {
+    customer_name, customer_email, p_number, a_p_number, address,
+    st_reg_no, ntn_number, item_name, quantity, rate, currency,
+    salesTax, item_amount, tax_amount, total_amount, bill_date,
+    payment_deadline, Note
+  } = req.body;
 
   const query = `
-    UPDATE invoice
-    SET date = ?, customer = ?, amount = ?, status = ?, items = ?, due_date = ?
-    WHERE invoice_id = ?
+    INSERT INTO invoice (
+      customer_name, customer_email, p_number, a_p_number, address,
+      st_reg_no, ntn_number, item_name, quantity, rate, currency,
+      salesTax, item_amount, tax_amount, total_amount, bill_date,
+      payment_deadline, Note
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `;
-  const values = [date, customer, amount, status, JSON.stringify(items), due_date, invoiceId];
 
-  db.query(query, values, (err, result) => {
+  const values = [
+    customer_name, customer_email, p_number, a_p_number, address,
+    st_reg_no, ntn_number, item_name, quantity, rate, currency,
+    salesTax, item_amount, tax_amount, total_amount, bill_date,
+    payment_deadline, Note
+  ];
+
+  db.query(query, values, (err, results) => {
     if (err) {
-      console.error("Error updating invoice:", err.message);
-      return res.status(500).json({ message: "Failed to update invoice", error: err.message });
+      console.error("Error creating invoice:", err);
+      res.status(500).json({ error: "Failed to create invoice" });
+      return;
     }
-    if (result.affectedRows === 0) return res.status(404).json({ message: "Invoice not found" });
+    res.status(201).json({ id: results.insertId, message: "Invoice created successfully" });
+  });
+});
+
+// Update invoice
+app.put("/api/invoices/:id", (req, res) => {
+  const { id } = req.params;
+  const {
+    customer_name, customer_email, p_number, a_p_number, address,
+    st_reg_no, ntn_number, item_name, quantity, rate, currency,
+    salesTax, item_amount, tax_amount, total_amount, bill_date,
+    payment_deadline, Note
+  } = req.body;
+
+  const query = `
+    UPDATE invoice SET
+      customer_name = ?, customer_email = ?, p_number = ?, a_p_number = ?, address = ?,
+      st_reg_no = ?, ntn_number = ?, item_name = ?, quantity = ?, rate = ?, currency = ?,
+      salesTax = ?, item_amount = ?, tax_amount = ?, total_amount = ?, bill_date = ?,
+      payment_deadline = ?, Note = ?
+    WHERE id = ?
+  `;
+
+  const values = [
+    customer_name, customer_email, p_number, a_p_number, address,
+    st_reg_no, ntn_number, item_name, quantity, rate, currency,
+    salesTax, item_amount, tax_amount, total_amount, bill_date,
+    payment_deadline, Note, id
+  ];
+
+  db.query(query, values, (err, results) => {
+    if (err) {
+      console.error("Error updating invoice:", err);
+      res.status(500).json({ error: "Failed to update invoice" });
+      return;
+    }
+    if (results.affectedRows === 0) {
+      res.status(404).json({ error: "Invoice not found" });
+      return;
+    }
     res.json({ message: "Invoice updated successfully" });
   });
 });
 
-// Delete an invoice
-app.delete("/api/v1/invoices/:id", (req, res) => {
-  const invoiceId = req.params.id;
-
-  const query = "DELETE FROM invoice WHERE invoice_id = ?";
-  db.query(query, [invoiceId], (err, result) => {
+// Delete invoice
+app.delete("/api/invoices/:id", (req, res) => {
+  const { id } = req.params;
+  const query = "DELETE FROM invoice WHERE id = ?";
+  
+  db.query(query, [id], (err, results) => {
     if (err) {
-      console.error("Error deleting invoice:", err.message);
-      return res.status(500).json({ message: "Failed to delete invoice", error: err.message });
+      console.error("Error deleting invoice:", err);
+      res.status(500).json({ error: "Failed to delete invoice" });
+      return;
     }
-    if (result.affectedRows === 0) return res.status(404).json({ message: "Invoice not found" });
+    if (results.affectedRows === 0) {
+      res.status(404).json({ error: "Invoice not found" });
+      return;
+    }
     res.json({ message: "Invoice deleted successfully" });
-  });
-});
-
-// Filtering + Pagination
-app.get("/api/v1/invoices/filter", (req, res) => {
-  const { page = 1, limit = 10, status, search, startDate, endDate } = req.query;
-  const offset = (page - 1) * limit;
-
-  let query = "SELECT * FROM invoice WHERE 1=1";
-  let countQuery = "SELECT COUNT(*) as total FROM invoice WHERE 1=1";
-  let params = [];
-  let countParams = [];
-
-  if (status && status !== "All") {
-    query += " AND status = ?";
-    countQuery += " AND status = ?";
-    params.push(status);
-    countParams.push(status);
-  }
-
-  if (search) {
-    const s = `%${search}%`;
-    query += " AND (customer LIKE ? OR invoice_id LIKE ?)";
-    countQuery += " AND (customer LIKE ? OR invoice_id LIKE ?)";
-    params.push(s, s);
-    countParams.push(s, s);
-  }
-
-  if (startDate) {
-    query += " AND date >= ?";
-    countQuery += " AND date >= ?";
-    params.push(startDate);
-    countParams.push(startDate);
-  }
-
-  if (endDate) {
-    query += " AND date <= ?";
-    countQuery += " AND date <= ?";
-    params.push(endDate);
-    countParams.push(endDate);
-  }
-
-  query += " ORDER BY date DESC LIMIT ? OFFSET ?";
-  params.push(parseInt(limit), parseInt(offset));
-
-  db.query(countQuery, countParams, (err, countResult) => {
-    if (err) {
-      console.error("Error counting invoices:", err.message);
-      return res.status(500).json({ message: "Failed to fetch invoices", error: err.message });
-    }
-
-    db.query(query, params, (err, results) => {
-      if (err) {
-        console.error("Error fetching invoices:", err.message);
-        return res.status(500).json({ message: "Failed to fetch invoices", error: err.message });
-      }
-
-      results.forEach((inv) => {
-        if (inv.items) {
-          try {
-            inv.items = JSON.parse(inv.items);
-          } catch {
-            inv.items = [];
-          }
-        }
-      });
-
-      res.json({
-        invoices: results,
-        total: countResult[0].total,
-        page: parseInt(page),
-        totalPages: Math.ceil(countResult[0].total / limit),
-      });
-    });
-  });
-});
-
-// Invoice statistics
-app.get("/api/v1/invoices/stats", (req, res) => {
-  const queries = [
-    "SELECT COUNT(*) as total FROM invoice",
-    "SELECT COUNT(*) as paid FROM invoice WHERE status = 'Paid'",
-    "SELECT COUNT(*) as pending FROM invoice WHERE status = 'Pending'",
-    "SELECT COUNT(*) as overdue FROM invoice WHERE status = 'Overdue'",
-    "SELECT SUM(amount) as total_revenue FROM invoice WHERE status = 'Paid'",
-    "SELECT SUM(amount) as pending_amount FROM invoice WHERE status = 'Pending'",
-    "SELECT SUM(amount) as overdue_amount FROM invoice WHERE status = 'Overdue'"
-  ];
-
-  db.query(queries.join(";"), (err, results) => {
-    if (err) {
-      console.error("Error fetching stats:", err.message);
-      return res.status(500).json({ message: "Failed to fetch invoice stats", error: err.message });
-    }
-
-    res.json({
-      total: results[0][0].total,
-      paid: results[1][0].paid,
-      pending: results[2][0].pending,
-      overdue: results[3][0].overdue,
-      totalRevenue: results[4][0].total_revenue || 0,
-      pendingAmount: results[5][0].pending_amount || 0,
-      overdueAmount: results[6][0].overdue_amount || 0,
-    });
-  });
-});
-
-// Bulk delete
-app.post("/api/v1/invoices/bulk-delete", (req, res) => {
-  const { ids } = req.body;
-
-  if (!ids || !Array.isArray(ids) || ids.length === 0) {
-    return res.status(400).json({ message: "No invoice IDs provided" });
-  }
-
-  const query = "DELETE FROM invoice WHERE invoice_id IN (?)";
-
-  db.query(query, [ids], (err, result) => {
-    if (err) {
-      console.error("Error deleting invoices:", err.message);
-      return res.status(500).json({ message: "Failed to delete invoices", error: err.message });
-    }
-    res.json({ message: `${result.affectedRows} invoices deleted successfully` });
-  });
-});
-
-// Update status
-app.put("/api/v1/invoices/:id/status", (req, res) => {
-  const invoiceId = req.params.id;
-  const { status } = req.body;
-
-  if (!status) {
-    return res.status(400).json({ message: "Status is required" });
-  }
-
-  const query = "UPDATE invoice SET status = ? WHERE invoice_id = ?";
-
-  db.query(query, [status, invoiceId], (err, result) => {
-    if (err) {
-      console.error("Error updating status:", err.message);
-      return res.status(500).json({ message: "Failed to update invoice status", error: err.message });
-    }
-    if (result.affectedRows === 0) {
-      return res.status(404).json({ message: "Invoice not found" });
-    }
-    res.json({ message: "Invoice status updated successfully" });
-  });
-});
-
-
-// Get all customers
-app.get("/api/v1/customertable", (req, res) => {
-  db.query("SELECT * FROM customertable", (err, results) => {
-    if (err) return res.status(500).json({ message: "Failed to fetch customers", error: err.message });
-    res.json(results);
-  });
-});
-
-// Create a new customer
-app.post("/api/v1/customertable", (req, res) => {
-  const { name, date, phoneNumber, price, category, address, email, startDate } = req.body;
-
-  if (!name || !date || !phoneNumber || !price) {
-    return res.status(400).json({ message: "Missing required fields" });
-  }
-
-  const query = `
-    INSERT INTO customertable (customer, date, phone, price, category, address, email, start_date)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-  `;
-  const values = [name, date, phoneNumber, price, category, address, email, startDate];
-
-  db.query(query, values, (err, result) => {
-    if (err) return res.status(500).json({ message: "Failed to create customer", error: err.message });
-    res.status(201).json({ id: result.insertId, ...req.body });
-  });
-});
-
-// Update customer
-app.put("/api/v1/customertable/:id", (req, res) => {
-  const { id } = req.params;
-  const { name, date, phoneNumber, price, category, address, email, startDate } = req.body;
-
-  const query = `
-    UPDATE customertable
-    SET customer = ?, date = ?, phone = ?, price = ?, category = ?, address = ?, email = ?, start_date = ?
-    WHERE customer_id = ?
-  `;
-  const values = [name, date, phoneNumber, price, category, address, email, startDate, id];
-
-  db.query(query, values, (err, result) => {
-    if (err) return res.status(500).json({ message: "Failed to update customer", error: err.message });
-    if (result.affectedRows === 0) return res.status(404).json({ message: "Customer not found" });
-    res.json({ id, ...req.body });
-  });
-});
-
-// Delete customer
-app.delete("/api/v1/customertable/:id", (req, res) => {
-  const { id } = req.params;
-  db.query("DELETE FROM customertable WHERE customer_id = ?", [id], (err, result) => {
-    if (err) return res.status(500).json({ message: "Failed to delete customer", error: err.message });
-    if (result.affectedRows === 0) return res.status(404).json({ message: "Customer not found" });
-    res.json({ success: true });
   });
 });
 

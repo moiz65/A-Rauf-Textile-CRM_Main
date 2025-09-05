@@ -1,43 +1,9 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { 
-  Search, Filter, Ellipsis, Edit, Trash2, Plus
+  Search, Filter, Ellipsis, Edit, Trash2, Plus, Loader
 } from 'lucide-react';
 
-// Initial invoices data
-const initialInvoicesData = [
-  {
-    id: 'INV-2023-001',
-    date: '2023-05-01',
-    customerName: 'Noor Textile Mills',
-    customerEmail: 'contact@noortextile.com',
-    phone: '021-12345678',
-    address: 'Plot No. A-1, Industrial Area, Karachi',
-    amount: 90000,
-    status: 'Paid',
-    dueDate: '2023-05-15',
-    items: [
-      { name: 'Cotton Fabric', quantity: 100, price: 500 },
-      { name: 'Silk Material', quantity: 50, price: 800 }
-    ]
-  },
-  {
-    id: 'INV-2023-002',
-    date: '2023-05-10',
-    customerName: 'Malik Fabrics Ltd.',
-    customerEmail: 'info@malikfabrics.com',
-    phone: '021-87654321',
-    address: 'Shop No. 25, Textile Market, Lahore',
-    amount: 75000,
-    status: 'Pending',
-    dueDate: '2023-05-25',
-    items: [
-      { name: 'Polyester Blend', quantity: 200, price: 375 }
-    ]
-  }
-];
-
-const STATUS_TABS = ['All', 'Paid', 'Pending', 'Overdue'];
-const ITEMS_PER_PAGE_OPTIONS = [4, 10, 20, 50];
+const API_BASE_URL = 'http://localhost:5000/api';
 
 // Reusable Input Component
 const Input = ({
@@ -74,48 +40,50 @@ const Input = ({
 // Invoice Form Component
 const InvoiceForm = ({ onSubmit, onCancel, initialData = null }) => {
   const [formData, setFormData] = useState({
-    customerName: "",
-    customerEmail: "",
-    phone: "",
-    a_p_Name: "",
+    customer_name: "",
+    customer_email: "",
+    p_number: "",
+    a_p_number: "",
     address: "",
-    stRegNo: "",
-    ntnNumber: "",
-    itemName: "",
+    st_reg_no: "",
+    ntn_number: "",
+    item_name: "",
     quantity: "",
     rate: "",
     currency: "PKR",
     salesTax: "",
-    itemAmount: "",
-    totalAmount: "",
-    taxAmount: "",
-    billDate: new Date().toISOString().split('T')[0],
-    paymentDeadline: "",
-    note: "",
+    item_amount: "",
+    tax_amount: "",
+    total_amount: "",
+    bill_date: new Date().toISOString().split('T')[0],
+    payment_deadline: "",
+    Note: "",
+    status: "Pending"
   });
 
   // Initialize form with existing data if editing
   useEffect(() => {
     if (initialData) {
       setFormData({
-        customerName: initialData.customerName || "",
-        customerEmail: initialData.customerEmail || "",
-        phone: initialData.phone || "",
-        a_p_Name: initialData.a_p_Name || "",
+        customer_name: initialData.customer_name || "",
+        customer_email: initialData.customer_email || "",
+        p_number: initialData.p_number || "",
+        a_p_number: initialData.a_p_number || "",
         address: initialData.address || "",
-        stRegNo: initialData.stRegNo || "",
-        ntnNumber: initialData.ntnNumber || "",
-        itemName: initialData.items?.[0]?.name || "",
-        quantity: initialData.items?.[0]?.quantity?.toString() || "",
-        rate: initialData.items?.[0]?.price?.toString() || "",
+        st_reg_no: initialData.st_reg_no || "",
+        ntn_number: initialData.ntn_number || "",
+        item_name: initialData.item_name || "",
+        quantity: initialData.quantity?.toString() || "",
+        rate: initialData.rate?.toString() || "",
         currency: initialData.currency || "PKR",
         salesTax: initialData.salesTax || "",
-        itemAmount: "",
-        totalAmount: initialData.amount?.toString() || "",
-        taxAmount: "",
-        billDate: initialData.date || new Date().toISOString().split('T')[0],
-        paymentDeadline: initialData.dueDate || "",
-        note: initialData.note || "",
+        item_amount: initialData.item_amount?.toString() || "",
+        tax_amount: initialData.tax_amount?.toString() || "",
+        total_amount: initialData.total_amount?.toString() || "",
+        bill_date: initialData.bill_date || new Date().toISOString().split('T')[0],
+        payment_deadline: initialData.payment_deadline || "",
+        Note: initialData.Note || "",
+        status: initialData.status || "Pending"
       });
     }
   }, [initialData]);
@@ -137,50 +105,52 @@ const InvoiceForm = ({ onSubmit, onCancel, initialData = null }) => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (!formData.customerName || !formData.customerEmail) {
+    if (!formData.customer_name || !formData.customer_email) {
       alert("Please fill in required fields.");
       return;
     }
 
-    // Create invoice object
+    // Prepare data for API
     const invoiceData = {
-      id: initialData?.id || null, // null for new invoices
-      customerName: formData.customerName,
-      customerEmail: formData.customerEmail,
-      phone: formData.phone,
+      customer_name: formData.customer_name,
+      customer_email: formData.customer_email,
+      p_number: formData.p_number,
+      a_p_number: formData.a_p_number,
       address: formData.address,
-      date: formData.billDate,
-      dueDate: formData.paymentDeadline || new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-      amount: parseFloat(formData.totalAmount) || 0,
-      status: initialData?.status || 'Pending',
+      st_reg_no: formData.st_reg_no,
+      ntn_number: formData.ntn_number,
+      item_name: formData.item_name,
+      quantity: parseFloat(formData.quantity) || 0,
+      rate: parseFloat(formData.rate) || 0,
       currency: formData.currency,
-      salesTax: formData.salesTax,
-      note: formData.note,
-      items: [{
-        name: formData.itemName,
-        quantity: parseFloat(formData.quantity) || 0,
-        price: parseFloat(formData.rate) || 0
-      }]
+      salesTax: parseFloat(formData.salesTax) || 0,
+      item_amount: parseFloat(formData.item_amount) || 0,
+      tax_amount: parseFloat(formData.tax_amount) || 0,
+      total_amount: parseFloat(formData.total_amount) || 0,
+      bill_date: formData.bill_date,
+      payment_deadline: formData.payment_deadline || new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+      Note: formData.Note,
+      status: formData.status
     };
 
     onSubmit(invoiceData);
   };
 
-  // Calculate itemAmount, taxAmount, and totalAmount
+  // Calculate item_amount, tax_amount, and total_amount
   useEffect(() => {
     const quantity = parseFloat(formData.quantity) || 0;
     const rate = parseFloat(formData.rate) || 0;
     const tax = parseFloat(formData.salesTax) || 0;
 
-    const itemAmount = quantity * rate;
-    const taxAmount = itemAmount * (tax / 100);
-    const totalAmount = itemAmount + taxAmount;
+    const item_amount = quantity * rate;
+    const tax_amount = item_amount * (tax / 100);
+    const total_amount = item_amount + tax_amount;
 
     setFormData((prev) => ({
       ...prev,
-      itemAmount: itemAmount ? itemAmount.toFixed(2) : "",
-      taxAmount: itemAmount ? taxAmount.toFixed(2) : "",
-      totalAmount: itemAmount ? totalAmount.toFixed(2) : "",
+      item_amount: item_amount ? item_amount.toFixed(2) : "",
+      tax_amount: item_amount ? tax_amount.toFixed(2) : "",
+      total_amount: item_amount ? total_amount.toFixed(2) : "",
     }));
   }, [formData.quantity, formData.rate, formData.salesTax]);
 
@@ -195,29 +165,29 @@ const InvoiceForm = ({ onSubmit, onCancel, initialData = null }) => {
           <div className="grid sm:grid-cols-2 gap-4">
             <Input
               label="Customer Name *"
-              name="customerName"
-              value={formData.customerName}
+              name="customer_name"
+              value={formData.customer_name}
               onChange={handleChange}
               required
             />
             <Input
               label="Customer Email *"
               type="email"
-              name="customerEmail"
-              value={formData.customerEmail}
+              name="customer_email"
+              value={formData.customer_email}
               onChange={handleChange}
               required
             />
             <Input
               label="Phone Number"
-              name="phone"
-              value={formData.phone}
+              name="p_number"
+              value={formData.p_number}
               onChange={handleChange}
             />
             <Input
               label="Alternate Phone"
-              name="a_p_Name"
-              value={formData.a_p_Name}
+              name="a_p_number"
+              value={formData.a_p_number}
               onChange={handleChange}
             />
             <Input
@@ -228,14 +198,14 @@ const InvoiceForm = ({ onSubmit, onCancel, initialData = null }) => {
             />
             <Input
               label="S.T Reg No"
-              name="stRegNo"
-              value={formData.stRegNo}
+              name="st_reg_no"
+              value={formData.st_reg_no}
               onChange={handleChange}
             />
             <Input
               label="NTN Number"
-              name="ntnNumber"
-              value={formData.ntnNumber}
+              name="ntn_number"
+              value={formData.ntn_number}
               onChange={handleChange}
             />
           </div>
@@ -249,8 +219,8 @@ const InvoiceForm = ({ onSubmit, onCancel, initialData = null }) => {
           <div className="grid sm:grid-cols-2 gap-4">
             <Input
               label="Item Name"
-              name="itemName"
-              value={formData.itemName}
+              name="item_name"
+              value={formData.item_name}
               onChange={handleChange}
             />
 
@@ -305,8 +275,8 @@ const InvoiceForm = ({ onSubmit, onCancel, initialData = null }) => {
             <Input
               label="Item Amount"
               type="number"
-              name="itemAmount"
-              value={formData.itemAmount}
+              name="item_amount"
+              value={formData.item_amount}
               readOnly
               className="bg-blue-50 border-blue-200 font-medium"
             />
@@ -314,8 +284,8 @@ const InvoiceForm = ({ onSubmit, onCancel, initialData = null }) => {
             <Input
               label="Tax Amount"
               type="number"
-              name="taxAmount"
-              value={formData.taxAmount}
+              name="tax_amount"
+              value={formData.tax_amount}
               readOnly
               className="bg-blue-50 border-blue-200 font-medium"
             />
@@ -323,8 +293,8 @@ const InvoiceForm = ({ onSubmit, onCancel, initialData = null }) => {
             <Input
               label="Total Amount"
               type="number"
-              name="totalAmount"
-              value={formData.totalAmount}
+              name="total_amount"
+              value={formData.total_amount}
               readOnly
               className="bg-blue-50 border-blue-200 font-medium"
             />
@@ -340,26 +310,41 @@ const InvoiceForm = ({ onSubmit, onCancel, initialData = null }) => {
             <Input
               label="Bill Date"
               type="date"
-              name="billDate"
-              value={formData.billDate}
+              name="bill_date"
+              value={formData.bill_date}
               onChange={handleChange}
             />
             <Input
               label="Payment Deadline"
               type="date"
-              name="paymentDeadline"
-              value={formData.paymentDeadline}
+              name="payment_deadline"
+              value={formData.payment_deadline}
               onChange={handleChange}
             />
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                Status
+              </label>
+              <select
+                name="status"
+                value={formData.status}
+                onChange={handleChange}
+                className="w-full rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-300 transition"
+              >
+                <option value="Pending">Pending</option>
+                <option value="Paid">Paid</option>
+                <option value="Overdue">Overdue</option>
+              </select>
+            </div>
           </div>
           <div className="mt-4">
             <label className="block text-sm font-semibold text-gray-700 mb-2">
               Note
             </label>
             <textarea
-              name="note"
+              name="Note"
               rows={4}
-              value={formData.note}
+              value={formData.Note}
               onChange={handleChange}
               className="w-full border border-gray-300 rounded-xl p-3 bg-white shadow-sm focus:ring-2 focus:ring-blue-200 outline-none transition"
               placeholder="Enter a message for the customer..."
@@ -391,7 +376,7 @@ const InvoiceForm = ({ onSubmit, onCancel, initialData = null }) => {
 // Main Invoice Management Component
 const InvoiceManagement = () => {
   // State management
-  const [invoicesData, setInvoicesData] = useState(initialInvoicesData);
+  const [invoicesData, setInvoicesData] = useState([]);
   const [selectedRows, setSelectedRows] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
@@ -410,7 +395,31 @@ const InvoiceManagement = () => {
   const [showInvoiceForm, setShowInvoiceForm] = useState(false);
   const [editingInvoice, setEditingInvoice] = useState(null);
   const [notification, setNotification] = useState(null);
+  const [loading, setLoading] = useState(true);
   const dropdownRefs = useRef([]);
+
+  // Fetch invoices from API
+  const fetchInvoices = useCallback(async () => {
+    try {
+      setLoading(true);
+      const response = await fetch(`${API_BASE_URL}/invoices`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch invoices');
+      }
+      const data = await response.json();
+      setInvoicesData(data);
+    } catch (error) {
+      console.error('Error fetching invoices:', error);
+      showNotification("Error", "Failed to fetch invoices");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  // Load invoices on component mount
+  useEffect(() => {
+    fetchInvoices();
+  }, [fetchInvoices]);
 
   // Show notification
   const showNotification = (title, description, duration = 3000) => {
@@ -435,22 +444,22 @@ const InvoiceManagement = () => {
       .filter(invoice => {
         const searchLower = searchTerm.toLowerCase();
         return (
-          invoice.id.toLowerCase().includes(searchLower) ||
-          invoice.customerName.toLowerCase().includes(searchLower) ||
-          invoice.date.toLowerCase().includes(searchLower)
+          invoice.id.toString().toLowerCase().includes(searchLower) ||
+          invoice.customer_name.toLowerCase().includes(searchLower) ||
+          invoice.bill_date.toLowerCase().includes(searchLower)
         );
       })
       .filter(invoice => 
         activeTab === 'All' || invoice.status === activeTab
       )
       .filter(invoice => {
-        const invoiceDate = new Date(invoice.date);
+        const invoiceDate = new Date(invoice.bill_date);
         return (
-          (!filters.minAmount || invoice.amount >= Number(filters.minAmount)) &&
-          (!filters.maxAmount || invoice.amount <= Number(filters.maxAmount)) &&
+          (!filters.minAmount || invoice.total_amount >= Number(filters.minAmount)) &&
+          (!filters.maxAmount || invoice.total_amount <= Number(filters.maxAmount)) &&
           (!filters.dateFrom || invoiceDate >= new Date(filters.dateFrom)) &&
           (!filters.dateTo || invoiceDate <= new Date(filters.dateTo)) &&
-          (!filters.account || invoice.customerName.toLowerCase().includes(filters.account.toLowerCase())) &&
+          (!filters.account || invoice.customer_name.toLowerCase().includes(filters.account.toLowerCase())) &&
           (!filters.status || invoice.status === filters.status)
         );
       });
@@ -544,41 +553,95 @@ const InvoiceManagement = () => {
     setActiveDropdown(null);
   };
 
-  const handleDeleteInvoice = (invoice) => {
+  const handleDeleteInvoice = async (invoice) => {
     if (window.confirm(`Are you sure you want to delete invoice ${invoice.id}?`)) {
-      setInvoicesData(prev => prev.filter(item => item.id !== invoice.id));
-      showNotification("Invoice deleted", `Invoice ${invoice.id} has been deleted`);
+      try {
+        const response = await fetch(`${API_BASE_URL}/invoices/${invoice.id}`, {
+          method: 'DELETE'
+        });
+        
+        if (!response.ok) {
+          throw new Error('Failed to delete invoice');
+        }
+        
+        setInvoicesData(prev => prev.filter(item => item.id !== invoice.id));
+        showNotification("Invoice deleted", `Invoice ${invoice.id} has been deleted`);
+      } catch (error) {
+        console.error('Error deleting invoice:', error);
+        showNotification("Error", "Failed to delete invoice");
+      }
     }
     setActiveDropdown(null);
   };
 
-  const handleBulkDelete = () => {
+  const handleBulkDelete = async () => {
     if (selectedRows.length === 0) return;
     
     if (window.confirm(`Are you sure you want to delete ${selectedRows.length} selected invoices?`)) {
-      setInvoicesData(prev => prev.filter(item => !selectedRows.includes(item.id)));
-      setSelectedRows([]);
-      showNotification("Bulk delete successful", `${selectedRows.length} invoices have been deleted`);
+      try {
+        const response = await fetch(`${API_BASE_URL}/invoices/bulk-delete`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ ids: selectedRows })
+        });
+        
+        if (!response.ok) {
+          throw new Error('Failed to delete invoices');
+        }
+        
+        setInvoicesData(prev => prev.filter(item => !selectedRows.includes(item.id)));
+        setSelectedRows([]);
+        showNotification("Bulk delete successful", `${selectedRows.length} invoices have been deleted`);
+      } catch (error) {
+        console.error('Error deleting invoices:', error);
+        showNotification("Error", "Failed to delete invoices");
+      }
     }
   };
 
   // Form handlers
-  const handleFormSubmit = (invoiceData) => {
-    if (invoiceData.id) {
-      // Update existing invoice
-      setInvoicesData(prev =>
-        prev.map(invoice => invoice.id === invoiceData.id ? invoiceData : invoice)
+  const handleFormSubmit = async (invoiceData) => {
+    try {
+      let response;
+      
+      if (editingInvoice) {
+        // Update existing invoice
+        response = await fetch(`${API_BASE_URL}/invoices/${editingInvoice.id}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(invoiceData)
+        });
+      } else {
+        // Create new invoice
+        response = await fetch(`${API_BASE_URL}/invoices`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(invoiceData)
+        });
+      }
+      
+      if (!response.ok) {
+        throw new Error(`Failed to ${editingInvoice ? 'update' : 'create'} invoice`);
+      }
+      
+      // Refresh the invoice list
+      await fetchInvoices();
+      
+      showNotification(
+        `Invoice ${editingInvoice ? 'updated' : 'created'}`,
+        `Invoice has been ${editingInvoice ? 'updated' : 'created'} successfully`
       );
-      showNotification("Invoice updated", `Invoice ${invoiceData.id} has been updated`);
-    } else {
-      // Create new invoice
-      const newInvoice = {
-        ...invoiceData,
-        id: `INV-${new Date().getFullYear()}-${(invoicesData.length + 1).toString().padStart(3, '0')}`
-      };
-      setInvoicesData(prev => [...prev, newInvoice]);
-      showNotification("Invoice created", `New invoice ${newInvoice.id} has been created`);
+    } catch (error) {
+      console.error('Error saving invoice:', error);
+      showNotification("Error", `Failed to ${editingInvoice ? 'update' : 'create'} invoice`);
     }
+    
     setShowInvoiceForm(false);
     setEditingInvoice(null);
   };
@@ -587,6 +650,17 @@ const InvoiceManagement = () => {
     setShowInvoiceForm(false);
     setEditingInvoice(null);
   };
+
+  if (loading) {
+    return (
+      <div className="p-4 flex justify-center items-center h-64">
+        <div className="flex flex-col items-center">
+          <Loader className="w-8 h-8 animate-spin text-blue-500 mb-2" />
+          <div className="text-gray-500">Loading invoices...</div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-4">
@@ -748,7 +822,7 @@ const InvoiceManagement = () => {
                   }}
                   className="p-1 border rounded text-xs"
                 >
-                  {ITEMS_PER_PAGE_OPTIONS.map(option => (
+                  {[4, 10, 20, 50].map(option => (
                     <option key={option} value={option}>{option}</option>
                   ))}
                 </select>
@@ -766,7 +840,7 @@ const InvoiceManagement = () => {
         {/* Tab Navigation */}
         <div className="overflow-x-auto mb-4">
           <div className="flex border-b w-max min-w-full">
-            {STATUS_TABS.map(status => (
+            {['All', 'Paid', 'Pending', 'Overdue'].map(status => (
               <button
                 key={status}
                 className={`px-3 py-2 text-sm font-medium whitespace-nowrap border-b-2 ${
@@ -840,24 +914,24 @@ const InvoiceManagement = () => {
                     </td>
                     <td className="px-4 py-4 text-sm font-medium text-gray-900 whitespace-nowrap">
                       <div className="flex flex-col">
-                        <span>{invoice.id}</span>
+                        <span>INV-{invoice.id}</span>
                         <span className="text-xs text-gray-500">
-                          Due: {formatDate(invoice.dueDate)}
+                          Due: {formatDate(invoice.payment_deadline)}
                         </span>
                       </div>
                     </td>
                     <td className="px-4 py-4 text-sm text-gray-500 whitespace-nowrap">
-                      {formatDate(invoice.date)}
+                      {formatDate(invoice.bill_date)}
                     </td>
                     <td className="px-4 py-4 text-sm text-gray-500">
-                      <div className="line-clamp-1">{invoice.customerName}</div>
+                      <div className="line-clamp-1">{invoice.customer_name}</div>
                     </td>
                     <td className="px-4 py-4 text-sm font-medium text-gray-900 whitespace-nowrap text-right">
-                      RS {invoice.amount.toLocaleString()}
+                      RS {invoice.total_amount?.toLocaleString()}
                     </td>
                     <td className="px-4 py-4 text-sm whitespace-nowrap">
                       <span className={`px-2 py-1 inline-flex text-xs font-semibold rounded-full ${getStatusClass(invoice.status)}`}>
-                        {invoice.status}
+                        {invoice.status || 'Pending'}
                       </span>
                     </td>
                     <td className="px-4 py-4 text-sm whitespace-nowrap relative">
@@ -959,4 +1033,4 @@ const InvoiceManagement = () => {
   );
 };
 
-export default InvoiceManagement
+export default InvoiceManagement;

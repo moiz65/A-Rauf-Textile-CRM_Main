@@ -1,58 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Search, Filter, FileDown, Ellipsis, Edit, Trash2, Printer, Download, Copy, Plus } from 'lucide-react';
 
-// Initial customers data
-const initialCustomersData = [
-  {
-    id: '1',
-    name: 'Noor Textile',
-    date: 'Feb 08, 2025',
-    phoneNumber: '0231153636',
-    price: 90000,
-    category: 'Dying',
-    address: 'Karachi',
-    email: 'Noor@gmail.com',
-    startDate: 'Feb 08, 2025',
-  },
-  {
-    id: '2',
-    name: 'Malik Fabrics',
-    date: 'Mar 15, 2025',
-    phoneNumber: '0231156789',
-    price: 75000,
-    category: 'Weaving',
-    address: 'Lahore',
-    email: 'malik@gmail.com',
-    startDate: 'Mar 10, 2025',
-  },
-  {
-    id: '3',
-    name: 'Ahmed Textiles',
-    date: 'Apr 22, 2025',
-    phoneNumber: '0233456789',
-    price: 120000,
-    category: 'Dying',
-    address: 'Islamabad',
-    email: 'ahmed@gmail.com',
-    startDate: 'Apr 15, 2025',
-  },
-  {
-    id: '4',
-    name: 'Zainab Cloth House',
-    date: 'May 05, 2025',
-    phoneNumber: '0235678901',
-    price: 85000,
-    category: 'Stitching',
-    address: 'Faisalabad',
-    email: 'zainab@gmail.com',
-    startDate: 'May 01, 2025',
-  },
-];
-
 const ITEMS_PER_PAGE = 4;
 
 const CustomersTable = () => {
-  const [customersData, setCustomersData] = useState(initialCustomersData);
+  const [customersData, setCustomersData] = useState([]);
   const [selectedRows, setSelectedRows] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState('');
@@ -70,9 +22,38 @@ const CustomersTable = () => {
   const [activeDropdown, setActiveDropdown] = useState(null);
   const [editingCustomer, setEditingCustomer] = useState(null);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const dropdownRef = useRef(null);
 
   const customerCategories = ['All', 'Dying', 'Weaving', 'Stitching'];
+
+  // Fetch customers data from API
+  useEffect(() => {
+    fetchCustomers();
+  }, []);
+
+  const fetchCustomers = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch('http://localhost:5000/api/v1/customertable');
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      setCustomersData(data);
+      setError(null);
+    } catch (err) {
+      console.error('Error fetching customers:', err);
+      setError('Failed to fetch customers. Please try again later.');
+      // Fallback to empty array instead of initial data
+      setCustomersData([]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -87,15 +68,15 @@ const CustomersTable = () => {
 
   const filteredCustomers = customersData
     .filter(customer =>
-      customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      customer.customer.toLowerCase().includes(searchTerm.toLowerCase()) ||
       customer.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      customer.phoneNumber.includes(searchTerm)
+      customer.phone.includes(searchTerm)
     )
     .filter(customer =>
       activeTab === 'All' || customer.category === activeTab
     )
     .filter(customer =>
-      (!filters.customerName || customer.name.toLowerCase().includes(filters.customerName.toLowerCase())) &&
+      (!filters.customerName || customer.customer.toLowerCase().includes(filters.customerName.toLowerCase())) &&
       (!filters.minPrice || customer.price >= Number(filters.minPrice)) &&
       (!filters.maxPrice || customer.price <= Number(filters.maxPrice)) &&
       (!filters.dateFrom || new Date(customer.date) >= new Date(filters.dateFrom)) &&
@@ -112,7 +93,7 @@ const CustomersTable = () => {
     if (selectedRows.length === visibleCustomers.length) {
       setSelectedRows([]);
     } else {
-      setSelectedRows(visibleCustomers.map(customer => customer.id));
+      setSelectedRows(visibleCustomers.map(customer => customer.customer_id));
     }
   };
 
@@ -178,24 +159,57 @@ const CustomersTable = () => {
     setNotification({ title, description });
     setTimeout(() => setNotification(null), duration);
   };
-  const handleDelete = (customer) => {
-    if (window.confirm(`Are you sure you want to delete customer "${customer.name}"?`)) {
-      setCustomersData(prev => prev.filter(item => item.id !== customer.id));
-      showNotification("Customer deleted", `Customer '${customer.name}' has been deleted.`);
+
+  const handleDelete = async (customer) => {
+    if (window.confirm(`Are you sure you want to delete customer "${customer.customer}"?`)) {
+      try {
+        const response = await fetch(`http://localhost:5000/api/v1/customertable/${customer.customer_id}`, {
+          method: 'DELETE'
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to delete customer');
+        }
+
+        // Refresh the data after successful deletion
+        await fetchCustomers();
+        showNotification("Customer deleted", `Customer '${customer.customer}' has been deleted.`);
+      } catch (err) {
+        console.error('Error deleting customer:', err);
+        showNotification("Error", "Failed to delete customer. Please try again.");
+      }
     }
     setActiveDropdown(null);
   };
+
   // Bulk delete selected customers
   const [isBulkDeleting, setIsBulkDeleting] = useState(false);
   const handleBulkDelete = async () => {
     if (selectedRows.length === 0) return;
+    
     if (window.confirm(`Are you sure you want to delete ${selectedRows.length} selected customers?`)) {
       setIsBulkDeleting(true);
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      setCustomersData(prev => prev.filter(item => !selectedRows.includes(item.id)));
-      setSelectedRows([]);
-      setIsBulkDeleting(false);
-      showNotification("Bulk delete successful", `${selectedRows.length} customers have been deleted`);
+      
+      try {
+        // Delete each selected customer
+        const deletePromises = selectedRows.map(id => 
+          fetch(`http://localhost:5000/api/v1/customertable/${id}`, {
+            method: 'DELETE'
+          })
+        );
+        
+        await Promise.all(deletePromises);
+        
+        // Refresh the data
+        await fetchCustomers();
+        setSelectedRows([]);
+        showNotification("Bulk delete successful", `${selectedRows.length} customers have been deleted`);
+      } catch (err) {
+        console.error('Error during bulk delete:', err);
+        showNotification("Error", "Failed to delete some customers. Please try again.");
+      } finally {
+        setIsBulkDeleting(false);
+      }
     }
   };
 
@@ -204,7 +218,7 @@ const CustomersTable = () => {
     printWindow.document.write(`
       <html>
         <head>
-          <title>Customer Details: ${customer.name}</title>
+          <title>Customer Details: ${customer.customer}</title>
           <style>
             body { font-family: Arial, sans-serif; padding: 20px; }
             h1 { color: #333; }
@@ -217,14 +231,14 @@ const CustomersTable = () => {
         <body>
           <h1>Customer Details</h1>
           <div class="receipt">
-            <div class="row"><div class="label">Name:</div><div class="value">${customer.name}</div></div>
+            <div class="row"><div class="label">Name:</div><div class="value">${customer.customer}</div></div>
             <div class="row"><div class="label">Date:</div><div class="value">${customer.date}</div></div>
-            <div class="row"><div class="label">Phone:</div><div class="value">${customer.phoneNumber}</div></div>
+            <div class="row"><div class="label">Phone:</div><div class="value">${customer.phone}</div></div>
             <div class="row"><div class="label">Price:</div><div class="value">PKR ${customer.price.toLocaleString()}</div></div>
             <div class="row"><div class="label">Category:</div><div class="value">${customer.category}</div></div>
             <div class="row"><div class="label">Address:</div><div class="value">${customer.address}</div></div>
             <div class="row"><div class="label">Email:</div><div class="value">${customer.email}</div></div>
-            <div class="row"><div class="label">Start Date:</div><div class="value">${customer.startDate}</div></div>
+            <div class="row"><div class="label">Start Date:</div><div class="value">${customer.start_date}</div></div>
           </div>
           <script>window.print();</script>
         </body>
@@ -236,21 +250,21 @@ const CustomersTable = () => {
 
   const handleDownload = (customer) => {
     const data = {
-      name: customer.name,
+      name: customer.customer,
       date: customer.date,
-      phoneNumber: customer.phoneNumber,
+      phoneNumber: customer.phone,
       price: `PKR ${customer.price.toLocaleString()}`,
       category: customer.category,
       address: customer.address,
       email: customer.email,
-      startDate: customer.startDate
+      startDate: customer.start_date
     };
     
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `customer_${customer.id}.json`;
+    a.download = `customer_${customer.customer_id}.json`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -258,49 +272,117 @@ const CustomersTable = () => {
     setActiveDropdown(null);
   };
 
-  const handleDuplicate = (customer) => {
+  const handleDuplicate = async (customer) => {
     const newCustomer = {
-      ...customer,
-      id: Date.now().toString(),
-      name: `${customer.name} (Copy)`,
-      date: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
+      customer: `${customer.customer} (Copy)`,
+      date: new Date().toISOString().split('T')[0],
+      phone: customer.phone,
+      price: customer.price,
+      category: customer.category,
+      address: customer.address,
+      email: customer.email,
+      start_date: customer.start_date
     };
     
-    setCustomersData(prev => [...prev, newCustomer]);
+    try {
+      const response = await fetch('http://localhost:5000/api/v1/customertable', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(newCustomer)
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to duplicate customer');
+      }
+
+      // Refresh the data
+      await fetchCustomers();
+      showNotification("Customer duplicated", `Customer '${newCustomer.customer}' has been created.`);
+    } catch (err) {
+      console.error('Error duplicating customer:', err);
+      showNotification("Error", "Failed to duplicate customer. Please try again.");
+    }
+    
     setActiveDropdown(null);
   };
 
   const handleAddCustomer = () => {
     const newCustomer = {
-      id: Date.now().toString(),
-      name: 'New Customer',
-      date: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }),
-      phoneNumber: '',
+      customer: 'New Customer',
+      date: new Date().toISOString().split('T')[0],
+      phone: '',
       price: 0,
       category: 'Dying',
       address: '',
       email: '',
-      startDate: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
+      start_date: new Date().toISOString().split('T')[0]
     };
     
     setEditingCustomer(newCustomer);
     setShowEditModal(true);
   };
 
-  const handleSaveCustomer = (updatedCustomer) => {
-    if (updatedCustomer.id) {
-      // Update existing customer
-      setCustomersData(prev =>
-        prev.map(customer =>
-          customer.id === updatedCustomer.id ? updatedCustomer : customer
-        )
+  const handleSaveCustomer = async (updatedCustomer) => {
+    try {
+      let response;
+      
+      if (updatedCustomer.customer_id) {
+        // Update existing customer
+        response = await fetch(`http://localhost:5000/api/v1/customertable/${updatedCustomer.customer_id}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            name: updatedCustomer.customer,
+            date: updatedCustomer.date,
+            phoneNumber: updatedCustomer.phone,
+            price: updatedCustomer.price,
+            category: updatedCustomer.category,
+            address: updatedCustomer.address,
+            email: updatedCustomer.email,
+            startDate: updatedCustomer.start_date
+          })
+        });
+      } else {
+        // Add new customer
+        response = await fetch('http://localhost:5000/api/v1/customertable', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            name: updatedCustomer.customer,
+            date: updatedCustomer.date,
+            phoneNumber: updatedCustomer.phone,
+            price: updatedCustomer.price,
+            category: updatedCustomer.category,
+            address: updatedCustomer.address,
+            email: updatedCustomer.email,
+            startDate: updatedCustomer.start_date
+          })
+        });
+      }
+
+      if (!response.ok) {
+        throw new Error('Failed to save customer');
+      }
+
+      // Refresh the data
+      await fetchCustomers();
+      setShowEditModal(false);
+      setEditingCustomer(null);
+      
+      showNotification(
+        updatedCustomer.customer_id ? "Customer updated" : "Customer created",
+        `Customer '${updatedCustomer.customer}' has been ${updatedCustomer.customer_id ? 'updated' : 'created'}.`
       );
-    } else {
-      // Add new customer
-      setCustomersData(prev => [...prev, updatedCustomer]);
+    } catch (err) {
+      console.error('Error saving customer:', err);
+      showNotification("Error", "Failed to save customer. Please try again.");
     }
-    setShowEditModal(false);
-    setEditingCustomer(null);
   };
 
   const handleAction = (action, customer) => {
@@ -327,11 +409,11 @@ const CustomersTable = () => {
 
   // Edit Modal Component
   const EditCustomerModal = () => {
-    const [formData, setFormData] = useState(editingCustomer);
+    const [formData, setFormData] = useState(editingCustomer || {});
     
     useEffect(() => {
-      setFormData(editingCustomer);
-    }, []);
+      setFormData(editingCustomer || {});
+    }, [editingCustomer]);
 
     const handleChange = (e) => {
       const { name, value } = e.target;
@@ -350,15 +432,15 @@ const CustomersTable = () => {
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
         <div className="bg-white rounded-lg p-6 w-full max-w-md">
           <h2 className="text-xl font-semibold mb-4">
-            {formData.id ? 'Edit Customer' : 'Add New Customer'}
+            {formData.customer_id ? 'Edit Customer' : 'Add New Customer'}
           </h2>
           <form onSubmit={handleSubmit}>
             <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
               <input
                 type="text"
-                name="name"
-                value={formData.name}
+                name="customer"
+                value={formData.customer || ''}
                 onChange={handleChange}
                 className="w-full p-2 border rounded-md"
                 required
@@ -370,7 +452,7 @@ const CustomersTable = () => {
               <input
                 type="date"
                 name="date"
-                value={formData.date}
+                value={formData.date || ''}
                 onChange={handleChange}
                 className="w-full p-2 border rounded-md"
                 required
@@ -381,8 +463,8 @@ const CustomersTable = () => {
               <label className="block text-sm font-medium text-gray-700 mb-1">Phone Number</label>
               <input
                 type="text"
-                name="phoneNumber"
-                value={formData.phoneNumber}
+                name="phone"
+                value={formData.phone || ''}
                 onChange={handleChange}
                 className="w-full p-2 border rounded-md"
                 required
@@ -394,7 +476,7 @@ const CustomersTable = () => {
               <input
                 type="number"
                 name="price"
-                value={formData.price}
+                value={formData.price || 0}
                 onChange={handleChange}
                 className="w-full p-2 border rounded-md"
                 required
@@ -406,7 +488,7 @@ const CustomersTable = () => {
               <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
               <select
                 name="category"
-                value={formData.category}
+                value={formData.category || 'Dying'}
                 onChange={handleChange}
                 className="w-full p-2 border rounded-md"
                 required
@@ -422,7 +504,7 @@ const CustomersTable = () => {
               <input
                 type="text"
                 name="address"
-                value={formData.address}
+                value={formData.address || ''}
                 onChange={handleChange}
                 className="w-full p-2 border rounded-md"
                 required
@@ -434,7 +516,7 @@ const CustomersTable = () => {
               <input
                 type="email"
                 name="email"
-                value={formData.email}
+                value={formData.email || ''}
                 onChange={handleChange}
                 className="w-full p-2 border rounded-md"
                 required
@@ -445,8 +527,8 @@ const CustomersTable = () => {
               <label className="block text-sm font-medium text-gray-700 mb-1">Start Date</label>
               <input
                 type="date"
-                name="startDate"
-                value={formData.startDate}
+                name="start_date"
+                value={formData.start_date || ''}
                 onChange={handleChange}
                 className="w-full p-2 border rounded-md"
                 required
@@ -473,6 +555,30 @@ const CustomersTable = () => {
       </div>
     );
   };
+
+  if (loading) {
+    return (
+      <div className="bg-white rounded-xl sm:rounded-[30px] shadow-sm border border-gray-100 p-4 sm:p-5 flex justify-center items-center h-64">
+        <div className="text-gray-500">Loading customers...</div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="bg-white rounded-xl sm:rounded-[30px] shadow-sm border border-gray-100 p-4 sm:p-5 flex justify-center items-center h-64">
+        <div className="text-red-500 text-center">
+          <div>{error}</div>
+          <button 
+            onClick={fetchCustomers}
+            className="mt-4 px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-white rounded-xl sm:rounded-[30px] shadow-sm border border-gray-100 p-4 sm:p-5">
@@ -700,23 +806,23 @@ const CustomersTable = () => {
                 </tr>
               ) : (
                 visibleCustomers.map((customer) => (
-                  <tr key={customer.id} className="hover:bg-gray-50">
+                  <tr key={customer.customer_id} className="hover:bg-gray-50">
                     <td className="px-4 py-4 whitespace-nowrap">
                       <input
                         type="checkbox"
-                        checked={selectedRows.includes(customer.id)}
-                        onChange={() => toggleSelectRow(customer.id)}
+                        checked={selectedRows.includes(customer.customer_id)}
+                        onChange={() => toggleSelectRow(customer.customer_id)}
                         className="rounded text-blue-500 focus:ring-blue-500"
                       />
                     </td>
                     <td className="px-4 py-4 text-sm font-medium text-gray-900 whitespace-nowrap">
-                      {customer.name}
+                      {customer.customer}
                     </td>
                     <td className="px-4 py-4 text-sm text-gray-500 whitespace-nowrap">
                       {customer.date}
                     </td>
                     <td className="px-4 py-4 text-sm text-gray-500 whitespace-nowrap hidden sm:table-cell">
-                      {customer.phoneNumber}
+                      {customer.phone}
                     </td>
                     <td className="px-4 py-4 text-sm font-medium text-gray-900 whitespace-nowrap">
                       PKR {customer.price.toLocaleString()}
@@ -733,18 +839,18 @@ const CustomersTable = () => {
                       {customer.email}
                     </td>
                     <td className="px-4 py-4 text-sm text-gray-500 whitespace-nowrap hidden xl:table-cell">
-                      {customer.startDate}
+                      {customer.start_date}
                     </td>
                     <td className="px-4 py-4 text-sm whitespace-nowrap relative">
                       <div className="flex justify-center">
                         <button
                           className="text-gray-400 hover:text-gray-600"
-                          onClick={(e) => toggleDropdown(customer.id, e)}
+                          onClick={(e) => toggleDropdown(customer.customer_id, e)}
                         >
                           <Ellipsis className="h-5 w-5" />
                         </button>
                         
-                        {activeDropdown === customer.id && (
+                        {activeDropdown === customer.customer_id && (
                           <div
                             ref={dropdownRef}
                             className="absolute right-0 z-50 mt-2 w-48 bg-white rounded-md shadow-lg border border-gray-200"
