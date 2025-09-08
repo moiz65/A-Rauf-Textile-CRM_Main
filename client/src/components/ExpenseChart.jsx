@@ -1,44 +1,92 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, Tooltip, Area, CartesianGrid } from 'recharts';
 import { ArrowUpRight, MoreVertical, Download, Filter, ChevronDown } from 'lucide-react';
 
 const ExpenseChart = ({ showControls = true }) => {
   const [timeRange, setTimeRange] = useState('1y');
   const [showFilterMenu, setShowFilterMenu] = useState(false);
-  const [activeDataset, setActiveDataset] = useState('2025');
+  const [activeDataset, setActiveDataset] = useState(new Date().getFullYear().toString());
+  const [chartData, setChartData] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  // Full dataset
-  const fullData = [
-    { month: 'Jan', amount: 25000, trend: 'down', year: '2024' },
-    { month: 'Feb', amount: 20000, trend: 'down', year: '2024' },
-    { month: 'Mar', amount: 18000, trend: 'down', year: '2024' },
-    { month: 'Apr', amount: 22000, trend: 'up', year: '2024' },
-    { month: 'May', amount: 28000, trend: 'up', year: '2024' },
-    { month: 'Jun', amount: 34742, trend: 'up', year: '2024' },
-    { month: 'Jul', amount: 30000, trend: 'down', year: '2024' },
-    { month: 'Aug', amount: 32000, trend: 'up', year: '2024' },
-    { month: 'Sep', amount: 35000, trend: 'up', year: '2024' },
-    { month: 'Oct', amount: 38000, trend: 'up', year: '2024' },
-    { month: 'Nov', amount: 40000, trend: 'up', year: '2024' },
-    { month: 'Dec', amount: 42000, trend: 'up', year: '2024' },
-    // 2025 data for comparison
-    { month: 'Jan', amount: 22000, trend: 'down', year: '2025' },
-    { month: 'Feb', amount: 18000, trend: 'down', year: '2025' },
-    { month: 'Mar', amount: 15000, trend: 'down', year: '2025' },
-    { month: 'Apr', amount: 19000, trend: 'up', year: '2025' },
-    { month: 'May', amount: 24000, trend: 'up', year: '2025' },
-    { month: 'Jun', amount: 30000, trend: 'up', year: '2025' },
-    { month: 'Jul', amount: 27000, trend: 'down', year: '2025' },
-    { month: 'Aug', amount: 29000, trend: 'up', year: '2025' },
-    { month: 'Sep', amount: 32000, trend: 'up', year: '2025' },
-    { month: 'Oct', amount: 35000, trend: 'up', year: '2025' },
-    { month: 'Nov', amount: 37000, trend: 'up', year: '2025' },
-    { month: 'Dec', amount: 39000, trend: 'up', year: '2025' },
-  ];
+  // Fetch data from MySQL database
+  useEffect(() => {
+    const fetchChartData = async () => {
+      try {
+        setLoading(true);
+        const response = await fetch('http://localhost:5000/api/expenses-chart');
+        
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        
+        // Transform the data to match the expected format
+        const transformedData = transformChartData(data);
+        setChartData(transformedData);
+        setError(null);
+      } catch (err) {
+        console.error('Error fetching chart data:', err);
+        setError('Failed to load chart data. Please try again later.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchChartData();
+  }, []);
+
+  // Transform the API data to match the chart's expected format
+  const transformChartData = (apiData) => {
+    // Group data by year and month
+    const groupedByYear = {};
+    
+    apiData.forEach(item => {
+      const year = item.year.toString();
+      const month = item.month;
+      
+      if (!groupedByYear[year]) {
+        groupedByYear[year] = Array(12).fill(0).map((_, i) => ({
+          month: new Date(0, i).toLocaleString('default', { month: 'short' }),
+          year: year,
+          amount: 0,
+          count: 0,
+          trend: 'stable'
+        }));
+      }
+      
+      // Update the month data
+      if (month >= 1 && month <= 12) {
+        const monthIndex = month - 1;
+        groupedByYear[year][monthIndex].amount += parseFloat(item.total) || 0;
+        groupedByYear[year][monthIndex].count += item.count || 0;
+      }
+    });
+    
+    // Calculate trends (up/down) for each month
+    Object.keys(groupedByYear).forEach(year => {
+      const yearData = groupedByYear[year];
+      for (let i = 1; i < yearData.length; i++) {
+        if (yearData[i].amount > yearData[i-1].amount) {
+          yearData[i].trend = 'up';
+        } else if (yearData[i].amount < yearData[i-1].amount) {
+          yearData[i].trend = 'down';
+        } else {
+          yearData[i].trend = 'stable';
+        }
+      }
+    });
+    
+    return groupedByYear;
+  };
 
   // Filter data based on selected time range and active dataset
   const getFilteredData = () => {
-    let filtered = fullData.filter(item => item.year === activeDataset);
+    if (!chartData || !chartData[activeDataset]) return [];
+    
+    const yearData = chartData[activeDataset];
     
     const now = new Date();
     const currentMonthIndex = now.getMonth(); // 0-11
@@ -46,22 +94,68 @@ const ExpenseChart = ({ showControls = true }) => {
     switch(timeRange) {
       case '3m':
         const startMonth3m = (currentMonthIndex - 2 + 12) % 12;
-        return filtered.slice(startMonth3m, startMonth3m + 3);
+        return yearData.slice(startMonth3m, startMonth3m + 3);
       case '6m':
         const startMonth6m = (currentMonthIndex - 5 + 12) % 12;
-        return filtered.slice(startMonth6m, startMonth6m + 6);
+        return yearData.slice(startMonth6m, startMonth6m + 6);
       case '1y':
-        return filtered.slice(0, 12);
+        return yearData;
       case 'all':
       default:
-        return filtered;
+        // Combine all available years
+        return Object.values(chartData).flat();
     }
   };
 
   const data = getFilteredData();
+  
+  // Get available years for dataset selection
+  const availableYears = chartData ? Object.keys(chartData).sort() : [];
+
+  // Handle case when data is not available
+  if (loading) {
+    return (
+      <div className="bg-white rounded-xl p-6 shadow-xs border border-gray-100 w-full transition-all hover:shadow-sm group relative">
+        <div className="flex items-center justify-center h-64">
+          <div className="text-gray-500">Loading chart data...</div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="bg-white rounded-xl p-6 shadow-xs border border-gray-100 w-full transition-all hover:shadow-sm group relative">
+        <div className="flex items-center justify-center h-64">
+          <div className="text-red-500 text-center">
+            <div>{error}</div>
+            <button 
+              onClick={() => window.location.reload()}
+              className="mt-4 px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 text-sm"
+            >
+              Retry
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!data || data.length === 0) {
+    return (
+      <div className="bg-white rounded-xl p-6 shadow-xs border border-gray-100 w-full transition-all hover:shadow-sm group relative">
+        <div className="flex items-center justify-center h-64">
+          <div className="text-gray-500">No expense data available</div>
+        </div>
+      </div>
+    );
+  }
+
   const currentMonth = data[data.length - 1];
-  const prevMonth = data[data.length - 2];
-  const changePercentage = prevMonth ? ((currentMonth.amount - prevMonth.amount) / prevMonth.amount * 100).toFixed(1) : 0;
+  const prevMonth = data.length > 1 ? data[data.length - 2] : null;
+  const changePercentage = prevMonth && prevMonth.amount > 0 
+    ? ((currentMonth.amount - prevMonth.amount) / prevMonth.amount * 100).toFixed(1) 
+    : 0;
   const isPositive = prevMonth ? currentMonth.amount >= prevMonth.amount : true;
 
   const handleTimeRangeChange = (range) => {
@@ -204,7 +298,7 @@ const ExpenseChart = ({ showControls = true }) => {
             <span className="text-3xl font-bold text-gray-900">
               Rs{currentMonth.amount.toLocaleString()}
             </span>
-            {prevMonth && (
+            {prevMonth && prevMonth.amount > 0 && (
               <span className={`flex items-center text-sm font-medium px-2 py-1 rounded-full ${
                 isPositive ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
               }`}>
@@ -216,30 +310,28 @@ const ExpenseChart = ({ showControls = true }) => {
             )}
           </div>
           <p className="text-sm text-gray-500 mt-1">
-            {prevMonth ? `${isPositive ? 'Increase' : 'Decrease'} from last month` : 'No comparison data'}
+            {prevMonth && prevMonth.amount > 0 
+              ? `${isPositive ? 'Increase' : 'Decrease'} from previous month` 
+              : 'No comparison data available'}
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
-          <button 
-            onClick={() => setActiveDataset('2024')}
-            className="flex items-center gap-1.5 cursor-pointer group"
-          >
-            <div className={`w-3 h-3 rounded-full transition-colors ${
-              activeDataset === '2024' ? 'bg-blue-500' : 'bg-gray-200'
-            }`}></div>
-            <span className="text-xs text-gray-500 group-hover:text-gray-700">2024</span>
-          </button>
-          <button 
-            onClick={() => setActiveDataset('2025')}
-            className="flex items-center gap-1.5 cursor-pointer group"
-          >
-            <div className={`w-3 h-3 rounded-full transition-colors ${
-              activeDataset === '2025' ? 'bg-blue-500' : 'bg-gray-200'
-            }`}></div>
-            <span className="text-xs text-gray-500 group-hover:text-gray-700">2025</span>
-          </button>
-        </div>
+        {availableYears.length > 0 && (
+          <div className="flex items-center gap-3">
+            {availableYears.map(year => (
+              <button 
+                key={year}
+                onClick={() => setActiveDataset(year)}
+                className="flex items-center gap-1.5 cursor-pointer group"
+              >
+                <div className={`w-3 h-3 rounded-full transition-colors ${
+                  activeDataset === year ? 'bg-blue-500' : 'bg-gray-200'
+                }`}></div>
+                <span className="text-xs text-gray-500 group-hover:text-gray-700">{year}</span>
+              </button>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

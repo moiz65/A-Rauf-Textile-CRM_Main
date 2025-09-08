@@ -28,6 +28,300 @@ db.connect((err) => {
   console.log("Connected to MySQL database");
 });
 
+// --- Expense Routes ---
+
+// Get all expenses with optional filtering
+app.get("/api/expenses", (req, res) => {
+  const { category, status, vendor, minAmount, maxAmount, startDate, endDate } = req.query;
+  
+  let query = "SELECT * FROM expenses WHERE 1=1";
+  const params = [];
+  
+  if (category && category !== 'All') {
+    query += " AND category = ?";
+    params.push(category);
+  }
+  
+  if (status && status !== 'All') {
+    query += " AND status = ?";
+    params.push(status);
+  }
+  
+  if (vendor) {
+    query += " AND vendor LIKE ?";
+    params.push(`%${vendor}%`);
+  }
+  
+  if (minAmount) {
+    query += " AND amount >= ?";
+    params.push(parseFloat(minAmount));
+  }
+  
+  if (maxAmount) {
+    query += " AND amount <= ?";
+    params.push(parseFloat(maxAmount));
+  }
+  
+  if (startDate) {
+    query += " AND date >= ?";
+    params.push(startDate);
+  }
+  
+  if (endDate) {
+    query += " AND date <= ?";
+    params.push(endDate);
+  }
+  
+  query += " ORDER BY date DESC, created_at DESC";
+  
+  db.query(query, params, (err, results) => {
+    if (err) {
+      console.error("Error fetching expenses:", err.message);
+      return res.status(500).json({ message: "Failed to fetch expenses", error: err.message });
+    }
+    res.json(results);
+  });
+});
+
+// Get single expense by ID
+app.get("/api/expenses/:id", (req, res) => {
+  const { id } = req.params;
+  
+  const query = "SELECT * FROM expenses WHERE id = ?";
+  db.query(query, [id], (err, results) => {
+    if (err) {
+      console.error("Error fetching expense:", err.message);
+      return res.status(500).json({ message: "Failed to fetch expense", error: err.message });
+    }
+    
+    if (results.length === 0) {
+      return res.status(404).json({ message: "Expense not found" });
+    }
+    
+    res.json(results[0]);
+  });
+});
+
+// Create new expense
+app.post("/api/expenses", (req, res) => {
+  const {
+    title,
+    date,
+    vendor,
+    amount,
+    category,
+    paymentMethod,
+    status = 'Pending',
+    description = ''
+  } = req.body;
+
+  // Validate required fields
+  if (!title || !date || !vendor || !amount || !category || !paymentMethod) {
+    return res.status(400).json({ message: "Missing required fields" });
+  }
+
+  const query = `
+    INSERT INTO expenses (title, date, vendor, amount, category, paymentMethod, status, description)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+  `;
+  const values = [title, date, vendor, amount, category, paymentMethod, status, description];
+
+  db.query(query, values, (err, result) => {
+    if (err) {
+      console.error("Error creating expense:", err.message);
+      return res.status(500).json({ message: "Failed to create expense", error: err.message });
+    }
+    
+    // Return the newly created expense
+    const newExpenseId = result.insertId;
+    const selectQuery = "SELECT * FROM expenses WHERE id = ?";
+    
+    db.query(selectQuery, [newExpenseId], (err, results) => {
+      if (err) {
+        console.error("Error fetching created expense:", err.message);
+        return res.status(500).json({ message: "Expense created but failed to retrieve details", error: err.message });
+      }
+      
+      res.status(201).json({
+        message: "Expense created successfully",
+        expense: results[0]
+      });
+    });
+  });
+});
+
+// Update expense
+app.put("/api/expenses/:id", (req, res) => {
+  const expenseId = req.params.id;
+  const {
+    title,
+    date,
+    vendor,
+    amount,
+    category,
+    paymentMethod,
+    status,
+    description
+  } = req.body;
+
+  // Validate required fields
+  if (!title || !date || !vendor || !amount || !category || !paymentMethod || !status) {
+    return res.status(400).json({ message: "Missing required fields" });
+  }
+
+  const query = `
+    UPDATE expenses 
+    SET title = ?, date = ?, vendor = ?, amount = ?, category = ?, paymentMethod = ?, status = ?, description = ?
+    WHERE id = ?
+  `;
+  const values = [title, date, vendor, amount, category, paymentMethod, status, description, expenseId];
+
+  db.query(query, values, (err, result) => {
+    if (err) {
+      console.error("Error updating expense:", err.message);
+      return res.status(500).json({ message: "Failed to update expense", error: err.message });
+    }
+    
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: "Expense not found" });
+    }
+    
+    // Return the updated expense
+    const selectQuery = "SELECT * FROM expenses WHERE id = ?";
+    db.query(selectQuery, [expenseId], (err, results) => {
+      if (err) {
+        console.error("Error fetching updated expense:", err.message);
+        return res.status(500).json({ message: "Expense updated but failed to retrieve details", error: err.message });
+      }
+      
+      res.json({
+        message: "Expense updated successfully",
+        expense: results[0]
+      });
+    });
+  });
+});
+
+// Delete expense
+app.delete("/api/expenses/:id", (req, res) => {
+  const { id } = req.params;
+
+  // First, get the expense to return details in response
+  const selectQuery = "SELECT * FROM expenses WHERE id = ?";
+  db.query(selectQuery, [id], (err, results) => {
+    if (err) {
+      console.error("Error fetching expense for deletion:", err.message);
+      return res.status(500).json({ message: "Failed to delete expense", error: err.message });
+    }
+    
+    if (results.length === 0) {
+      return res.status(404).json({ message: "Expense not found" });
+    }
+    
+    const deletedExpense = results[0];
+    
+    // Now delete the expense
+    const deleteQuery = "DELETE FROM expenses WHERE id = ?";
+    db.query(deleteQuery, [id], (err, result) => {
+      if (err) {
+        console.error("Error deleting expense:", err.message);
+        return res.status(500).json({ message: "Failed to delete expense", error: err.message });
+      }
+      
+      res.json({
+        message: "Expense deleted successfully",
+        expense: deletedExpense
+      });
+    });
+  });
+});
+
+// Get expense statistics (for dashboard)
+app.get("/api/expenses-stats", (req, res) => {
+  const queries = [
+    "SELECT COUNT(*) as total FROM expenses",
+    "SELECT COUNT(*) as pending FROM expenses WHERE status = 'Pending'",
+    "SELECT COUNT(*) as paid FROM expenses WHERE status = 'Paid'",
+    "SELECT SUM(amount) as totalAmount FROM expenses WHERE status = 'Paid'",
+    "SELECT category, COUNT(*) as count, SUM(amount) as total FROM expenses GROUP BY category"
+  ];
+
+  db.query(queries.join(';'), (err, results) => {
+    if (err) {
+      console.error("Error fetching expense statistics:", err.message);
+      return res.status(500).json({ message: "Failed to fetch expense statistics", error: err.message });
+    }
+    
+    const stats = {
+      total: results[0][0].total,
+      pending: results[1][0].pending,
+      paid: results[2][0].paid,
+      totalAmount: results[3][0].totalAmount || 0,
+      byCategory: results[4]
+    };
+    
+    res.json(stats);
+  });
+});
+
+// Get expenses by date range for charts
+app.get("/api/expenses-chart", (req, res) => {
+  const { year = new Date().getFullYear() } = req.query;
+  
+  const query = `
+    SELECT 
+      MONTH(date) as month,
+      YEAR(date) as year,
+      SUM(amount) as total,
+      COUNT(*) as count,
+      category
+    FROM expenses 
+    WHERE YEAR(date) = ?
+    GROUP BY YEAR(date), MONTH(date), category
+    ORDER BY year, month
+  `;
+  
+  db.query(query, [year], (err, results) => {
+    if (err) {
+      console.error("Error fetching chart data:", err.message);
+      return res.status(500).json({ message: "Failed to fetch chart data", error: err.message });
+    }
+    
+    res.json(results);
+  });
+});
+
+// Get expense chart data for dashboard visualization
+app.get("/api/expense-chart-data", (req, res) => {
+  const query = `
+    SELECT 
+      DATE_FORMAT(date, '%b') as month,
+      YEAR(date) as year,
+      SUM(amount) as amount,
+      CASE 
+        WHEN SUM(amount) > COALESCE(
+          (SELECT SUM(amount) 
+           FROM expenses e2 
+           WHERE YEAR(e2.date) = YEAR(e1.date) 
+           AND MONTH(e2.date) = MONTH(e1.date) - 1
+          ), 0) THEN 'up'
+        ELSE 'down'
+      END as trend
+    FROM expenses e1
+    WHERE date >= DATE_SUB(NOW(), INTERVAL 2 YEAR)
+    GROUP BY YEAR(date), MONTH(date)
+    ORDER BY year, MONTH(date)
+  `;
+
+  db.query(query, (err, results) => {
+    if (err) {
+      console.error("Error fetching expense chart data:", err);
+      return res.status(500).json({ error: "Failed to fetch expense chart data" });
+    }
+    res.json(results);
+  });
+});
+
 // --- Customer Routes ---
 
 // Get all customers
@@ -222,7 +516,7 @@ app.delete("/api/v1/reports/:id", (req, res) => {
   });
 });
 
-// --- Invoice Routes (using the provided implementation) ---
+// --- Invoice Routes ---
 
 // Get all invoices
 app.get("/api/invoices", (req, res) => {

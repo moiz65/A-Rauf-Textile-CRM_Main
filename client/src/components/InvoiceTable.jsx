@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { 
-  Search, Filter, Ellipsis, Edit, Trash2, Plus, Loader
+  Search, Filter, Ellipsis, Edit, Trash2, Plus, Loader, Eye, Copy, 
 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 const API_BASE_URL = 'http://localhost:5000/api';
 
@@ -375,6 +376,8 @@ const InvoiceForm = ({ onSubmit, onCancel, initialData = null }) => {
 
 // Main Invoice Management Component
 const InvoiceManagement = () => {
+  const navigate = useNavigate();
+  
   // State management
   const [invoicesData, setInvoicesData] = useState([]);
   const [selectedRows, setSelectedRows] = useState([]);
@@ -547,9 +550,50 @@ const InvoiceManagement = () => {
     setShowInvoiceForm(true);
   };
 
+  const handleViewInvoice = (invoice) => {
+    navigate(`/invoices/${invoice.id}`);
+    setActiveDropdown(null);
+  };
+
   const handleEditInvoice = (invoice) => {
     setEditingInvoice(invoice);
     setShowInvoiceForm(true);
+    setActiveDropdown(null);
+  };
+
+  const handleDuplicateInvoice = async (invoice) => {
+    try {
+      // Create a copy of the invoice with a new ID
+      const duplicatedInvoice = {
+        ...invoice,
+        id: null, // Let the server generate a new ID
+        bill_date: new Date().toISOString().split('T')[0],
+        status: 'Pending'
+      };
+      
+      delete duplicatedInvoice.id; // Remove the ID so the server creates a new one
+      
+      const response = await fetch(`${API_BASE_URL}/invoices`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(duplicatedInvoice)
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to duplicate invoice');
+      }
+      
+      // Refresh the invoice list
+      await fetchInvoices();
+      
+      showNotification("Invoice duplicated", "Invoice has been duplicated successfully");
+    } catch (error) {
+      console.error('Error duplicating invoice:', error);
+      showNotification("Error", "Failed to duplicate invoice");
+    }
+    
     setActiveDropdown(null);
   };
 
@@ -927,7 +971,7 @@ const InvoiceManagement = () => {
                       <div className="line-clamp-1">{invoice.customer_name}</div>
                     </td>
                     <td className="px-4 py-4 text-sm font-medium text-gray-900 whitespace-nowrap text-right">
-                      RS {invoice.total_amount?.toLocaleString()}
+                      {invoice.currency} {invoice.total_amount?.toLocaleString()}
                     </td>
                     <td className="px-4 py-4 text-sm whitespace-nowrap">
                       <span className={`px-2 py-1 inline-flex text-xs font-semibold rounded-full ${getStatusClass(invoice.status)}`}>
@@ -951,11 +995,25 @@ const InvoiceManagement = () => {
                           >
                             <div className="py-1">
                               <button
+                                onClick={() => handleViewInvoice(invoice)}
+                                className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left"
+                              >
+                                <Eye className="w-4 h-4 mr-2" />
+                                View
+                              </button>
+                              <button
                                 onClick={() => handleEditInvoice(invoice)}
                                 className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left"
                               >
                                 <Edit className="w-4 h-4 mr-2" />
                                 Edit
+                              </button>
+                              <button
+                                onClick={() => handleDuplicateInvoice(invoice)}
+                                className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left"
+                              >
+                                <Copy className="w-4 h-4 mr-2" />
+                                Duplicate
                               </button>
                               <button
                                 onClick={() => handleDeleteInvoice(invoice)}

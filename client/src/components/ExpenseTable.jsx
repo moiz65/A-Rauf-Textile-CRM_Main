@@ -1,80 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Search, Filter, FileDown, Ellipsis, Edit, Trash2, Printer, Download, Copy, Plus } from 'lucide-react';
 
-// Initial expenses data
-const initialExpensesData = [
-  {
-    id: '1',
-    title: 'Fabric Purchase',
-    date: 'Feb 08, 2025',
-    vendor: 'Noor Textile',
-    price: 90000,
-    category: 'Materials',
-    paymentMethod: 'Bank Transfer',
-    Reasons: 'Cotton fabric for summer collection',
-    status: 'Paid'
-  },
-  {
-    id: '2',
-    title: 'Machine Maintenance',
-    date: 'Mar 15, 2025',
-    vendor: 'TechServ Inc.',
-    price: 75000,
-    category: 'Equipment',
-    paymentMethod: 'Cash',
-    Reasons: 'Monthly maintenance service',
-    status: 'Pending'
-  },
-  {
-    id: '3',
-    title: 'Office Supplies',
-    date: 'Apr 22, 2025',
-    vendor: 'Stationery World',
-    price: 12000,
-    category: 'Administrative',
-    paymentMethod: 'Credit Card',
-    Reasons: 'Paper, ink, and other supplies',
-    status: 'Paid'
-  },
-  {
-    id: '4',
-    title: 'Utility Bills',
-    date: 'May 05, 2025',
-    vendor: 'K-Electric',
-    price: 45000,
-    category: 'Utilities',
-    paymentMethod: 'Bank Transfer',
-    Reasons: 'Monthly electricity bill',
-    status: 'Paid'
-  },
-  {
-    id: '5',
-    title: 'Employee Salaries',
-    date: 'Jun 10, 2025',
-    vendor: 'Payroll',
-    price: 250000,
-    category: 'Payroll',
-    paymentMethod: 'Bank Transfer',
-    Reasons: 'Monthly staff salaries',
-    status: 'Pending'
-  },
-  {
-    id: '6',
-    title: 'Transportation',
-    date: 'Jul 15, 2025',
-    vendor: 'City Logistics',
-    price: 18000,
-    category: 'Logistics',
-    paymentMethod: 'Cash',
-    Reasons: 'Fabric delivery charges',
-    status: 'Paid'
-  },
-];
-
 const ITEMS_PER_PAGE = 4;
 
 const ExpenseTable = () => {
-  const [expensesData, setExpensesData] = useState(initialExpensesData);
+  const [expensesData, setExpensesData] = useState([]);
   const [selectedRows, setSelectedRows] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState('');
@@ -82,8 +12,8 @@ const ExpenseTable = () => {
   const [filters, setFilters] = useState({
     title: '',
     vendor: '',
-    minPrice: '',
-    maxPrice: '',
+    minAmount: '',
+    maxAmount: '',
     dateFrom: '',
     dateTo: '',
     category: '',
@@ -93,11 +23,38 @@ const ExpenseTable = () => {
   const [activeDropdown, setActiveDropdown] = useState(null);
   const [editingExpense, setEditingExpense] = useState(null);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const dropdownRef = useRef(null);
 
   const expenseCategories = ['All', 'Materials', 'Equipment', 'Administrative', 'Utilities', 'Payroll', 'Logistics'];
   const statusOptions = ['All', 'Paid', 'Pending'];
   const paymentMethods = ['Bank Transfer', 'Cash', 'Credit Card', 'Check', 'Online Payment'];
+
+  // Fetch expenses data from API
+  useEffect(() => {
+    fetchExpenses();
+  }, []);
+
+  const fetchExpenses = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch('http://localhost:5000/api/expenses');
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      setExpensesData(data);
+      setError(null);
+    } catch (err) {
+      console.error('Error fetching expenses:', err);
+      setError('Failed to fetch expenses. Please try again later.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -114,7 +71,7 @@ const ExpenseTable = () => {
     .filter(expense =>
       expense.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
       expense.vendor.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      expense.Reasons.toLowerCase().includes(searchTerm.toLowerCase())
+      expense.description.toLowerCase().includes(searchTerm.toLowerCase())
     )
     .filter(expense =>
       activeTab === 'All' || expense.category === activeTab
@@ -122,8 +79,8 @@ const ExpenseTable = () => {
     .filter(expense =>
       (!filters.title || expense.title.toLowerCase().includes(filters.title.toLowerCase())) &&
       (!filters.vendor || expense.vendor.toLowerCase().includes(filters.vendor.toLowerCase())) &&
-      (!filters.minPrice || expense.price >= Number(filters.minPrice)) &&
-      (!filters.maxPrice || expense.price <= Number(filters.maxPrice)) &&
+      (!filters.minAmount || expense.amount >= Number(filters.minAmount)) &&
+      (!filters.maxAmount || expense.amount <= Number(filters.maxAmount)) &&
       (!filters.dateFrom || new Date(expense.date) >= new Date(filters.dateFrom)) &&
       (!filters.dateTo || new Date(expense.date) <= new Date(filters.dateTo)) &&
       (!filters.category || expense.category === filters.category) &&
@@ -187,8 +144,8 @@ const ExpenseTable = () => {
     setFilters({
       title: '',
       vendor: '',
-      minPrice: '',
-      maxPrice: '',
+      minAmount: '',
+      maxAmount: '',
       dateFrom: '',
       dateTo: '',
       category: '',
@@ -203,16 +160,30 @@ const ExpenseTable = () => {
     setActiveDropdown(activeDropdown === expenseId ? null : expenseId);
   };
 
-  // Action functions
+  // Action functions with API calls
   const handleEdit = (expense) => {
     setEditingExpense(expense);
     setShowEditModal(true);
     setActiveDropdown(null);
   };
 
-  const handleDelete = (expense) => {
+  const handleDelete = async (expense) => {
     if (window.confirm(`Are you sure you want to delete expense "${expense.title}"?`)) {
-      setExpensesData(prev => prev.filter(item => item.id !== expense.id));
+      try {
+        const response = await fetch(`http://localhost:5000/api/expenses/${expense.id}`, {
+          method: 'DELETE'
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to delete expense');
+        }
+
+        // Refresh the data after successful deletion
+        await fetchExpenses();
+      } catch (err) {
+        console.error('Error deleting expense:', err);
+        alert('Failed to delete expense. Please try again.');
+      }
     }
     setActiveDropdown(null);
   };
@@ -236,13 +207,13 @@ const ExpenseTable = () => {
           <h1>Expense Receipt</h1>
           <div class="receipt">
             <div class="row"><div class="label">Title:</div><div class="value">${expense.title}</div></div>
-            <div class="row"><div class="label">Date:</div><div class="value">${expense.date}</div></div>
+            <div class="row"><div class="label">Date:</div><div class="value">${new Date(expense.date).toLocaleDateString()}</div></div>
             <div class="row"><div class="label">Vendor:</div><div class="value">${expense.vendor}</div></div>
-            <div class="row"><div class="label">Amount:</div><div class="value">PKR ${expense.price.toLocaleString()}</div></div>
+            <div class="row"><div class="label">Amount:</div><div class="value">PKR ${expense.amount.toLocaleString()}</div></div>
             <div class="row"><div class="label">Category:</div><div class="value">${expense.category}</div></div>
             <div class="row"><div class="label">Payment Method:</div><div class="value">${expense.paymentMethod}</div></div>
             <div class="row"><div class="label">Status:</div><div class="value">${expense.status}</div></div>
-            <div class="row"><div class="label">Description:</div><div class="value">${expense.Reasons}</div></div>
+            <div class="row"><div class="label">Description:</div><div class="value">${expense.description}</div></div>
           </div>
           <script>window.print();</script>
         </body>
@@ -255,13 +226,13 @@ const ExpenseTable = () => {
   const handleDownload = (expense) => {
     const data = {
       title: expense.title,
-      date: expense.date,
+      date: new Date(expense.date).toLocaleDateString(),
       vendor: expense.vendor,
-      amount: `PKR ${expense.price.toLocaleString()}`,
+      amount: `PKR ${expense.amount.toLocaleString()}`,
       category: expense.category,
       paymentMethod: expense.paymentMethod,
       status: expense.status,
-      description: expense.Reasons
+      description: expense.description
     };
     
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
@@ -276,29 +247,50 @@ const ExpenseTable = () => {
     setActiveDropdown(null);
   };
 
-  const handleDuplicate = (expense) => {
+  const handleDuplicate = async (expense) => {
     const newExpense = {
-      ...expense,
-      id: Date.now().toString(),
       title: `${expense.title} (Copy)`,
-      date: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }),
+      date: new Date().toISOString().split('T')[0],
+      vendor: expense.vendor,
+      amount: expense.amount,
+      category: expense.category,
+      paymentMethod: expense.paymentMethod,
+      description: expense.description,
       status: 'Pending'
     };
     
-    setExpensesData(prev => [...prev, newExpense]);
+    try {
+      const response = await fetch('http://localhost:5000/api/expenses', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(newExpense)
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to duplicate expense');
+      }
+
+      // Refresh the data
+      await fetchExpenses();
+    } catch (err) {
+      console.error('Error duplicating expense:', err);
+      alert('Failed to duplicate expense. Please try again.');
+    }
+    
     setActiveDropdown(null);
   };
 
   const handleAddExpense = () => {
     const newExpense = {
-      id: Date.now().toString(),
       title: 'New Expense',
-      date: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }),
+      date: new Date().toISOString().split('T')[0],
       vendor: '',
-      price: 0,
+      amount: 0,
       category: 'Materials',
       paymentMethod: 'Cash',
-      Reasons: '',
+      description: '',
       status: 'Pending'
     };
     
@@ -306,20 +298,42 @@ const ExpenseTable = () => {
     setShowEditModal(true);
   };
 
-  const handleSaveExpense = (updatedExpense) => {
-    if (updatedExpense.id) {
-      // Update existing expense
-      setExpensesData(prev =>
-        prev.map(expense =>
-          expense.id === updatedExpense.id ? updatedExpense : expense
-        )
-      );
-    } else {
-      // Add new expense
-      setExpensesData(prev => [...prev, updatedExpense]);
+  const handleSaveExpense = async (updatedExpense) => {
+    try {
+      let response;
+      
+      if (updatedExpense.id) {
+        // Update existing expense
+        response = await fetch(`http://localhost:5000/api/expenses/${updatedExpense.id}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(updatedExpense)
+        });
+      } else {
+        // Add new expense
+        response = await fetch('http://localhost:5000/api/expenses', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(updatedExpense)
+        });
+      }
+
+      if (!response.ok) {
+        throw new Error('Failed to save expense');
+      }
+
+      // Refresh the data
+      await fetchExpenses();
+      setShowEditModal(false);
+      setEditingExpense(null);
+    } catch (err) {
+      console.error('Error saving expense:', err);
+      alert('Failed to save expense. Please try again.');
     }
-    setShowEditModal(false);
-    setEditingExpense(null);
   };
 
   const handleAction = (action, expense) => {
@@ -346,10 +360,10 @@ const ExpenseTable = () => {
 
   // Edit Modal Component
   const EditExpenseModal = () => {
-    const [formData, setFormData] = useState(editingExpense);
+    const [formData, setFormData] = useState(editingExpense || {});
     
     useEffect(() => {
-      setFormData(editingExpense);
+      setFormData(editingExpense || {});
     }, []);
 
     const handleChange = (e) => {
@@ -377,7 +391,7 @@ const ExpenseTable = () => {
               <input
                 type="text"
                 name="title"
-                value={formData.title}
+                value={formData.title || ''}
                 onChange={handleChange}
                 className="w-full p-2 border rounded-md"
                 required
@@ -389,7 +403,7 @@ const ExpenseTable = () => {
               <input
                 type="date"
                 name="date"
-                value={formData.date}
+                value={formData.date || ''}
                 onChange={handleChange}
                 className="w-full p-2 border rounded-md"
                 required
@@ -401,7 +415,7 @@ const ExpenseTable = () => {
               <input
                 type="text"
                 name="vendor"
-                value={formData.vendor}
+                value={formData.vendor || ''}
                 onChange={handleChange}
                 className="w-full p-2 border rounded-md"
                 required
@@ -412,8 +426,8 @@ const ExpenseTable = () => {
               <label className="block text-sm font-medium text-gray-700 mb-1">Amount (PKR)</label>
               <input
                 type="number"
-                name="price"
-                value={formData.price}
+                name="amount"
+                value={formData.amount || 0}
                 onChange={handleChange}
                 className="w-full p-2 border rounded-md"
                 required
@@ -425,7 +439,7 @@ const ExpenseTable = () => {
               <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
               <select
                 name="category"
-                value={formData.category}
+                value={formData.category || 'Materials'}
                 onChange={handleChange}
                 className="w-full p-2 border rounded-md"
                 required
@@ -440,7 +454,7 @@ const ExpenseTable = () => {
               <label className="block text-sm font-medium text-gray-700 mb-1">Payment Method</label>
               <select
                 name="paymentMethod"
-                value={formData.paymentMethod}
+                value={formData.paymentMethod || 'Cash'}
                 onChange={handleChange}
                 className="w-full p-2 border rounded-md"
                 required
@@ -455,7 +469,7 @@ const ExpenseTable = () => {
               <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
               <select
                 name="status"
-                value={formData.status}
+                value={formData.status || 'Pending'}
                 onChange={handleChange}
                 className="w-full p-2 border rounded-md"
                 required
@@ -469,8 +483,8 @@ const ExpenseTable = () => {
             <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
               <textarea
-                name="Reasons"
-                value={formData.Reasons}
+                name="description"
+                value={formData.description || ''}
                 onChange={handleChange}
                 className="w-full p-2 border rounded-md"
                 rows="3"
@@ -497,6 +511,30 @@ const ExpenseTable = () => {
       </div>
     );
   };
+
+  if (loading) {
+    return (
+      <div className="bg-white rounded-xl sm:rounded-[30px] shadow-sm border border-gray-100 p-4 sm:p-5 flex justify-center items-center h-64">
+        <div className="text-gray-500">Loading expenses...</div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="bg-white rounded-xl sm:rounded-[30px] shadow-sm border border-gray-100 p-4 sm:p-5 flex justify-center items-center h-64">
+        <div className="text-red-500 text-center">
+          <div>{error}</div>
+          <button 
+            onClick={fetchExpenses}
+            className="mt-4 px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-white rounded-xl sm:rounded-[30px] shadow-sm border border-gray-100 p-4 sm:p-5">
@@ -573,22 +611,22 @@ const ExpenseTable = () => {
             <label className="block text-xs font-medium text-gray-700 mb-1">Min Amount</label>
             <input
               type="number"
-              name="minPrice"
+              name="minAmount"
               className="w-full p-2 border rounded-md text-xs"
-              value={filters.minPrice}
+              value={filters.minAmount}
               onChange={handleFilterChange}
-              placeholder="Minimum price"
+              placeholder="Minimum amount"
             />
           </div>
           <div>
             <label className="block text-xs font-medium text-gray-700 mb-1">Max Amount</label>
             <input
               type="number"
-              name="maxPrice"
+              name="maxAmount"
               className="w-full p-2 border rounded-md text-xs"
-              value={filters.maxPrice}
+              value={filters.maxAmount}
               onChange={handleFilterChange}
-              placeholder="Maximum price"
+              placeholder="Maximum amount"
             />
           </div>
           <div>
@@ -696,7 +734,7 @@ const ExpenseTable = () => {
                 <th className="pb-3 px-2 whitespace-nowrap">Category</th>
                 <th className="pb-3 px-2 whitespace-nowrap hidden md:table-cell">Payment Method</th>
                 <th className="pb-3 px-2 whitespace-nowrap">Status</th>
-                <th className="pb-3 px-2 whitespace-nowrap hidden lg:table-cell">Reasons</th>
+                <th className="pb-3 px-2 whitespace-nowrap hidden lg:table-cell">Description</th>
                 <th className="pb-3 px-2 whitespace-nowrap">Action</th>
               </tr>
             </thead>
@@ -722,13 +760,13 @@ const ExpenseTable = () => {
                       {expense.title}
                     </td>
                     <td className="px-4 py-4 text-sm text-gray-500 whitespace-nowrap">
-                      {expense.date}
+                      {new Date(expense.date).toLocaleDateString()}
                     </td>
                     <td className="px-4 py-4 text-sm text-gray-500 whitespace-nowrap hidden sm:table-cell">
                       {expense.vendor}
                     </td>
                     <td className="px-4 py-4 text-sm font-medium text-gray-900 whitespace-nowrap">
-                      PKR {expense.price.toLocaleString()}
+                      PKR {expense.amount.toLocaleString()}
                     </td>
                     <td className="px-4 py-4 text-sm whitespace-nowrap">
                       <span className={`px-2 py-1 inline-flex text-xs font-semibold rounded-full ${getCategoryClass(expense.category)}`}>
@@ -744,7 +782,7 @@ const ExpenseTable = () => {
                       </span>
                     </td>
                     <td className="px-4 py-4 text-sm text-gray-500 whitespace-nowrap hidden lg:table-cell">
-                      <div className="max-w-xs truncate">{expense.Reasons}</div>
+                      <div className="max-w-xs truncate">{expense.description}</div>
                     </td>
                     <td className="px-4 py-4 text-sm whitespace-nowrap relative">
                       <div className="flex justify-center">
