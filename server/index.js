@@ -322,11 +322,9 @@ app.get("/api/expense-chart-data", (req, res) => {
   });
 });
 
-// --- Customer Routes ---
-
 // Get all customers
 app.get("/api/v1/customertable", (req, res) => {
-  db.query("SELECT * FROM customertable", (err, results) => {
+  db.query("SELECT * FROM customertable ORDER BY created_at DESC", (err, results) => {
     if (err) {
       console.error("Error fetching customers:", err.message);
       return res.status(500).json({ message: "Failed to fetch customers", error: err.message });
@@ -337,47 +335,81 @@ app.get("/api/v1/customertable", (req, res) => {
 
 // Create a new customer
 app.post("/api/v1/customertable", (req, res) => {
-  const { name, date, phoneNumber, price, category, address, email, startDate } = req.body;
+  const { customer, company, date, phone, address, email } = req.body;
 
   // Validate required fields
-  if (!name || !date || !phoneNumber || !price) {
+  if (!customer || !date || !phone || !address || !email) {
     return res.status(400).json({ message: "Missing required fields" });
   }
 
   const query = `
-    INSERT INTO customertable (customer, date, phone, price, category, address, email, start_date)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO customertable (customer, company, date, phone, address, email)
+    VALUES (?, ?, ?, ?, ?, ?)
   `;
-  const values = [name, date, phoneNumber, price, category, address, email, startDate];
+  const values = [customer, company, date, phone, address, email];
 
   db.query(query, values, (err, result) => {
     if (err) {
       console.error("Error creating customer:", err.message);
       return res.status(500).json({ message: "Failed to create customer", error: err.message });
     }
-    res.status(201).json({ message: "Customer created successfully", insertId: result.insertId });
+    
+    // Return the newly created customer
+    const selectQuery = "SELECT * FROM customertable WHERE customer_id = ?";
+    db.query(selectQuery, [result.insertId], (err, results) => {
+      if (err) {
+        console.error("Error fetching created customer:", err.message);
+        return res.status(500).json({ message: "Customer created but failed to retrieve details", error: err.message });
+      }
+      
+      res.status(201).json({
+        message: "Customer created successfully",
+        customer: results[0]
+      });
+    });
   });
 });
 
 // Update a customer
 app.put("/api/v1/customertable/:id", (req, res) => {
   const customerId = req.params.id;
-  const { name, date, phoneNumber, price, category, address, email, startDate } = req.body;
+  const { customer, company, date, phone, address, email } = req.body;
+
+  // Validate required fields
+  if (!customer || !date || !phone || !address || !email) {
+    return res.status(400).json({ message: "Missing required fields" });
+  }
 
   const query = `
     UPDATE customertable
-    SET customer = ?, date = ?, phone = ?, price = ?, category = ?, address = ?, email = ?, start_date = ?
+    SET customer = ?, company = ?, date = ?, phone = ?, address = ?, email = ?
     WHERE customer_id = ?
   `;
-  const values = [name, date, phoneNumber, price, category, address, email, startDate, customerId];
+  const values = [customer, company, date, phone, address, email, customerId];
 
   db.query(query, values, (err, result) => {
     if (err) {
       console.error("Error updating customer:", err.message);
       return res.status(500).json({ message: "Failed to update customer", error: err.message });
     }
-    if (result.affectedRows === 0) return res.status(404).json({ message: "Customer not found" });
-    res.json({ message: "Customer updated successfully" });
+    
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: "Customer not found" });
+    }
+    
+    // Return the updated customer
+    const selectQuery = "SELECT * FROM customertable WHERE customer_id = ?";
+    db.query(selectQuery, [customerId], (err, results) => {
+      if (err) {
+        console.error("Error fetching updated customer:", err.message);
+        return res.status(500).json({ message: "Customer updated but failed to retrieve details", error: err.message });
+      }
+      
+      res.json({
+        message: "Customer updated successfully",
+        customer: results[0]
+      });
+    });
   });
 });
 
@@ -385,14 +417,33 @@ app.put("/api/v1/customertable/:id", (req, res) => {
 app.delete("/api/v1/customertable/:id", (req, res) => {
   const { id } = req.params;
 
-  const query = "DELETE FROM customertable WHERE customer_id = ?";
-  db.query(query, [id], (err, result) => {
+  // First, get the customer to return details in response
+  const selectQuery = "SELECT * FROM customertable WHERE customer_id = ?";
+  db.query(selectQuery, [id], (err, results) => {
     if (err) {
-      console.error("Error deleting customer:", err.message);
+      console.error("Error fetching customer for deletion:", err.message);
       return res.status(500).json({ message: "Failed to delete customer", error: err.message });
     }
-    if (result.affectedRows === 0) return res.status(404).json({ message: "Customer not found" });
-    res.json({ message: "Customer deleted successfully" });
+    
+    if (results.length === 0) {
+      return res.status(404).json({ message: "Customer not found" });
+    }
+    
+    const deletedCustomer = results[0];
+    
+    // Now delete the customer
+    const deleteQuery = "DELETE FROM customertable WHERE customer_id = ?";
+    db.query(deleteQuery, [id], (err, result) => {
+      if (err) {
+        console.error("Error deleting customer:", err.message);
+        return res.status(500).json({ message: "Failed to delete customer", error: err.message });
+      }
+      
+      res.json({
+        message: "Customer deleted successfully",
+        customer: deletedCustomer
+      });
+    });
   });
 });
 
@@ -518,6 +569,7 @@ app.delete("/api/v1/reports/:id", (req, res) => {
 
 // --- Invoice Routes ---
 
+
 // Get all invoices
 app.get("/api/invoices", (req, res) => {
   const query = "SELECT * FROM invoice ORDER BY bill_date DESC";
@@ -555,7 +607,7 @@ app.post("/api/invoices", (req, res) => {
     customer_name, customer_email, p_number, a_p_number, address,
     st_reg_no, ntn_number, item_name, quantity, rate, currency,
     salesTax, item_amount, tax_amount, total_amount, bill_date,
-    payment_deadline, Note
+    payment_deadline, Note, status = "Pending"  // <-- default status
   } = req.body;
 
   const query = `
@@ -563,15 +615,15 @@ app.post("/api/invoices", (req, res) => {
       customer_name, customer_email, p_number, a_p_number, address,
       st_reg_no, ntn_number, item_name, quantity, rate, currency,
       salesTax, item_amount, tax_amount, total_amount, bill_date,
-      payment_deadline, Note
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      payment_deadline, Note, status
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `;
 
   const values = [
     customer_name, customer_email, p_number, a_p_number, address,
     st_reg_no, ntn_number, item_name, quantity, rate, currency,
     salesTax, item_amount, tax_amount, total_amount, bill_date,
-    payment_deadline, Note
+    payment_deadline, Note, status
   ];
 
   db.query(query, values, (err, results) => {
@@ -591,7 +643,7 @@ app.put("/api/invoices/:id", (req, res) => {
     customer_name, customer_email, p_number, a_p_number, address,
     st_reg_no, ntn_number, item_name, quantity, rate, currency,
     salesTax, item_amount, tax_amount, total_amount, bill_date,
-    payment_deadline, Note
+    payment_deadline, Note, status
   } = req.body;
 
   const query = `
@@ -599,7 +651,7 @@ app.put("/api/invoices/:id", (req, res) => {
       customer_name = ?, customer_email = ?, p_number = ?, a_p_number = ?, address = ?,
       st_reg_no = ?, ntn_number = ?, item_name = ?, quantity = ?, rate = ?, currency = ?,
       salesTax = ?, item_amount = ?, tax_amount = ?, total_amount = ?, bill_date = ?,
-      payment_deadline = ?, Note = ?
+      payment_deadline = ?, Note = ?, status = ?
     WHERE id = ?
   `;
 
@@ -607,7 +659,7 @@ app.put("/api/invoices/:id", (req, res) => {
     customer_name, customer_email, p_number, a_p_number, address,
     st_reg_no, ntn_number, item_name, quantity, rate, currency,
     salesTax, item_amount, tax_amount, total_amount, bill_date,
-    payment_deadline, Note, id
+    payment_deadline, Note, status, id
   ];
 
   db.query(query, values, (err, results) => {
@@ -642,7 +694,6 @@ app.delete("/api/invoices/:id", (req, res) => {
     res.json({ message: "Invoice deleted successfully" });
   });
 });
-
 // --- Start Server ---
 const PORT = 5000;
 app.listen(PORT, () => {

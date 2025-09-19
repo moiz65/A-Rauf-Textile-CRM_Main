@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { 
-  Search, Filter, Ellipsis, Edit, Trash2, Plus, Loader, Eye, Copy, 
+  Search, Filter, Ellipsis, Edit, Trash2, Plus, Loader, Eye, Copy, ChevronDown, X
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
@@ -41,6 +41,7 @@ const Input = ({
 // Invoice Form Component
 const InvoiceForm = ({ onSubmit, onCancel, initialData = null }) => {
   const [formData, setFormData] = useState({
+    customer_id: "",
     customer_name: "",
     customer_email: "",
     p_number: "",
@@ -62,10 +63,55 @@ const InvoiceForm = ({ onSubmit, onCancel, initialData = null }) => {
     status: "Pending"
   });
 
+  const [customers, setCustomers] = useState([]);
+  const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
+  const [isCreatingCustomer, setIsCreatingCustomer] = useState(false);
+  const [newCustomer, setNewCustomer] = useState({
+    customer: "",
+    company: "",
+    date: new Date().toISOString().split('T')[0],
+    phone: "",
+    address: "",
+    email: "",
+    st_reg_no: "",
+    ntn_number: ""
+  });
+  const dropdownRef = useRef(null);
+
+  // Fetch customers
+  useEffect(() => {
+    const fetchCustomers = async () => {
+      try {
+        const response = await fetch(`${API_BASE_URL}/customers`);
+        if (response.ok) {
+          const data = await response.json();
+          setCustomers(data);
+        }
+      } catch (error) {
+        console.error('Error fetching customers:', error);
+      }
+    };
+    
+    fetchCustomers();
+  }, []);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setShowCustomerDropdown(false);
+      }
+    };
+    
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
   // Initialize form with existing data if editing
   useEffect(() => {
     if (initialData) {
       setFormData({
+        customer_id: initialData.customer_id || "",
         customer_name: initialData.customer_name || "",
         customer_email: initialData.customer_email || "",
         p_number: initialData.p_number || "",
@@ -97,11 +143,85 @@ const InvoiceForm = ({ onSubmit, onCancel, initialData = null }) => {
     }));
   };
 
+  const handleNewCustomerChange = (e) => {
+    const { name, value } = e.target;
+    setNewCustomer((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+  };
+
   const handleCurrencyChange = (e) => {
     setFormData((prev) => ({
       ...prev,
       currency: e.target.value,
     }));
+  };
+
+  const handleCustomerSelect = (customer) => {
+    setFormData(prev => ({
+      ...prev,
+      customer_id: customer.customer_id,
+      customer_name: customer.customer,
+      customer_email: customer.email,
+      p_number: customer.phone,
+      address: customer.address,
+      st_reg_no: customer.st_reg_no || "",
+      ntn_number: customer.ntn_number || ""
+    }));
+    setShowCustomerDropdown(false);
+  };
+
+  const handleCreateCustomer = async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/customers`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(newCustomer)
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to create customer');
+      }
+      
+      const result = await response.json();
+      
+      // Refresh customers list
+      const customersResponse = await fetch(`${API_BASE_URL}/customers`);
+      if (customersResponse.ok) {
+        const customersData = await customersResponse.json();
+        setCustomers(customersData);
+      }
+      
+      // Select the newly created customer
+      const newCustomerData = { 
+        customer_id: result.customer_id, 
+        customer: newCustomer.customer,
+        email: newCustomer.email,
+        phone: newCustomer.phone,
+        address: newCustomer.address,
+        st_reg_no: newCustomer.st_reg_no,
+        ntn_number: newCustomer.ntn_number
+      };
+      
+      handleCustomerSelect(newCustomerData);
+      setIsCreatingCustomer(false);
+      setNewCustomer({
+        customer: "",
+        company: "",
+        date: new Date().toISOString().split('T')[0],
+        phone: "",
+        address: "",
+        email: "",
+        st_reg_no: "",
+        ntn_number: ""
+      });
+    } catch (error) {
+      console.error('Error creating customer:', error);
+      alert('Failed to create customer');
+    }
   };
 
   const handleSubmit = (e) => {
@@ -113,6 +233,7 @@ const InvoiceForm = ({ onSubmit, onCancel, initialData = null }) => {
 
     // Prepare data for API
     const invoiceData = {
+      customer_id: formData.customer_id,
       customer_name: formData.customer_name,
       customer_email: formData.customer_email,
       p_number: formData.p_number,
@@ -163,14 +284,126 @@ const InvoiceForm = ({ onSubmit, onCancel, initialData = null }) => {
           <h2 className="text-xl font-semibold text-gray-800 mb-4 border-b pb-2">
             Customer Details
           </h2>
-          <div className="grid sm:grid-cols-2 gap-4">
-            <Input
-              label="Customer Name *"
-              name="customer_name"
-              value={formData.customer_name}
-              onChange={handleChange}
-              required
-            />
+          <div className="grid sm:grid-cols-2 gap-4 relative">
+            <div className="relative sm:col-span-2">
+              <div className="flex items-center justify-between mb-2">
+                <label className="text-sm font-semibold text-gray-700">
+                  Customer Name *
+                </label>
+                <button
+                  type="button"
+                  className="text-sm text-blue-600 hover:text-blue-800"
+                  onClick={() => setIsCreatingCustomer(!isCreatingCustomer)}
+                >
+                  {isCreatingCustomer ? 'Select Existing Customer' : 'Create New Customer'}
+                </button>
+              </div>
+              
+              {isCreatingCustomer ? (
+                <div className="grid sm:grid-cols-2 gap-4 p-4 bg-gray-50 rounded-lg mb-4">
+                  <Input
+                    label="Customer Name *"
+                    name="customer"
+                    value={newCustomer.customer}
+                    onChange={handleNewCustomerChange}
+                    required
+                  />
+                  <Input
+                    label="Company"
+                    name="company"
+                    value={newCustomer.company}
+                    onChange={handleNewCustomerChange}
+                  />
+                  <Input
+                    label="Email *"
+                    type="email"
+                    name="email"
+                    value={newCustomer.email}
+                    onChange={handleNewCustomerChange}
+                    required
+                  />
+                  <Input
+                    label="Phone *"
+                    name="phone"
+                    value={newCustomer.phone}
+                    onChange={handleNewCustomerChange}
+                    required
+                  />
+                  <Input
+                    label="Address *"
+                    name="address"
+                    value={newCustomer.address}
+                    onChange={handleNewCustomerChange}
+                    required
+                    className="sm:col-span-2"
+                  />
+                  <Input
+                    label="S.T Reg No"
+                    name="st_reg_no"
+                    value={newCustomer.st_reg_no}
+                    onChange={handleNewCustomerChange}
+                  />
+                  <Input
+                    label="NTN Number"
+                    name="ntn_number"
+                    value={newCustomer.ntn_number}
+                    onChange={handleNewCustomerChange}
+                  />
+                  <div className="sm:col-span-2 flex justify-end gap-2">
+                    <button
+                      type="button"
+                      className="bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold px-4 py-2 rounded-xl transition duration-300"
+                      onClick={() => setIsCreatingCustomer(false)}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      className="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-4 py-2 rounded-xl transition duration-300"
+                      onClick={handleCreateCustomer}
+                    >
+                      Create Customer
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <input
+                    type="text"
+                    name="customer_name"
+                    value={formData.customer_name}
+                    onChange={handleChange}
+                    onFocus={() => setShowCustomerDropdown(true)}
+                    required
+                    className="rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-300 transition w-full"
+                  />
+                  
+                  {showCustomerDropdown && customers.length > 0 && (
+                    <div 
+                      ref={dropdownRef}
+                      className="absolute z-10 mt-1 w-full bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-auto"
+                    >
+                      <div className="p-2">
+                        {customers.map(customer => (
+                          <div
+                            key={customer.customer_id}
+                            className="p-2 hover:bg-gray-100 cursor-pointer rounded-md"
+                            onClick={() => handleCustomerSelect(customer)}
+                          >
+                            <div className="font-medium">{customer.customer}</div>
+                            <div className="text-sm text-gray-600">{customer.email} • {customer.phone}</div>
+                            {customer.company && (
+                              <div className="text-xs text-gray-500">{customer.company}</div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+            
             <Input
               label="Customer Email *"
               type="email"
@@ -196,6 +429,7 @@ const InvoiceForm = ({ onSubmit, onCancel, initialData = null }) => {
               name="address"
               value={formData.address}
               onChange={handleChange}
+              className="sm:col-span-2"
             />
             <Input
               label="S.T Reg No"
@@ -374,6 +608,271 @@ const InvoiceForm = ({ onSubmit, onCancel, initialData = null }) => {
   );
 };
 
+// Invoice View Template Component
+const InvoiceViewTemplate = ({ invoiceId, onClose, onEdit }) => {
+  const [invoice, setInvoice] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  // Fetch invoice data
+  useEffect(() => {
+    const fetchInvoice = async () => {
+      try {
+        setLoading(true);
+        const response = await fetch(`${API_BASE_URL}/invoices/${invoiceId}`);
+        
+        if (!response.ok) {
+          throw new Error('Failed to fetch invoice');
+        }
+        
+        const data = await response.json();
+        setInvoice(data);
+      } catch (err) {
+        console.error('Error fetching invoice:', err);
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (invoiceId) {
+      fetchInvoice();
+    }
+  }, [invoiceId]);
+
+  if (loading) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center">
+        <div className="absolute inset-0 bg-gray-900/60 backdrop-blur-sm"></div>
+        <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto p-6 flex items-center justify-center">
+          <div className="flex flex-col items-center">
+            <Loader className="w-8 h-8 animate-spin text-blue-500 mb-2" />
+            <div className="text-gray-500">Loading invoice...</div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !invoice) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center">
+        <div className="absolute inset-0 bg-gray-900/60 backdrop-blur-sm"></div>
+        <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto p-6 flex items-center justify-center">
+          <div className="text-center">
+            <div className="text-red-500 mb-2">Error loading invoice</div>
+            <div className="text-sm text-gray-500 mb-4">{error || 'Invoice not found'}</div>
+            <button
+              onClick={onClose}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700 transition-colors"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const formatCurrency = (amount, currency) => {
+    return `${currency} ${parseFloat(amount || 0).toLocaleString('en-PK', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    })}`;
+  };
+
+  const formatDate = (dateString) => {
+    try {
+      const date = new Date(dateString);
+      if (isNaN(date)) return dateString;
+      return date.toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      });
+    } catch {
+      return dateString;
+    }
+  };
+
+  const getStatusClass = (status) => {
+    const statusClasses = {
+      'Paid': 'bg-green-100 text-green-800',
+      'Pending': 'bg-yellow-100 text-yellow-800',
+      'Overdue': 'bg-red-100 text-red-800',
+    };
+    return statusClasses[status] || 'bg-gray-100 text-gray-800';
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-gray-900/60 backdrop-blur-sm" onClick={onClose}></div>
+      
+      <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+        {/* Header */}
+        <div className="sticky top-0 bg-white border-b border-gray-200 p-6 rounded-t-2xl flex justify-between items-center">
+          <div>
+            <h2 className="text-2xl font-bold text-gray-800">Invoice #{invoice.id}</h2>
+            <p className="text-sm text-gray-500">Created on {formatDate(invoice.bill_date)}</p>
+          </div>
+          
+          <div className="flex items-center gap-2">
+            <span className={`px-3 py-1 inline-flex text-sm font-semibold rounded-full ${getStatusClass(invoice.status)}`}>
+              {invoice.status}
+            </span>
+            
+            <button
+              onClick={() => onEdit(invoice)}
+              className="flex items-center gap-1 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+            >
+              <Edit className="w-4 h-4" />
+              Edit
+            </button>
+            
+            <button
+              onClick={onClose}
+              className="ml-2 text-gray-400 hover:text-gray-600 transition-colors"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        {/* Invoice Content */}
+        <div className="p-6">
+          {/* Company & Client Info */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
+            <div>
+              <h3 className="text-lg font-semibold text-gray-800 mb-3">From</h3>
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <p className="font-semibold">Your Company Name</p>
+                <p className="text-sm text-gray-600">Your Company Address</p>
+                <p className="text-sm text-gray-600">Phone: Your Company Phone</p>
+                <p className="text-sm text-gray-600">Email: your.company@email.com</p>
+              </div>
+            </div>
+            
+            <div>
+              <h3 className="text-lg font-semibold text-gray-800 mb-3">Bill To</h3>
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <p className="font-semibold">{invoice.customer_name}</p>
+                {invoice.address && <p className="text-sm text-gray-600">{invoice.address}</p>}
+                <p className="text-sm text-gray-600">{invoice.customer_email}</p>
+                {invoice.p_number && <p className="text-sm text-gray-600">Phone: {invoice.p_number}</p>}
+                {invoice.st_reg_no && <p className="text-sm text-gray-600">ST Reg: {invoice.st_reg_no}</p>}
+                {invoice.ntn_number && <p className="text-sm text-gray-600">NTN: {invoice.ntn_number}</p>}
+              </div>
+            </div>
+          </div>
+
+          {/* Invoice Details */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
+            <div>
+              <h3 className="text-lg font-semibold text-gray-800 mb-3">Invoice Details</h3>
+              <div className="space-y-2">
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Invoice ID:</span>
+                  <span className="font-medium">INV-{invoice.id}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Issue Date:</span>
+                  <span className="font-medium">{formatDate(invoice.bill_date)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Due Date:</span>
+                  <span className="font-medium">{formatDate(invoice.payment_deadline)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Currency:</span>
+                  <span className="font-medium">{invoice.currency}</span>
+                </div>
+              </div>
+            </div>
+            
+            <div>
+              <h3 className="text-lg font-semibold text-gray-800 mb-3">Amount Summary</h3>
+              <div className="bg-blue-50 p-4 rounded-lg">
+                <div className="flex justify-between mb-2">
+                  <span className="text-gray-700">Subtotal:</span>
+                  <span className="font-medium">{formatCurrency(invoice.item_amount, invoice.currency)}</span>
+                </div>
+                <div className="flex justify-between mb-2">
+                  <span className="text-gray-700">Tax ({invoice.salesTax}%):</span>
+                  <span className="font-medium">{formatCurrency(invoice.tax_amount, invoice.currency)}</span>
+                </div>
+                <div className="flex justify-between pt-2 border-t border-blue-200">
+                  <span className="text-lg font-semibold text-gray-800">Total:</span>
+                  <span className="text-lg font-bold text-blue-700">
+                    {formatCurrency(invoice.total_amount, invoice.currency)}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Item Details */}
+          <div className="mb-8">
+            <h3 className="text-lg font-semibold text-gray-800 mb-3">Item Details</h3>
+            <div className="border border-gray-200 rounded-lg overflow-hidden">
+              <table className="w-full">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Description</th>
+                    <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700">Quantity</th>
+                    <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700">Rate</th>
+                    <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700">Amount</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200">
+                  <tr>
+                    <td className="px-4 py-3 text-sm">
+                      <div className="font-medium text-gray-900">{invoice.item_name || "Item"}</div>
+                    </td>
+                    <td className="px-4 py-3 text-sm text-right">{invoice.quantity}</td>
+                    <td className="px-4 py-3 text-sm text-right">{formatCurrency(invoice.rate, invoice.currency)}</td>
+                    <td className="px-4 py-3 text-sm text-right font-medium">
+                      {formatCurrency(invoice.item_amount, invoice.currency)}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Notes */}
+          {invoice.Note && (
+            <div className="mb-6">
+              <h3 className="text-lg font-semibold text-gray-800 mb-3">Notes</h3>
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <p className="text-sm text-gray-700">{invoice.Note}</p>
+              </div>
+            </div>
+          )}
+
+          {/* Footer */}
+          <div className="pt-6 border-t border-gray-200">
+            <div className="flex flex-col sm:flex-row justify-between items-center">
+              <div className="text-xs text-gray-500 mb-4 sm:mb-0">
+                Thank you for your business!
+              </div>
+              <div className="flex gap-2">
+                <button className="px-4 py-2 border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-50 transition-colors">
+                  Download PDF
+                </button>
+                <button className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700 transition-colors">
+                  Send Email
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // Main Invoice Management Component
 const InvoiceManagement = () => {
   const navigate = useNavigate();
@@ -397,6 +896,7 @@ const InvoiceManagement = () => {
   const [activeDropdown, setActiveDropdown] = useState(null);
   const [showInvoiceForm, setShowInvoiceForm] = useState(false);
   const [editingInvoice, setEditingInvoice] = useState(null);
+  const [viewingInvoiceId, setViewingInvoiceId] = useState(null);
   const [notification, setNotification] = useState(null);
   const [loading, setLoading] = useState(true);
   const dropdownRefs = useRef([]);
@@ -551,7 +1051,7 @@ const InvoiceManagement = () => {
   };
 
   const handleViewInvoice = (invoice) => {
-    navigate(`/invoices/${invoice.id}`);
+    setViewingInvoiceId(invoice.id);
     setActiveDropdown(null);
   };
 
@@ -733,6 +1233,19 @@ const InvoiceManagement = () => {
             />
           </div>
         </div>
+      )}
+
+      {/* Invoice View Modal */}
+      {viewingInvoiceId && (
+        <InvoiceViewTemplate
+          invoiceId={viewingInvoiceId}
+          onClose={() => setViewingInvoiceId(null)}
+          onEdit={(invoice) => {
+            setEditingInvoice(invoice);
+            setViewingInvoiceId(null);
+            setShowInvoiceForm(true);
+          }}
+        />
       )}
 
       {/* Main Invoice Table */}
