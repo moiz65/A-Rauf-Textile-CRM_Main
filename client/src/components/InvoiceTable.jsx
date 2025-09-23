@@ -1051,7 +1051,8 @@ const InvoiceManagement = () => {
   };
 
   const handleViewInvoice = (invoice) => {
-    setViewingInvoiceId(invoice.id);
+    // Navigate to the full-page invoice component
+    navigate(`/invoice/${invoice.id}`);
     setActiveDropdown(null);
   };
 
@@ -1235,18 +1236,6 @@ const InvoiceManagement = () => {
         </div>
       )}
 
-      {/* Invoice View Modal */}
-      {viewingInvoiceId && (
-        <InvoiceViewTemplate
-          invoiceId={viewingInvoiceId}
-          onClose={() => setViewingInvoiceId(null)}
-          onEdit={(invoice) => {
-            setEditingInvoice(invoice);
-            setViewingInvoiceId(null);
-            setShowInvoiceForm(true);
-          }}
-        />
-      )}
 
       {/* Main Invoice Table */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">

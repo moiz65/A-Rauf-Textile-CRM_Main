@@ -304,7 +304,7 @@ const SettingsPage = () => {
                   <User className="h-5 w-5 mr-2" />
                   Profile
                 </button>
-                <button
+                {/* <button
                   onClick={() => setActiveTab('account')}
                   className={`w-full flex items-center px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
                     activeTab === 'account' 
@@ -314,7 +314,7 @@ const SettingsPage = () => {
                 >
                   <Building2 className="h-5 w-5 mr-2" />
                   Account
-                </button>
+                </button> */}
                 <button
                   onClick={() => setActiveTab('security')}
                   className={`w-full flex items-center px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
@@ -326,7 +326,7 @@ const SettingsPage = () => {
                   <Lock className="h-5 w-5 mr-2" />
                   Security
                 </button>
-                <button
+                {/* <button
                   onClick={() => setActiveTab('preferences')}
                   className={`w-full flex items-center px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
                     activeTab === 'preferences' 
@@ -336,7 +336,7 @@ const SettingsPage = () => {
                 >
                   <Globe className="h-5 w-5 mr-2" />
                   Preferences
-                </button>
+                </button> */}
               </nav>
             </div>
           </div>
@@ -370,7 +370,7 @@ const SettingsPage = () => {
                 )}
                 
                 {/* Account Tab */}
-                {activeTab === 'account' && (
+                {/* {activeTab === 'account' && (
                   <div className="space-y-8">
                     <div>
                       <h2 className="text-xl font-semibold text-gray-900 mb-4">Account Details</h2>
@@ -404,7 +404,7 @@ const SettingsPage = () => {
                       </div>
                     </div>
                   </div>
-                )}
+                )} */}
                 
                 {/* Security Tab */}
                 {activeTab === 'security' && (
@@ -473,7 +473,7 @@ const SettingsPage = () => {
                 )}
                 
                 {/* Preferences Tab */}
-                {activeTab === 'preferences' && (
+                {/* {activeTab === 'preferences' && (
                   <div className="space-y-8">
                     <div>
                       <h2 className="text-xl font-semibold text-gray-900 mb-4">Language & Region</h2>
@@ -491,7 +491,7 @@ const SettingsPage = () => {
                       </div>
                     </div>
                   </div>
-                )}
+                )} */}
               </>
             )}
           </div>
