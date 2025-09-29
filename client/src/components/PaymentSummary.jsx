@@ -1,35 +1,41 @@
 import React from 'react';
 import { ArrowUpRight, MoreVertical, Lock, TrendingUp, TrendingDown,} from 'lucide-react';
 
-const PaymentSummary = () => {
+const PaymentSummary = ({ dashboardData }) => {
   // const [showSuccess, setShowSuccess] = useState(false);
+
+  // Format currency function
+  const formatCurrency = (amount) => {
+    if (!amount && amount !== 0) return '0.00';
+    return Number(amount).toFixed(2).replace(/\d(?=(\d{3})+\.)/g, '$&,');
+  };
 
   const payments = [
     {
       label: 'Upcoming Payments',
-      amount: '6,947.00',
-      badge: '3 New',
+      amount: formatCurrency(dashboardData?.paymentSummary?.upcomingPayments?.amount || 0),
+      badge: dashboardData?.paymentSummary?.upcomingPayments?.badge || '0 New',
       trend: 'up',
       icon: <TrendingUp className="w-4 h-4 text-emerald-500" />
     },
     {
       label: 'Overdue Invoices',
-      amount: '6,947.00',
-      badge: null,
+      amount: formatCurrency(dashboardData?.paymentSummary?.overdueInvoices?.amount || 0),
+      badge: `${dashboardData?.paymentSummary?.overdueInvoices?.count || 0} Overdue`,
       trend: 'neutral',
       icon: <Lock className="w-4 h-4 text-amber-500" />
     },
     {
       label: "Today's Revenue",
-      amount: '2,837.90',
-      badge: '10%',
+      amount: formatCurrency(dashboardData?.paymentSummary?.todayRevenue?.amount || 0),
+      badge: dashboardData?.paymentSummary?.todayRevenue?.change || '0%',
       trend: 'up',
       icon: <TrendingUp className="w-4 h-4 text-blue-500" />
     },
     {
       label: "Today's Expenses",
-      amount: '25,938.86',
-      badge: '150%',
+      amount: formatCurrency(dashboardData?.paymentSummary?.todayExpenses?.amount || 0),
+      badge: dashboardData?.paymentSummary?.todayExpenses?.change || '0%',
       trend: 'down',
       icon: <TrendingDown className="w-4 h-4 text-rose-500" />
     }
@@ -54,7 +60,9 @@ const PaymentSummary = () => {
           <div>
             <p className="text-sm text-white">Current Balance</p>
             <div className="flex items-baseline gap-2">
-              <span className="text-3xl font-bold text-white">Rs 9,425</span>
+              <span className="text-3xl font-bold text-white">
+                Rs {formatCurrency(dashboardData?.paymentSummary?.currentBalance || 0)}
+              </span>
               <span className="flex items-center px-2 py-1 rounded-full bg-white text-emerald-700 text-xs font-medium">
                 +2.5% <ArrowUpRight className="w-3 h-3 ml-1" />
               </span>
