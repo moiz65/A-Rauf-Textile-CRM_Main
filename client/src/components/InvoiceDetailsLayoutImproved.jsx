@@ -64,14 +64,14 @@ const InvoiceDetailsLayoutImproved = () => {
             }
             
             .company-info {
-              display: flex;
+              display: block;
               align-items: center;
               gap: 20px;
             }
             
             .company-logo {
-              width: 80px;
-              height: 80px;
+              width: 15rem;
+              padding-bottom: 20px;
             }
             
             .company-details h2 {
@@ -532,8 +532,8 @@ const InvoiceDetailsLayoutImproved = () => {
                 {/* Company Header - Improved layout */}
                 <div className="flex justify-between items-center gap-6 px-8 py-6 border-b border-gray-200">
                   {/* Company Info */}
-                  <div className="flex items-center gap-5">
-                    <div className="w-20 h-20 flex-shrink-0">
+                  <div className="flex flex-col gap-5">
+                    <div className="w-[15rem] flex-shrink-0">
                       <img src={Logo} alt="Company Logo" className="w-full h-full object-contain" />
                     </div>
                     <div>
