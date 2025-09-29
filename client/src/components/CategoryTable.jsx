@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Search, Filter, FileDown, Ellipsis, Edit, Trash2, Printer, Download, Copy, Plus, Tag, FolderOpen } from 'lucide-react';
+import { Search, Filter, FileDown, Ellipsis, Edit, Trash2, Printer, Download, Plus, Tag, FolderOpen } from 'lucide-react';
 
 const ITEMS_PER_PAGE = 10;
 
@@ -41,101 +41,31 @@ const CategoryTable = () => {
   const fetchCategories = async () => {
     try {
       setLoading(true);
+      const response = await fetch('http://localhost:5000/api/categories');
       
-      // For now, we'll use mock data since backend doesn't have categories endpoint yet
-      // You can replace this with actual API call later
-      const mockCategories = [
-        {
-          id: 1,
-          name: 'Materials',
-          description: 'Raw materials and supplies for production',
-          type: 'Expense',
-          status: 'Active',
-          color: '#3B82F6',
-          icon: 'FolderOpen',
-          createdDate: '2025-01-15',
-          expenseCount: 15
-        },
-        {
-          id: 2,
-          name: 'Equipment',
-          description: 'Machinery and equipment purchases',
-          type: 'Expense', 
-          status: 'Active',
-          color: '#8B5CF6',
-          icon: 'Tag',
-          createdDate: '2025-01-20',
-          expenseCount: 8
-        },
-        {
-          id: 3,
-          name: 'Administrative',
-          description: 'Office supplies and administrative costs',
-          type: 'Expense',
-          status: 'Active', 
-          color: '#F59E0B',
-          icon: 'FolderOpen',
-          createdDate: '2025-02-01',
-          expenseCount: 12
-        },
-        {
-          id: 4,
-          name: 'Utilities',
-          description: 'Electricity, water, and other utilities',
-          type: 'Expense',
-          status: 'Active',
-          color: '#EF4444',
-          icon: 'Tag', 
-          createdDate: '2025-02-10',
-          expenseCount: 6
-        },
-        {
-          id: 5,
-          name: 'Payroll',
-          description: 'Employee salaries and benefits',
-          type: 'Expense',
-          status: 'Active',
-          color: '#6366F1',
-          icon: 'FolderOpen',
-          createdDate: '2025-02-15',
-          expenseCount: 24
-        },
-        {
-          id: 6,
-          name: 'Logistics',
-          description: 'Transportation and delivery costs',
-          type: 'Expense',
-          status: 'Active',
-          color: '#14B8A6',
-          icon: 'Tag',
-          createdDate: '2025-03-01',
-          expenseCount: 9
-        },
-        {
-          id: 7,
-          name: 'Sales Revenue',
-          description: 'Income from product sales',
-          type: 'Income',
-          status: 'Active',
-          color: '#10B981',
-          icon: 'FolderOpen',
-          createdDate: '2025-01-10',
-          expenseCount: 0
-        },
-        {
-          id: 8,
-          name: 'Marketing',
-          description: 'Advertising and promotional expenses',
-          type: 'Expense',
-          status: 'Inactive',
-          color: '#F97316',
-          icon: 'Tag',
-          createdDate: '2025-01-25',
-          expenseCount: 3
-        }
-      ];
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
       
-      setCategoriesData(mockCategories);
+      const result = await response.json();
+      
+      // Transform API data to match component expectations
+      // Filter out the "All" category from the table display
+      const transformedData = result.data
+        .filter(category => category.name !== 'All')
+        .map(category => ({
+          id: category.id,
+          name: category.name,
+          description: category.description || '',
+          type: category.type,
+          status: category.status,
+          color: '#3B82F6', // Default color - you can add this to backend later
+          icon: 'FolderOpen', // Default icon - you can add this to backend later
+          createdDate: category.created_date ? new Date(category.created_date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+          expenseCount: category.expense_count || 0
+        }));
+      
+      setCategoriesData(transformedData);
       setError(null);
     } catch (err) {
       console.error('Error fetching categories:', err);
@@ -256,9 +186,19 @@ const CategoryTable = () => {
 
     if (window.confirm(`Are you sure you want to delete category "${category.name}"?`)) {
       try {
-        // Simulate API call - replace with actual API call later
-        setCategoriesData(prev => prev.filter(cat => cat.id !== category.id));
+        const response = await fetch(`http://localhost:5000/api/categories/${category.id}`, {
+          method: 'DELETE',
+        });
+
+        if (!response.ok) {
+          const errorData = await response.text();
+          throw new Error(`Failed to delete category: ${errorData}`);
+        }
+
         showNotification('Category Deleted', `Category "${category.name}" has been deleted successfully`);
+        
+        // Refresh the categories list
+        await fetchCategories();
       } catch (err) {
         console.error('Error deleting category:', err);
         showNotification('Error', 'Failed to delete category. Please try again.');
@@ -267,101 +207,14 @@ const CategoryTable = () => {
     setActiveDropdown(null);
   };
 
-  const handlePrint = (category) => {
-    const printWindow = window.open('', '_blank');
-    printWindow.document.write(`
-      <html>
-        <head>
-          <title>Category Details: ${category.name}</title>
-          <style>
-            body { font-family: Arial, sans-serif; padding: 20px; }
-            h1 { color: #333; }
-            .category-card { border: 1px solid #ddd; padding: 20px; max-width: 500px; margin: 0 auto; }
-            .row { display: flex; margin-bottom: 10px; }
-            .label { font-weight: bold; width: 150px; }
-            .value { flex: 1; }
-            .color-indicator { display: inline-block; width: 20px; height: 20px; border-radius: 4px; }
-          </style>
-        </head>
-        <body>
-          <h1>Category Details</h1>
-          <div class="category-card">
-            <div class="row"><div class="label">Name:</div><div class="value">${category.name}</div></div>
-            <div class="row"><div class="label">Description:</div><div class="value">${category.description}</div></div>
-            <div class="row"><div class="label">Type:</div><div class="value">${category.type}</div></div>
-            <div class="row"><div class="label">Status:</div><div class="value">${category.status}</div></div>
-            <div class="row"><div class="label">Color:</div><div class="value"><span class="color-indicator" style="background-color: ${category.color}"></span> ${category.color}</div></div>
-            <div class="row"><div class="label">Created Date:</div><div class="value">${new Date(category.createdDate).toLocaleDateString()}</div></div>
-            <div class="row"><div class="label">Expense Count:</div><div class="value">${category.expenseCount}</div></div>
-          </div>
-          <script>window.print();</script>
-        </body>
-      </html>
-    `);
-    printWindow.document.close();
-    setActiveDropdown(null);
-  };
 
-  const handleDownload = (category) => {
-    const data = {
-      id: category.id,
-      name: category.name,
-      description: category.description,
-      type: category.type,
-      status: category.status,
-      color: category.color,
-      icon: category.icon,
-      createdDate: category.createdDate,
-      expenseCount: category.expenseCount
-    };
-    
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `category_${category.name.replace(/\s+/g, '_')}.json`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-    setActiveDropdown(null);
-    showNotification('Download Complete', `Category data downloaded successfully`);
-  };
-
-  const handleDuplicate = async (category) => {
-    const newCategory = {
-      id: Math.max(...categoriesData.map(cat => cat.id)) + 1,
-      name: `${category.name} (Copy)`,
-      description: category.description,
-      type: category.type,
-      status: 'Active',
-      color: category.color,
-      icon: category.icon,
-      createdDate: new Date().toISOString().split('T')[0],
-      expenseCount: 0
-    };
-    
-    try {
-      setCategoriesData(prev => [...prev, newCategory]);
-      showNotification('Category Duplicated', `Category "${newCategory.name}" has been created successfully`);
-    } catch (err) {
-      console.error('Error duplicating category:', err);
-      showNotification('Error', 'Failed to duplicate category. Please try again.');
-    }
-    
-    setActiveDropdown(null);
-  };
 
   const handleAddCategory = () => {
     const newCategory = {
-      name: 'New Category',
+      name: '',
       description: '',
       type: 'Expense',
-      status: 'Active',
-      color: '#3B82F6',
-      icon: 'FolderOpen',
-      createdDate: new Date().toISOString().split('T')[0],
-      expenseCount: 0
+      status: 'Active'
     };
     
     setEditingCategory(newCategory);
@@ -372,20 +225,50 @@ const CategoryTable = () => {
     try {
       if (updatedCategory.id) {
         // Update existing category
-        setCategoriesData(prev => 
-          prev.map(cat => cat.id === updatedCategory.id ? updatedCategory : cat)
-        );
+        const response = await fetch(`http://localhost:5000/api/categories/${updatedCategory.id}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            name: updatedCategory.name,
+            description: updatedCategory.description,
+            type: updatedCategory.type,
+            status: updatedCategory.status
+          }),
+        });
+
+        if (!response.ok) {
+          const errorData = await response.text();
+          throw new Error(`Failed to update category: ${errorData}`);
+        }
+
         showNotification('Category Updated', `Category "${updatedCategory.name}" has been updated successfully`);
       } else {
         // Add new category
-        const newCategory = {
-          ...updatedCategory,
-          id: Math.max(...categoriesData.map(cat => cat.id)) + 1
-        };
-        setCategoriesData(prev => [...prev, newCategory]);
+        const response = await fetch('http://localhost:5000/api/categories', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            name: updatedCategory.name,
+            description: updatedCategory.description,
+            type: updatedCategory.type,
+            status: updatedCategory.status
+          }),
+        });
+
+        if (!response.ok) {
+          const errorData = await response.text();
+          throw new Error(`Failed to create category: ${errorData}`);
+        }
+
         showNotification('Category Created', `Category "${updatedCategory.name}" has been created successfully`);
       }
 
+      // Refresh the categories list
+      await fetchCategories();
       setShowEditModal(false);
       setEditingCategory(null);
     } catch (err) {
@@ -402,15 +285,7 @@ const CategoryTable = () => {
       case 'delete':
         handleDelete(category);
         break;
-      case 'print':
-        handlePrint(category);
-        break;
-      case 'download':
-        handleDownload(category);
-        break;
-      case 'duplicate':
-        handleDuplicate(category);
-        break;
+
       default:
         break;
     }
@@ -788,27 +663,7 @@ const CategoryTable = () => {
                                 <Trash2 className="w-4 h-4 mr-2" />
                                 Delete
                               </button>
-                              <button
-                                onClick={() => handleAction('print', category)}
-                                className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left"
-                              >
-                                <Printer className="w-4 h-4 mr-2" />
-                                Print
-                              </button>
-                              <button
-                                onClick={() => handleAction('download', category)}
-                                className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left"
-                              >
-                                <Download className="w-4 h-4 mr-2" />
-                                Download
-                              </button>
-                              <button
-                                onClick={() => handleAction('duplicate', category)}
-                                className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left"
-                              >
-                                <Copy className="w-4 h-4 mr-2" />
-                                Duplicate
-                              </button>
+
                             </div>
                           </div>
                         )}
