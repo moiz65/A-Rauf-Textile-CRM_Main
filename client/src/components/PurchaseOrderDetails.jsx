@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { ArrowLeft, Download, Printer, Edit, Share2, Eye, EyeOff, X } from 'lucide-react';
+import { generateInvoiceId } from '../utils/idGenerator';
 import Logo from '../assets/Logo/Logo.png';
 
 const PurchaseOrderDetails = ({ poId, onBack }) => {
@@ -238,14 +239,14 @@ const PurchaseOrderDetails = ({ poId, onBack }) => {
           }
           
           .company-info {
-            display: flex;
+            display: block;
             align-items: center;
             gap: 20px;
           }
           
           .company-logo {
-            width: 80px;
-            height: 80px;
+            width: 15rem;
+            padding-bottom: 20px;
           }
           
           .company-details h2 {
@@ -504,10 +505,7 @@ const PurchaseOrderDetails = ({ poId, onBack }) => {
             </div>
           </div>
           
-          <div class="footer">
-            <p>This is a computer-generated purchase order and does not require a signature.</p>
-            <p>Generated on ${new Date().toLocaleDateString()} by ${purchaseOrder.createdBy}</p>
-          </div>
+
         </div>
         <script>window.print();</script>
       </body>
@@ -535,7 +533,7 @@ const PurchaseOrderDetails = ({ poId, onBack }) => {
   // Invoice Modal Component
   const InvoiceModal = () => {
     const [invoiceData, setInvoiceData] = useState({
-      invoiceNumber: `INV-${purchaseOrder?.number || 'XXXX'}-${Date.now()}`,
+      invoiceNumber: generateInvoiceId([]), // Generate memorable PO invoice ID
       invoiceDate: new Date().toISOString().split('T')[0],
       dueDate: new Date(Date.now() + 30*24*60*60*1000).toISOString().split('T')[0], // 30 days from now
       customer: {
@@ -1059,13 +1057,7 @@ const PurchaseOrderDetails = ({ poId, onBack }) => {
             {showPaymentHistory ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
             <span>{showPaymentHistory ? 'Hide' : 'Show'} Invoice & Payment History</span>
           </button>
-          <button
-            onClick={handleShare}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200 transition-colors"
-          >
-            <Share2 className="w-4 h-4" />
-            <span>Share</span>
-          </button>
+
           <button
             onClick={generatePDF}
             className="flex items-center gap-2 px-4 py-2 bg-green-100 text-green-700 rounded-md hover:bg-green-200 transition-colors"
@@ -1073,13 +1065,7 @@ const PurchaseOrderDetails = ({ poId, onBack }) => {
             <Printer className="w-4 h-4" />
             <span>Print</span>
           </button>
-          <button
-            onClick={generatePDF}
-            className="flex items-center gap-2 px-4 py-2 bg-purple-100 text-purple-700 rounded-md hover:bg-purple-200 transition-colors"
-          >
-            <Download className="w-4 h-4" />
-            <span>Download</span>
-          </button>
+
         </div>
       </div>
 
@@ -1087,8 +1073,10 @@ const PurchaseOrderDetails = ({ poId, onBack }) => {
       <div ref={poRef} className="p-4 sm:p-6">
         {/* Company Header */}
         <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6 mb-8 pb-6 border-b-2 border-gray-200">
-          <div className="flex items-center gap-6">
-            <img src={Logo} alt="Company Logo" className="w-20 h-20" />
+          <div className="flex flex-col gap-5">
+            <div className="w-[15rem] flex-shrink-0">
+              <img src={Logo} alt="Company Logo" className="w-full h-full object-contain" />
+            </div>
             <div>
               <h2 className="text-xl font-semibold text-gray-900 mb-2">A Rauf Brother Textile</h2>
               <p className="text-sm text-gray-600">Room No.205 Floor Saleha Chamber, Plot No. 8-9/C-1 Site, Karachi</p>
