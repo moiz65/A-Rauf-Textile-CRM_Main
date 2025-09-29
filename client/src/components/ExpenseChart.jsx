@@ -15,18 +15,22 @@ const ExpenseChart = ({ showControls = true }) => {
     const fetchChartData = async () => {
       try {
         setLoading(true);
-        const response = await fetch('http://localhost:5000/api/expenses-chart');
+        const response = await fetch('http://localhost:5000/api/dashboard/monthly-expenses');
         
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
         
-        const data = await response.json();
+        const result = await response.json();
         
-        // Transform the data to match the expected format
-        const transformedData = transformChartData(data);
-        setChartData(transformedData);
-        setError(null);
+        if (result.success) {
+          // Transform the data to match the expected format
+          const transformedData = transformMonthlyExpenseData(result.data);
+          setChartData(transformedData);
+          setError(null);
+        } else {
+          throw new Error('Failed to fetch expense data');
+        }
       } catch (err) {
         console.error('Error fetching chart data:', err);
         setError('Failed to load chart data. Please try again later.');
@@ -38,46 +42,40 @@ const ExpenseChart = ({ showControls = true }) => {
     fetchChartData();
   }, []);
 
-  // Transform the API data to match the chart's expected format
-  const transformChartData = (apiData) => {
-    // Group data by year and month
+  // Transform the monthly expense data for the chart
+  const transformMonthlyExpenseData = (apiData) => {
+    const currentYear = new Date().getFullYear().toString();
     const groupedByYear = {};
     
+    // Initialize current year with all months
+    groupedByYear[currentYear] = Array(12).fill(0).map((_, i) => ({
+      month: new Date(0, i).toLocaleString('default', { month: 'short' }),
+      year: currentYear,
+      amount: 0,
+      count: 0,
+      trend: 'stable'
+    }));
+    
+    // Fill in actual data
     apiData.forEach(item => {
-      const year = item.year.toString();
-      const month = item.month;
-      
-      if (!groupedByYear[year]) {
-        groupedByYear[year] = Array(12).fill(0).map((_, i) => ({
-          month: new Date(0, i).toLocaleString('default', { month: 'short' }),
-          year: year,
-          amount: 0,
-          count: 0,
-          trend: 'stable'
-        }));
-      }
-      
-      // Update the month data
-      if (month >= 1 && month <= 12) {
-        const monthIndex = month - 1;
-        groupedByYear[year][monthIndex].amount += parseFloat(item.total) || 0;
-        groupedByYear[year][monthIndex].count += item.count || 0;
+      const monthIndex = new Date(item.month + '-01').getMonth(); // Convert "January" to month index
+      if (monthIndex >= 0 && monthIndex < 12) {
+        groupedByYear[currentYear][monthIndex].amount = parseFloat(item.amount) || 0;
+        groupedByYear[currentYear][monthIndex].count = 1;
       }
     });
     
     // Calculate trends (up/down) for each month
-    Object.keys(groupedByYear).forEach(year => {
-      const yearData = groupedByYear[year];
-      for (let i = 1; i < yearData.length; i++) {
-        if (yearData[i].amount > yearData[i-1].amount) {
-          yearData[i].trend = 'up';
-        } else if (yearData[i].amount < yearData[i-1].amount) {
-          yearData[i].trend = 'down';
-        } else {
-          yearData[i].trend = 'stable';
-        }
+    const yearData = groupedByYear[currentYear];
+    for (let i = 1; i < yearData.length; i++) {
+      if (yearData[i].amount > yearData[i-1].amount) {
+        yearData[i].trend = 'up';
+      } else if (yearData[i].amount < yearData[i-1].amount) {
+        yearData[i].trend = 'down';
+      } else {
+        yearData[i].trend = 'stable';
       }
-    });
+    }
     
     return groupedByYear;
   };
