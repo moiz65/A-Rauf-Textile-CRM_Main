@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { 
-  Search, Filter, Ellipsis, Edit, Trash2, Plus, Loader, Eye, Copy, ChevronDown, X
+  Search, Filter, Ellipsis, Edit, Trash2, Plus, Loader, Eye, ChevronDown, X
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { generateInvoiceId } from '../utils/idGenerator';
 
 
 const API_BASE_URL = 'http://localhost:5000/api';
@@ -1092,6 +1093,36 @@ const InvoiceManagement = () => {
   const [loading, setLoading] = useState(true);
   const dropdownRefs = useRef([]);
 
+  // Calculate counts for tabs
+  const getTabCounts = () => {
+    const counts = {
+      'All': 0,
+      'Paid': 0,
+      'Pending': 0,
+      'Overdue': 0,
+      'PO Invoices': 0
+    };
+
+    invoicesData.forEach(invoice => {
+      // Count PO Invoices separately
+      if (invoice.invoice_type === 'po_invoice') {
+        counts['PO Invoices']++;
+      } else {
+        // Count regular invoices
+        counts['All']++;
+        if (invoice.status === 'Paid') {
+          counts['Paid']++;
+        } else if (invoice.status === 'Pending') {
+          counts['Pending']++;
+        } else if (invoice.status === 'Overdue') {
+          counts['Overdue']++;
+        }
+      }
+    });
+
+    return counts;
+  };
+
   // Fetch invoices from API with filters
   const fetchInvoicesRef = useRef();
   
@@ -1403,42 +1434,6 @@ const InvoiceManagement = () => {
       setEditingInvoice(invoice);
       setShowInvoiceForm(true);
     }
-    setActiveDropdown(null);
-  };
-
-  const handleDuplicateInvoice = async (invoice) => {
-    try {
-      // Create a copy of the invoice with a new ID
-      const duplicatedInvoice = {
-        ...invoice,
-        id: null, // Let the server generate a new ID
-        bill_date: new Date().toISOString().split('T')[0],
-        status: 'Pending'
-      };
-      
-      delete duplicatedInvoice.id; // Remove the ID so the server creates a new one
-      
-      const response = await fetch(`${API_BASE_URL}/invoices`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(duplicatedInvoice)
-      });
-      
-      if (!response.ok) {
-        throw new Error('Failed to duplicate invoice');
-      }
-      
-      // Refresh the invoice list
-      await fetchInvoices();
-      
-      showNotification("Invoice duplicated", "Invoice has been duplicated successfully");
-    } catch (error) {
-      console.error('Error duplicating invoice:', error);
-      showNotification("Error", "Failed to duplicate invoice");
-    }
-    
     setActiveDropdown(null);
   };
 
@@ -1842,27 +1837,30 @@ const InvoiceManagement = () => {
         {/* Tab Navigation */}
         <div className="overflow-x-auto mb-4">
           <div className="flex border-b w-max min-w-full">
-            {['All', 'Paid', 'Pending', 'Overdue', 'PO Invoices'].map(status => (
-              <button
-                key={status}
-                className={`px-3 py-2 text-sm font-medium whitespace-nowrap border-b-2 ${
-                  activeTab === status
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
-                onClick={() => {
-                  console.log('Tab clicked:', status);
-                  setActiveTab(status);
-                  setCurrentPage(1);
-                  // Clear status filter when clicking tabs to avoid conflicts
-                  if (status !== 'All' && status !== 'PO Invoices') {
-                    setFilters(prev => ({ ...prev, status: '' }));
-                  }
-                }}
+            {['All', 'Paid', 'Pending', 'Overdue', 'PO Invoices'].map(status => {
+              const counts = getTabCounts();
+              return (
+                <button
+                  key={status}
+                  className={`px-3 py-2 text-sm font-medium whitespace-nowrap border-b-2 ${
+                    activeTab === status
+                      ? 'border-blue-500 text-blue-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  }`}
+                  onClick={() => {
+                    console.log('Tab clicked:', status);
+                    setActiveTab(status);
+                    setCurrentPage(1);
+                    // Clear status filter when clicking tabs to avoid conflicts
+                    if (status !== 'All' && status !== 'PO Invoices') {
+                      setFilters(prev => ({ ...prev, status: '' }));
+                    }
+                  }}
               >
-                {status}
+                {status} ({counts[status] || 0})
               </button>
-            ))}
+              );
+            })}
           </div>
         </div>
 
@@ -1984,13 +1982,6 @@ const InvoiceManagement = () => {
                                   >
                                     <Edit className="w-4 h-4 mr-2" />
                                     Edit
-                                  </button>
-                                  <button
-                                    onClick={() => handleDuplicateInvoice(invoice)}
-                                    className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left"
-                                  >
-                                    <Copy className="w-4 h-4 mr-2" />
-                                    Duplicate
                                   </button>
                                 </>
                               )}
