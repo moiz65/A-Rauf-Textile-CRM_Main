@@ -30,17 +30,24 @@ const ReportsTable = ({
   onCreateReport,
   reports: initialReports = [],
 }) => {
-  // Ensure reports is always an array
-  const [reports, setReports] = useState(Array.isArray(initialReports) ? initialReports : []);
+  // State management
+  const [reports, setReports] = useState([]);
+  const [originalReports, setOriginalReports] = useState([]);
   const [selectedRows, setSelectedRows] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(DEFAULT_ITEMS_PER_PAGE);
+  const [totalPages, setTotalPages] = useState(0);
+  const [totalRecords, setTotalRecords] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const [statusCounts, setStatusCounts] = useState({});
+  
   // Notification system
   const [notification, setNotification] = useState(null);
   const showNotification = (title, description, duration = 3000) => {
     setNotification({ title, description });
     setTimeout(() => setNotification(null), duration);
   };
+  
   const [searchTerm, setSearchTerm] = useState("");
   const [showFilters, setShowFilters] = useState(false);
   const [filters, setFilters] = useState({
@@ -57,11 +64,6 @@ const ReportsTable = ({
   const [viewingReport, setViewingReport] = useState(null);
   const [reportDetails, setReportDetails] = useState(null);
   const dropdownRefs = useRef([]);
-
-  // Update internal state when prop changes
-  useEffect(() => {
-    setReports(Array.isArray(initialReports) ? initialReports : []);
-  }, [initialReports]);
 
   const getStatusClass = (status) => {
     switch (status) {
@@ -80,41 +82,9 @@ const ReportsTable = ({
     }
   };
 
-  // Ensure filteredReports is always an array
-  const filteredReports = Array.isArray(reports) ? reports
-    .filter(
-      (report) =>
-        report.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        report.customer.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        report.date.toLowerCase().includes(searchTerm.toLowerCase())
-    )
-    .filter((report) =>
-      activeTab === "All"
-        ? true
-        : report.status === activeTab
-    )
-    .filter(
-      (report) =>
-        (!filters.minPrice ||
-          Number(report.price) >= Number(filters.minPrice)) &&
-        (!filters.maxPrice ||
-          Number(report.price) <= Number(filters.maxPrice)) &&
-        (!filters.dateFrom ||
-          new Date(report.date) >= new Date(filters.dateFrom)) &&
-        (!filters.dateTo ||
-          new Date(report.date) <= new Date(filters.dateTo)) &&
-        (!filters.customer ||
-          report.customer
-            .toLowerCase()
-            .includes(filters.customer.toLowerCase()))
-    ) : [];
-
-  const totalPages = Math.ceil(filteredReports.length / itemsPerPage);
+  // Calculate pagination info
   const startIndex = (currentPage - 1) * itemsPerPage;
-  const visibleReports = filteredReports.slice(
-    startIndex,
-    startIndex + itemsPerPage
-  );
+  const visibleReports = Array.isArray(reports) ? reports : [];
 
   const toggleSelectAll = () => {
     if (selectedRows.length === visibleReports.length) {
@@ -232,10 +202,9 @@ const ReportsTable = ({
         }
         throw new Error(errorMsg);
       }
-      // Refresh reports
-      fetch("http://localhost:5000/api/v1/reports")
-        .then((res) => res.json())
-        .then((data) => setReports(data));
+      // Refresh reports and status counts
+      fetchReports();
+      fetchStatusCounts();
       showNotification("Report deleted", `Report ${report.id} has been deleted`);
     } catch (err) {
       showNotification('Error', 'Error deleting report: ' + err.message);
@@ -296,10 +265,9 @@ const ReportsTable = ({
         } catch {}
         throw new Error(errorMsg);
       }
-      // Refresh reports
-      fetch("http://localhost:5000/api/v1/reports")
-        .then((res) => res.json())
-        .then((data) => setReports(data));
+      // Refresh reports and status counts
+      fetchReports();
+      fetchStatusCounts();
       showNotification("Report duplicated", `New report created from ${report.id}`);
     } catch (err) {
       showNotification('Error', 'Error duplicating report: ' + err.message);
@@ -307,15 +275,56 @@ const ReportsTable = ({
     setActiveDropdown(null);
   };
 
-  // DRY: fetch all reports
-  const fetchReports = () => {
-    fetch("http://localhost:5000/api/v1/reports")
-      .then((res) => res.json())
-      .then((data) => setReports(Array.isArray(data) ? data : []))
-      .catch((err) => {
-        console.error("Error fetching reports:", err);
-        setReports([]);
+  // Fetch reports with filtering and pagination
+  const fetchReports = async () => {
+    try {
+      setLoading(true);
+      
+      const params = new URLSearchParams({
+        page: currentPage.toString(),
+        limit: itemsPerPage.toString(),
       });
+      
+      // Add filters
+      if (activeTab !== 'All') params.append('status', activeTab);
+      if (searchTerm) params.append('search', searchTerm);
+      if (filters.customer) params.append('customer', filters.customer);
+      if (filters.minPrice) params.append('minPrice', filters.minPrice);
+      if (filters.maxPrice) params.append('maxPrice', filters.maxPrice);
+      if (filters.dateFrom) params.append('dateFrom', filters.dateFrom);
+      if (filters.dateTo) params.append('dateTo', filters.dateTo);
+      
+      const response = await fetch(`http://localhost:5000/api/v1/reports?${params}`);
+      const result = await response.json();
+      
+      if (response.ok) {
+        setReports(result.data || []);
+        setTotalPages(result.pagination?.totalPages || 0);
+        setTotalRecords(result.pagination?.totalRecords || 0);
+      } else {
+        throw new Error(result.message || 'Failed to fetch reports');
+      }
+    } catch (err) {
+      console.error("Error fetching reports:", err);
+      setReports([]);
+      showNotification('Error', 'Failed to fetch reports: ' + err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Fetch status counts for tab labels
+  const fetchStatusCounts = async () => {
+    try {
+      const response = await fetch('http://localhost:5000/api/v1/reports/stats');
+      const stats = await response.json();
+      
+      if (response.ok) {
+        setStatusCounts(stats);
+      }
+    } catch (err) {
+      console.error("Error fetching status counts:", err);
+    }
   };
 
   // Save (Create or Update) report
@@ -348,36 +357,22 @@ const ReportsTable = ({
       setShowEditModal(false);
       setEditingReport(null);
       fetchReports();
+      fetchStatusCounts();
       showNotification("Report saved", `Report ${formData.id} has been saved`);
     } catch (err) {
       showNotification('Error', 'Error saving report: ' + err.message);
     }
   };
 
-  const handleAction = (action, report) => {
-    switch (action) {
-      case "view":
-        handleView(report);
-        break;
-      case "edit":
-        handleEdit(report);
-        break;
-      case "delete":
-        handleDelete(report);
-        break;
-      case "print":
-        handlePrint(report);
-        break;
-      case "download":
-        handleDownload(report);
-        break;
-      default:
-        break;
-    }
-  };
+
 
   const EditReportModal = () => {
     const [formData, setFormData] = useState(editingReport);
+    const [customerSuggestions, setCustomerSuggestions] = useState([]);
+    const [showSuggestions, setShowSuggestions] = useState(false);
+    const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
+    const customerInputRef = useRef(null);
+    const suggestionTimeoutRef = useRef(null);
 
     // Always keep ID field disabled and auto-generate for new/duplicate
     useEffect(() => {
@@ -390,13 +385,132 @@ const ReportsTable = ({
       }
     }, [formData.id]);
 
+    // Fetch customer suggestions from database
+    const fetchCustomerSuggestions = async (searchTerm) => {
+      if (!searchTerm || searchTerm.length < 1) {
+        setCustomerSuggestions([]);
+        setShowSuggestions(false);
+        return;
+      }
+
+      try {
+        setIsLoadingSuggestions(true);
+        const response = await fetch(
+          `http://localhost:5000/api/v1/customers/suggestions?q=${encodeURIComponent(searchTerm)}`
+        );
+        
+        if (response.ok) {
+          const suggestions = await response.json();
+          setCustomerSuggestions(suggestions.slice(0, 5)); // Limit to 5 suggestions
+          setShowSuggestions(suggestions.length > 0);
+        } else {
+          // If the API endpoint doesn't exist, fallback to existing reports
+          const reportsResponse = await fetch('http://localhost:5000/api/v1/reports?limit=100');
+          if (reportsResponse.ok) {
+            const reportsData = await reportsResponse.json();
+            const uniqueCustomers = [...new Set(
+              reportsData.data
+                .map(report => report.customer)
+                .filter(customer => 
+                  customer && 
+                  customer.toLowerCase().startsWith(searchTerm.toLowerCase())
+                )
+            )].slice(0, 5);
+            
+            setCustomerSuggestions(uniqueCustomers);
+            setShowSuggestions(uniqueCustomers.length > 0);
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching customer suggestions:', error);
+        setCustomerSuggestions([]);
+        setShowSuggestions(false);
+      } finally {
+        setIsLoadingSuggestions(false);
+      }
+    };
+
     const handleChange = (e) => {
       const { name, value } = e.target;
       setFormData((prev) => ({
         ...prev,
         [name]: value,
       }));
+
+      // Handle customer autocomplete
+      if (name === 'customer') {
+        // Clear existing timeout
+        if (suggestionTimeoutRef.current) {
+          clearTimeout(suggestionTimeoutRef.current);
+        }
+
+        // Debounce the search to avoid too many API calls
+        suggestionTimeoutRef.current = setTimeout(() => {
+          fetchCustomerSuggestions(value);
+        }, 300);
+      }
     };
+
+    // Handle customer selection from suggestions
+    const handleCustomerSelect = (selectedCustomer) => {
+      setFormData((prev) => ({
+        ...prev,
+        customer: selectedCustomer,
+      }));
+      setShowSuggestions(false);
+      setCustomerSuggestions([]);
+    };
+
+    // Handle keyboard navigation in suggestions
+    const [selectedSuggestionIndex, setSelectedSuggestionIndex] = useState(-1);
+
+    const handleKeyDown = (e) => {
+      if (!showSuggestions || customerSuggestions.length === 0) return;
+
+      switch (e.key) {
+        case 'ArrowDown':
+          e.preventDefault();
+          setSelectedSuggestionIndex(prev => 
+            prev < customerSuggestions.length - 1 ? prev + 1 : 0
+          );
+          break;
+        case 'ArrowUp':
+          e.preventDefault();
+          setSelectedSuggestionIndex(prev => 
+            prev > 0 ? prev - 1 : customerSuggestions.length - 1
+          );
+          break;
+        case 'Enter':
+          e.preventDefault();
+          if (selectedSuggestionIndex >= 0) {
+            handleCustomerSelect(customerSuggestions[selectedSuggestionIndex]);
+          }
+          break;
+        case 'Escape':
+          setShowSuggestions(false);
+          setSelectedSuggestionIndex(-1);
+          break;
+        default:
+          setSelectedSuggestionIndex(-1);
+      }
+    };
+
+    // Handle clicking outside to close suggestions
+    useEffect(() => {
+      const handleClickOutside = (event) => {
+        if (customerInputRef.current && !customerInputRef.current.contains(event.target)) {
+          setShowSuggestions(false);
+        }
+      };
+
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => {
+        document.removeEventListener('mousedown', handleClickOutside);
+        if (suggestionTimeoutRef.current) {
+          clearTimeout(suggestionTimeoutRef.current);
+        }
+      };
+    }, []);
 
     const handleSubmit = (e) => {
       e.preventDefault();
@@ -446,14 +560,76 @@ const ReportsTable = ({
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Customer
               </label>
-              <input
-                type="text"
-                name="customer"
-                value={formData.customer}
-                onChange={handleChange}
-                className="w-full p-2 border rounded-md"
-                required
-              />
+              <div className="relative" ref={customerInputRef}>
+                <input
+                  type="text"
+                  name="customer"
+                  value={formData.customer}
+                  onChange={handleChange}
+                  onKeyDown={handleKeyDown}
+                  onFocus={() => {
+                    if (formData.customer && customerSuggestions.length > 0) {
+                      setShowSuggestions(true);
+                    }
+                  }}
+                  className="w-full p-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Start typing customer name..."
+                  required
+                  autoComplete="off"
+                />
+                
+                {/* Loading indicator */}
+                {isLoadingSuggestions && (
+                  <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
+                  </div>
+                )}
+
+                {/* Suggestions dropdown */}
+                {showSuggestions && customerSuggestions.length > 0 && (
+                  <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-48 overflow-y-auto">
+                    {customerSuggestions.map((suggestion, index) => (
+                      <div
+                        key={index}
+                        onClick={() => handleCustomerSelect(suggestion)}
+                        className={`px-4 py-2 cursor-pointer text-sm border-b border-gray-100 last:border-b-0 transition-colors ${
+                          index === selectedSuggestionIndex
+                            ? 'bg-blue-100 text-blue-700'
+                            : 'hover:bg-blue-50 hover:text-blue-700'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2">
+                          <div className={`w-8 h-8 rounded-full flex items-center justify-center font-medium text-xs ${
+                            index === selectedSuggestionIndex
+                              ? 'bg-blue-200 text-blue-800'
+                              : 'bg-blue-100 text-blue-600'
+                          }`}>
+                            {suggestion.charAt(0).toUpperCase()}
+                          </div>
+                          <span>{suggestion}</span>
+                        </div>
+                      </div>
+                    ))}
+                    
+                    {/* Footer showing count */}
+                    <div className="px-4 py-2 bg-gray-50 text-xs text-gray-500 border-t">
+                      {customerSuggestions.length} suggestion{customerSuggestions.length !== 1 ? 's' : ''} found
+                      <span className="ml-2 text-gray-400">
+                        (Use ↑↓ to navigate, Enter to select, Esc to close)
+                      </span>
+                    </div>
+                  </div>
+                )}
+
+                {/* No suggestions message */}
+                {showSuggestions && customerSuggestions.length === 0 && !isLoadingSuggestions && formData.customer && (
+                  <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg">
+                    <div className="px-4 py-3 text-sm text-gray-500 text-center">
+                      No matching customers found
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
 
             <div className="mb-4">
@@ -644,9 +820,20 @@ const ReportsTable = ({
     );
   };
   
+  // Fetch reports when filters change
   useEffect(() => {
     fetchReports();
+  }, [currentPage, itemsPerPage, activeTab, searchTerm, filters]);
+
+  // Fetch status counts on component mount
+  useEffect(() => {
+    fetchStatusCounts();
   }, []);
+
+  // Refetch status counts when reports change
+  useEffect(() => {
+    fetchStatusCounts();
+  }, [reports]);
 
   // Bulk delete selected reports
   const [isBulkDeleting, setIsBulkDeleting] = useState(false);
@@ -660,6 +847,7 @@ const ReportsTable = ({
       ));
       setSelectedRows([]);
       fetchReports();
+      fetchStatusCounts();
       showNotification("Bulk delete successful", `${selectedRows.length} reports have been deleted`);
     } catch (err) {
       showNotification('Error', 'Error deleting selected reports.');
@@ -917,25 +1105,29 @@ const ReportsTable = ({
         </div>
       )}
 
-      {/* Tab Navigation */}
+      {/* Tab Navigation with Counts */}
       <div className="overflow-x-auto mb-4">
         <div className="flex border-b w-max min-w-full">
-          {REPORT_TABS.map((tab) => (
-            <button
-              key={tab}
-              className={`px-3 py-2 text-xs sm:text-sm font-medium whitespace-nowrap border-b-2 ${
-                activeTab === tab
-                  ? "border-blue-500 text-blue-600"
-                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-              }`}
-              onClick={() => {
-                setActiveTab(tab);
-                setCurrentPage(1);
-              }}
-            >
-              {tab}
-            </button>
-          ))}
+          {REPORT_TABS.map((tab) => {
+            const count = statusCounts[tab];
+            const showCount = count !== undefined && count > 0;
+            return (
+              <button
+                key={tab}
+                className={`px-3 py-2 text-xs sm:text-sm font-medium whitespace-nowrap border-b-2 ${
+                  activeTab === tab
+                    ? "border-blue-500 text-blue-600"
+                    : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                }`}
+                onClick={() => {
+                  setActiveTab(tab);
+                  setCurrentPage(1);
+                }}
+              >
+                {tab} {showCount && `(${count})`}
+              </button>
+            );
+          })}
         </div>
       </div>
 
@@ -965,7 +1157,16 @@ const ReportsTable = ({
               </tr>
             </thead>
             <tbody className="text-center divide-y divide-gray-100">
-              {visibleReports.length === 0 ? (
+              {loading ? (
+                <tr>
+                  <td colSpan="7" className="py-8 text-center text-sm text-gray-500">
+                    <div className="flex items-center justify-center">
+                      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500 mr-2"></div>
+                      Loading reports...
+                    </div>
+                  </td>
+                </tr>
+              ) : visibleReports.length === 0 ? (
                 <tr>
                   <td
                     colSpan="7"
@@ -1028,37 +1229,35 @@ const ReportsTable = ({
                             >
                               <div className="py-1">
                                 <button
-                                  onClick={() => handleAction("view", report)}
+                                  onClick={() => handleView(report)}
                                   className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left"
                                 >
                                   <Eye className="w-4 h-4 mr-2" />
                                   View
                                 </button>
                                 <button
-                                  onClick={() => handleAction("edit", report)}
+                                  onClick={() => handleEdit(report)}
                                   className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left"
                                 >
                                   <Edit className="w-4 h-4 mr-2" />
                                   Edit
                                 </button>
                                 <button
-                                  onClick={() => handleAction("delete", report)}
+                                  onClick={() => handleDelete(report)}
                                   className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left"
                                 >
                                   <Trash2 className="w-4 h-4 mr-2" />
                                   Delete
                                 </button>
                                 <button
-                                  onClick={() => handleAction("print", report)}
+                                  onClick={() => handlePrint(report)}
                                   className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left"
                                 >
                                   <Printer className="w-4 h-4 mr-2" />
                                   Print
                                 </button>
                                 <button
-                                  onClick={() =>
-                                    handleAction("download", report)
-                                  }
+                                  onClick={() => handleDownload(report)}
                                   className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left"
                                 >
                                   <Download className="w-4 h-4 mr-2" />
@@ -1089,7 +1288,7 @@ const ReportsTable = ({
       {totalPages > 1 && (
         <div className="flex flex-col sm:flex-row justify-between items-center px-4 py-3 border-t border-gray-200 bg-white gap-3">
           <div className="text-sm text-gray-700">
-            Showing {startIndex + 1}-{Math.min(startIndex + itemsPerPage, filteredReports.length)} of {filteredReports.length} reports
+            Showing {startIndex + 1}-{Math.min(startIndex + itemsPerPage, totalRecords)} of {totalRecords} reports
           </div>
           <div className="flex gap-1">
             <button

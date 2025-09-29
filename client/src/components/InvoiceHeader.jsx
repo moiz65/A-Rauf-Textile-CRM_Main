@@ -58,17 +58,7 @@ const InvoiceDetails = () => {
             </div>
           </div>
 
-          <div className="p-4 bg-white border border-gray-200 rounded-lg shadow-sm">
-            <p className="text-sm font-medium text-gray-600 mb-2">Billing Address</p>
-            <div className="text-sm text-gray-900">
-              <p className="font-medium">M/s. TF APPARELS</p>
-              <p>plot no. a-230 Site, Karachi</p>
-              <p>om@om.com</p>
-              <p>S. T. Reg No: 5824606574458</p>
-              <p>Telephone No: 021-36947339</p>
-              <p>NTN No: 7755286214-8</p>
-            </div>
-          </div>
+
         </div>
       </div>
 

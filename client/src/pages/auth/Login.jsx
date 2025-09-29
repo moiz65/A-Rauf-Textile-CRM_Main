@@ -26,7 +26,7 @@ const Input = ({ className = "", ...props }) => {
 };
 
 // Main component
-const Index = () => {
+const Login = () => {
   const [formData, setFormData] = useState({
     email: "",
     password: ""
@@ -218,4 +218,4 @@ const Index = () => {
   );
 };
 
-export default Index;
+export default Login;

@@ -27,7 +27,7 @@ const ExpenseTable = () => {
   const [error, setError] = useState(null);
   const dropdownRef = useRef(null);
 
-  const expenseCategories = ['All', 'Materials', 'Equipment', 'Administrative', 'Utilities', 'Payroll', 'Logistics'];
+  const expenseCategories = ['All', 'Expense', 'Income', 'Asset', 'Liability'];
   const statusOptions = ['All', 'Paid', 'Pending'];
   const paymentMethods = ['Bank Transfer', 'Cash', 'Credit Card', 'Check', 'Online Payment'];
 
@@ -122,12 +122,10 @@ const ExpenseTable = () => {
 
   const getCategoryClass = (category) => {
     switch(category) {
-      case 'Materials': return 'bg-blue-100 text-blue-800';
-      case 'Equipment': return 'bg-purple-100 text-purple-800';
-      case 'Administrative': return 'bg-orange-100 text-orange-800';
-      case 'Utilities': return 'bg-red-100 text-red-800';
-      case 'Payroll': return 'bg-indigo-100 text-indigo-800';
-      case 'Logistics': return 'bg-teal-100 text-teal-800';
+      case 'Expense': return 'bg-red-100 text-red-800';
+      case 'Income': return 'bg-green-100 text-green-800';
+      case 'Asset': return 'bg-blue-100 text-blue-800';
+      case 'Liability': return 'bg-yellow-100 text-yellow-800';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
@@ -288,7 +286,7 @@ const ExpenseTable = () => {
       date: new Date().toISOString().split('T')[0],
       vendor: '',
       amount: 0,
-      category: 'Materials',
+      category: 'Expense',
       paymentMethod: 'Cash',
       description: '',
       status: 'Pending'
@@ -300,6 +298,9 @@ const ExpenseTable = () => {
 
   const handleSaveExpense = async (updatedExpense) => {
     try {
+      // Debug logging
+      console.log('Sending expense data:', updatedExpense);
+      
       let response;
       
       if (updatedExpense.id) {
@@ -323,8 +324,14 @@ const ExpenseTable = () => {
       }
 
       if (!response.ok) {
-        throw new Error('Failed to save expense');
+        // Get detailed error message from server
+        const errorData = await response.json().catch(() => ({}));
+        console.error('Server error response:', errorData);
+        throw new Error(errorData.message || `Server returned ${response.status}`);
       }
+
+      const result = await response.json();
+      console.log('Expense saved successfully:', result);
 
       // Refresh the data
       await fetchExpenses();
@@ -332,7 +339,7 @@ const ExpenseTable = () => {
       setEditingExpense(null);
     } catch (err) {
       console.error('Error saving expense:', err);
-      alert('Failed to save expense. Please try again.');
+      alert(`Failed to save expense: ${err.message}`);
     }
   };
 
@@ -361,10 +368,48 @@ const ExpenseTable = () => {
   // Edit Modal Component
   const EditExpenseModal = () => {
     const [formData, setFormData] = useState(editingExpense || {});
+    const [expenseItems, setExpenseItems] = useState([
+      { item_no: 1, description: '', quantity: 1, unit_price: 0, amount: 0 }
+    ]);
+    const [selectedCategory, setSelectedCategory] = useState('Expense');
     
     useEffect(() => {
-      setFormData(editingExpense || {});
-    }, []);
+      if (editingExpense) {
+        setFormData(editingExpense);
+        setSelectedCategory(editingExpense.category || 'Expense');
+        
+        // If editing and has items, use them; otherwise use default single item
+        if (editingExpense.items && editingExpense.items.length > 0) {
+          setExpenseItems(editingExpense.items);
+        } else {
+          // Create single item from existing expense data
+          setExpenseItems([{
+            item_no: 1,
+            description: editingExpense.title || '',
+            quantity: 1,
+            unit_price: editingExpense.amount || 0,
+            amount: editingExpense.amount || 0
+          }]);
+        }
+      } else {
+        // Reset for new expense with proper default values
+        const today = new Date().toISOString().split('T')[0];
+        setFormData({
+          title: '',
+          date: today,
+          vendor: '',
+          amount: 0,
+          category: 'Expense',
+          paymentMethod: 'Cash',
+          status: 'Pending',
+          description: ''
+        });
+        setSelectedCategory('Expense');
+        setExpenseItems([
+          { item_no: 1, description: '', quantity: 1, unit_price: 0, amount: 0 }
+        ]);
+      }
+    }, [editingExpense]);
 
     const handleChange = (e) => {
       const { name, value } = e.target;
@@ -374,113 +419,301 @@ const ExpenseTable = () => {
       }));
     };
 
+    const handleCategoryChange = (e) => {
+      const newCategory = e.target.value;
+      
+      // Check if user is trying to change category when there are multiple items
+      if (expenseItems.length > 1 && selectedCategory !== newCategory) {
+        alert('Cannot change category when multiple items exist. Please create a new expense for different categories.');
+        return;
+      }
+      
+      setSelectedCategory(newCategory);
+      setFormData(prev => ({
+        ...prev,
+        category: newCategory
+      }));
+    };
+
+    // Handle item changes
+    const handleItemChange = (index, field, value) => {
+      const updatedItems = [...expenseItems];
+      updatedItems[index] = { ...updatedItems[index], [field]: value };
+      
+      // Auto-calculate amount for quantity and unit_price changes
+      if (field === 'quantity' || field === 'unit_price') {
+        const quantity = field === 'quantity' ? parseFloat(value) || 0 : updatedItems[index].quantity;
+        const unitPrice = field === 'unit_price' ? parseFloat(value) || 0 : updatedItems[index].unit_price;
+        updatedItems[index].amount = quantity * unitPrice;
+      }
+      
+      setExpenseItems(updatedItems);
+      
+      // Update total amount in form data
+      const totalAmount = updatedItems.reduce((sum, item) => sum + (item.amount || 0), 0);
+      setFormData(prev => ({
+        ...prev,
+        amount: totalAmount
+      }));
+    };
+
+    // Add new item
+    const addNewItem = () => {
+      const newItemNo = expenseItems.length + 1;
+      setExpenseItems([...expenseItems, {
+        item_no: newItemNo,
+        description: '',
+        quantity: 1,
+        unit_price: 0,
+        amount: 0
+      }]);
+    };
+
+    // Remove item
+    const removeItem = (index) => {
+      if (expenseItems.length > 1) {
+        const updatedItems = expenseItems.filter((_, i) => i !== index);
+        // Update item numbers
+        const reorderedItems = updatedItems.map((item, i) => ({
+          ...item,
+          item_no: i + 1
+        }));
+        setExpenseItems(reorderedItems);
+        
+        // Update total amount
+        const totalAmount = reorderedItems.reduce((sum, item) => sum + (item.amount || 0), 0);
+        setFormData(prev => ({
+          ...prev,
+          amount: totalAmount
+        }));
+      }
+    };
+
     const handleSubmit = (e) => {
       e.preventDefault();
-      handleSaveExpense(formData);
+      
+      // Validate required fields
+      if (!formData.title || !formData.date || !formData.vendor || !selectedCategory || !formData.paymentMethod) {
+        alert('Please fill in all required fields: Title, Date, Vendor, Category, and Payment Method');
+        return;
+      }
+
+      // Validate items
+      const validItems = expenseItems.filter(item => 
+        item.description && item.description.trim() !== '' && 
+        item.quantity > 0 && 
+        item.unit_price >= 0
+      );
+
+      if (validItems.length === 0) {
+        alert('Please add at least one valid item with description, quantity, and unit price');
+        return;
+      }
+
+      // Calculate total amount from valid items
+      const totalAmount = validItems.reduce((sum, item) => sum + (item.amount || 0), 0);
+
+      // Prepare data with items
+      const expenseData = {
+        ...formData,
+        category: selectedCategory,
+        amount: totalAmount,
+        items: validItems.map((item, index) => ({
+          ...item,
+          item_no: index + 1
+        }))
+      };
+      
+      console.log('Submitting expense data:', expenseData);
+      handleSaveExpense(expenseData);
     };
 
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-        <div className="bg-white rounded-lg p-6 w-full max-w-md">
+        <div className="bg-white rounded-lg p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto">
           <h2 className="text-xl font-semibold mb-4">
             {formData.id ? 'Edit Expense' : 'Add New Expense'}
           </h2>
           <form onSubmit={handleSubmit}>
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Title</label>
-              <input
-                type="text"
-                name="title"
-                value={formData.title || ''}
-                onChange={handleChange}
-                className="w-full p-2 border rounded-md"
-                required
-              />
+            {/* Basic Information */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Title</label>
+                <input
+                  type="text"
+                  name="title"
+                  value={formData.title || ''}
+                  onChange={handleChange}
+                  className="w-full p-2 border rounded-md"
+                  required
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
+                <input
+                  type="date"
+                  name="date"
+                  value={formData.date || ''}
+                  onChange={handleChange}
+                  className="w-full p-2 border rounded-md"
+                  required
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Vendor</label>
+                <input
+                  type="text"
+                  name="vendor"
+                  value={formData.vendor || ''}
+                  onChange={handleChange}
+                  className="w-full p-2 border rounded-md"
+                  required
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
+                <select
+                  value={selectedCategory}
+                  onChange={handleCategoryChange}
+                  className="w-full p-2 border rounded-md"
+                  required
+                >
+                  {expenseCategories.filter(cat => cat !== 'All').map(category => (
+                    <option key={category} value={category}>{category}</option>
+                  ))}
+                </select>
+                {expenseItems.length > 1 && (
+                  <p className="text-xs text-gray-500 mt-1">
+                    Category applies to all items. Create separate expenses for different categories.
+                  </p>
+                )}
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Payment Method</label>
+                <select
+                  name="paymentMethod"
+                  value={formData.paymentMethod || 'Cash'}
+                  onChange={handleChange}
+                  className="w-full p-2 border rounded-md"
+                  required
+                >
+                  {paymentMethods.map(method => (
+                    <option key={method} value={method}>{method}</option>
+                  ))}
+                </select>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                <select
+                  name="status"
+                  value={formData.status || 'Pending'}
+                  onChange={handleChange}
+                  className="w-full p-2 border rounded-md"
+                  required
+                >
+                  {statusOptions.filter(stat => stat !== 'All').map(status => (
+                    <option key={status} value={status}>{status}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* Expense Items */}
+            <div className="mb-6">
+              <div className="flex justify-between items-center mb-3">
+                <label className="block text-sm font-medium text-gray-700">Expense Items</label>
+                <button
+                  type="button"
+                  onClick={addNewItem}
+                  className="px-3 py-1 bg-green-500 text-white text-sm rounded-md hover:bg-green-600"
+                >
+                  + Add Item
+                </button>
+              </div>
+              
+              <div className="border rounded-lg overflow-hidden">
+                <table className="w-full">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-3 py-2 text-left text-sm font-medium text-gray-700">Description</th>
+                      <th className="px-3 py-2 text-right text-sm font-medium text-gray-700">Qty</th>
+                      <th className="px-3 py-2 text-right text-sm font-medium text-gray-700">Unit Price</th>
+                      <th className="px-3 py-2 text-right text-sm font-medium text-gray-700">Amount</th>
+                      <th className="px-3 py-2 text-center text-sm font-medium text-gray-700">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200">
+                    {expenseItems.map((item, index) => (
+                      <tr key={index}>
+                        <td className="px-3 py-2">
+                          <input
+                            type="text"
+                            value={item.description}
+                            onChange={(e) => handleItemChange(index, 'description', e.target.value)}
+                            className="w-full p-1 border rounded text-sm"
+                            placeholder="Item description"
+                            required
+                          />
+                        </td>
+                        <td className="px-3 py-2">
+                          <input
+                            type="number"
+                            value={item.quantity}
+                            onChange={(e) => handleItemChange(index, 'quantity', e.target.value)}
+                            className="w-full p-1 border rounded text-sm text-right"
+                            min="0"
+                            step="1"
+                            required
+                          />
+                        </td>
+                        <td className="px-3 py-2">
+                          <input
+                            type="number"
+                            value={item.unit_price}
+                            onChange={(e) => handleItemChange(index, 'unit_price', e.target.value)}
+                            className="w-full p-1 border rounded text-sm text-right"
+                            min="0"
+                            step="0.01"
+                            required
+                          />
+                        </td>
+                        <td className="px-3 py-2 text-right font-medium">
+                          {item.amount?.toLocaleString('en-US', { minimumFractionDigits: 2 }) || '0.00'}
+                        </td>
+                        <td className="px-3 py-2 text-center">
+                          {expenseItems.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() => removeItem(index)}
+                              className="text-red-500 hover:text-red-700 text-sm"
+                            >
+                              Remove
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot className="bg-gray-50">
+                    <tr>
+                      <td colSpan="3" className="px-3 py-2 text-right font-semibold">Total Amount:</td>
+                      <td className="px-3 py-2 text-right font-bold">
+                        PKR {formData.amount?.toLocaleString('en-US', { minimumFractionDigits: 2 }) || '0.00'}
+                      </td>
+                      <td></td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
             </div>
             
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
-              <input
-                type="date"
-                name="date"
-                value={formData.date || ''}
-                onChange={handleChange}
-                className="w-full p-2 border rounded-md"
-                required
-              />
-            </div>
-            
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Vendor</label>
-              <input
-                type="text"
-                name="vendor"
-                value={formData.vendor || ''}
-                onChange={handleChange}
-                className="w-full p-2 border rounded-md"
-                required
-              />
-            </div>
-            
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Amount (PKR)</label>
-              <input
-                type="number"
-                name="amount"
-                value={formData.amount || 0}
-                onChange={handleChange}
-                className="w-full p-2 border rounded-md"
-                required
-                min="0"
-              />
-            </div>
-            
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
-              <select
-                name="category"
-                value={formData.category || 'Materials'}
-                onChange={handleChange}
-                className="w-full p-2 border rounded-md"
-                required
-              >
-                {expenseCategories.filter(cat => cat !== 'All').map(category => (
-                  <option key={category} value={category}>{category}</option>
-                ))}
-              </select>
-            </div>
-            
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Payment Method</label>
-              <select
-                name="paymentMethod"
-                value={formData.paymentMethod || 'Cash'}
-                onChange={handleChange}
-                className="w-full p-2 border rounded-md"
-                required
-              >
-                {paymentMethods.map(method => (
-                  <option key={method} value={method}>{method}</option>
-                ))}
-              </select>
-            </div>
-            
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
-              <select
-                name="status"
-                value={formData.status || 'Pending'}
-                onChange={handleChange}
-                className="w-full p-2 border rounded-md"
-                required
-              >
-                {statusOptions.filter(stat => stat !== 'All').map(status => (
-                  <option key={status} value={status}>{status}</option>
-                ))}
-              </select>
-            </div>
-            
-            <div className="mb-4">
+            {/* Description */}
+            <div className="mb-6">
               <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
               <textarea
                 name="description"
@@ -488,9 +721,11 @@ const ExpenseTable = () => {
                 onChange={handleChange}
                 className="w-full p-2 border rounded-md"
                 rows="3"
+                placeholder="Additional notes or description"
               />
             </div>
             
+            {/* Action buttons */}
             <div className="flex justify-end gap-3">
               <button
                 type="button"
@@ -503,7 +738,7 @@ const ExpenseTable = () => {
                 type="submit"
                 className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600"
               >
-                Save
+                Save Expense
               </button>
             </div>
           </form>

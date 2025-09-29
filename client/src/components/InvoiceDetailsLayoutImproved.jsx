@@ -8,14 +8,13 @@ import Logo from '../assets/Logo/Logo.png';
 const API_BASE_URL = 'http://localhost:5000/api';
 
 const InvoiceDetailsLayoutImproved = () => {
-  const { id, type } = useParams();
+  const { id } = useParams();
   const navigate = useNavigate();
   const [invoice, setInvoice] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [showPaymentHistory, setShowPaymentHistory] = useState(false);
   const invoiceRef = useRef();
-  const isPOInvoice = type === 'po';
 
   // PDF Generation Function using browser's print functionality (same as original)
   const generatePDF = () => {
@@ -269,15 +268,12 @@ const InvoiceDetailsLayoutImproved = () => {
             </div>
             
             <div style="text-align: center; margin-bottom: 30px;">
-              <h1 style="font-size: 24px; font-weight: bold; color: #333843;">
-                ${isPOInvoice ? `PO Invoice #${invoice.invoice_number || id}` : `Invoice #${invoice.invoice_number || id}`}
-              </h1>
+              <h1 style="font-size: 24px; font-weight: bold; color: #333843;">Invoice #${invoice.invoice_number || id}</h1>
               <p style="color: #667085; margin-top: 8px;">Invoice Date: ${invoice.bill_date ? new Date(invoice.bill_date).toLocaleDateString('en-GB', { 
                 day: 'numeric',
                 month: 'short', 
                 year: 'numeric'
               }).toUpperCase() : 'N/A'}</p>
-              ${isPOInvoice && invoice.po_number ? `<p style="color: #1976D2; margin-top: 4px;">From PO: ${invoice.po_number}</p>` : ''}
             </div>
             
             <div class="billing-section">
@@ -322,10 +318,9 @@ const InvoiceDetailsLayoutImproved = () => {
                   <th>NO.</th>
                   <th>DESCRIPTION OF GOODS</th>
                   <th>QUANTITY</th>
-                  ${!isPOInvoice ? '<th>NET WEIGHT IN KG</th>' : ''}
-                  <th>UNIT PRICE</th>
-                  ${!isPOInvoice ? '<th>AMOUNT OF SALES TAX</th>' : ''}
-                  ${isPOInvoice ? '<th>SPECIFICATIONS</th>' : ''}
+                  <th>NET WEIGHT IN KG</th>
+                  <th>RATE</th>
+                  <th>AMOUNT OF SALES TAX</th>
                   <th>FINAL AMOUNT</th>
                 </tr>
               </thead>
@@ -336,10 +331,9 @@ const InvoiceDetailsLayoutImproved = () => {
                       <td>${item.item_no || (index + 1)}</td>
                       <td>${item.description || 'N/A'}</td>
                       <td>${parseFloat(item.quantity || 0).toLocaleString()}</td>
-                      ${!isPOInvoice ? '<td>-</td>' : ''}
+                      <td>-</td>
                       <td>${parseFloat(item.rate || 0).toLocaleString()}</td>
-                      ${!isPOInvoice ? '<td>-</td>' : ''}
-                      ${isPOInvoice ? `<td>${item.specifications || '-'}</td>` : ''}
+                      <td>-</td>
                       <td><strong>${parseFloat(item.amount || 0).toLocaleString()}</strong></td>
                     </tr>
                   `).join('') : `
@@ -347,10 +341,9 @@ const InvoiceDetailsLayoutImproved = () => {
                       <td>1</td>
                       <td>${invoice.item_name || 'N/A'}</td>
                       <td>${parseFloat(invoice.quantity || 0).toLocaleString()}</td>
-                      ${!isPOInvoice ? '<td>-</td>' : ''}
+                      <td>-</td>
                       <td>${parseFloat(invoice.rate || 0).toLocaleString()}</td>
-                      ${!isPOInvoice ? `<td>${parseFloat(invoice.tax_amount || 0).toLocaleString()}</td>` : ''}
-                      ${isPOInvoice ? '<td>-</td>' : ''}
+                      <td>${parseFloat(invoice.tax_amount || 0).toLocaleString()}</td>
                       <td><strong>${parseFloat(invoice.item_amount || 0).toLocaleString()}</strong></td>
                     </tr>
                   `
@@ -406,134 +399,18 @@ const InvoiceDetailsLayoutImproved = () => {
     }
   };
 
-  // Handle status change for PO invoices
-  const handleStatusChange = async (e) => {
-    const newStatus = e.target.value;
-    
-    try {
-      const response = await fetch(`${API_BASE_URL}/po-invoices/${id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          status: newStatus,
-          payment_date: newStatus === 'Paid' ? new Date().toISOString().split('T')[0] : null
-        })
-      });
-
-      if (!response.ok) {
-        throw new Error(`Failed to update status: ${response.statusText}`);
-      }
-
-      const result = await response.json();
-      
-      // Update local state
-      setInvoice(prev => ({
-        ...prev,
-        status: newStatus
-      }));
-
-      alert(`Invoice status updated to ${newStatus}`);
-      
-    } catch (error) {
-      console.error('Error updating status:', error);
-      alert(`Failed to update status: ${error.message}`);
-      // Revert the dropdown to previous value
-      e.target.value = invoice.status;
-    }
-  };
-
-  // Handle PO invoice deletion
-  const handleDeletePOInvoice = async () => {
-    const confirmMessage = `Are you sure you want to delete PO invoice ${invoice.invoice_number}?
-
-This will:
-- Remove the invoice from the system permanently
-- Restore ${invoice.currency || 'PKR'} ${parseFloat(invoice.total_amount || 0).toLocaleString()} to PO ${invoice.po_number}
-- Add deletion record to PO history for tracking
-
-This action cannot be undone.`;
-
-    if (window.confirm(confirmMessage)) {
-      try {
-        const response = await fetch(`${API_BASE_URL}/po-invoices/${id}`, {
-          method: 'DELETE'
-        });
-
-        if (!response.ok) {
-          throw new Error(`Failed to delete invoice: ${response.statusText}`);
-        }
-
-        const result = await response.json();
-        
-        alert(`PO Invoice deleted successfully!\n\n${result.poUpdate.message}\n\nRedirecting to invoices list...`);
-        
-        // Navigate back to invoices list after successful deletion
-        navigate('/invoices');
-        
-      } catch (error) {
-        console.error('Error deleting PO invoice:', error);
-        alert(`Failed to delete PO invoice: ${error.message}`);
-      }
-    }
-  };
-
   useEffect(() => {
     const fetchInvoice = async () => {
       try {
         setLoading(true);
-        
-        let response;
-        if (isPOInvoice) {
-          // Fetch PO invoice with items
-          response = await fetch(`${API_BASE_URL}/po-invoices/${id}`);
-        } else {
-          // Fetch regular invoice
-          response = await fetch(`${API_BASE_URL}/invoices/${id}`);
-        }
+        const response = await fetch(`${API_BASE_URL}/invoices/${id}`);
         
         if (!response.ok) {
           throw new Error('Failed to fetch invoice');
         }
         
         const data = await response.json();
-        
-        if (isPOInvoice) {
-          // Map PO invoice data to match regular invoice structure
-          const mappedData = {
-            ...data,
-            // Map PO invoice fields to regular invoice fields
-            bill_date: data.invoice_date,
-            payment_deadline: data.due_date,
-            customer_email: data.customer_email || 'N/A',
-            address: data.customer_address,
-            p_number: data.customer_phone,
-            note: data.notes,
-            // Map items if they exist
-            items: data.items ? data.items.map(item => ({
-              id: item.id,
-              item_no: item.item_no,
-              description: item.description,
-              quantity: item.quantity,
-              rate: item.unit_price,
-              amount: item.amount,
-              specifications: item.specifications
-            })) : [],
-            // Set invoice type for identification
-            invoice_type: 'po_invoice',
-            // Map status and other fields
-            subtotal: data.subtotal,
-            tax_rate: data.tax_rate,
-            salesTax: data.tax_amount,
-            terms_of_payment: 'As per agreement',
-            delivery_date: null,
-            is_sent: data.status !== 'Draft'
-          };
-          setInvoice(mappedData);
-        } else {
-          setInvoice(data);
-        }
+        setInvoice(data);
       } catch (err) {
         console.error('Error fetching invoice:', err);
         setError(err.message);
@@ -545,7 +422,7 @@ This action cannot be undone.`;
     if (id) {
       fetchInvoice();
     }
-  }, [id, isPOInvoice]);
+  }, [id]);
 
   if (loading) {
     return (
@@ -617,17 +494,12 @@ This action cannot be undone.`;
                 <span>Back to Invoices</span>
               </button>
               <div className="border-l border-gray-300 pl-4">
-                <h1 className="text-[24px] font-bold text-[#333843]">
-                  {isPOInvoice ? `PO Invoice #${invoice.invoice_number || id}` : `Invoice #${invoice.invoice_number || id}`}
-                </h1>
+                <h1 className="text-[24px] font-bold text-[#333843]">Invoice #{invoice.invoice_number || id}</h1>
                 <p className="text-[16px] text-[#667085]">Invoice Date : {invoice.bill_date ? new Date(invoice.bill_date).toLocaleDateString('en-GB', { 
                   day: 'numeric',
                   month: 'short', 
                   year: 'numeric'
                 }).toUpperCase() : 'N/A'}</p>
-                {isPOInvoice && invoice.po_number && (
-                  <p className="text-[14px] text-[#1976D2]">From PO: {invoice.po_number}</p>
-                )}
               </div>
             </div>
 
@@ -718,24 +590,20 @@ This action cannot be undone.`;
 
                     {/* Billing Address */}
                     <div className="lg:col-span-3">
-                      <h3 className="text-lg font-semibold text-[#333] mb-4">
-                        {isPOInvoice ? 'Customer Information' : 'Billing Address'}
-                      </h3>
+                      <h3 className="text-lg font-semibold text-[#333] mb-4">Billing Address</h3>
                       <div className="space-y-2">
                         <h4 className="text-lg font-semibold text-[#333]">{invoice.customer_name || 'N/A'}</h4>
                         <div className="text-sm text-[#666] space-y-1">
                           <p>{invoice.address || 'N/A'}</p>
                           <p>{invoice.customer_email || 'N/A'}</p>
-                          {(invoice.st_reg_no || !isPOInvoice) && <p><strong>S.T. Reg.No:</strong> {invoice.st_reg_no || 'N/A'}</p>}
+                          {invoice.st_reg_no && <p><strong>S.T. Reg.No:</strong> {invoice.st_reg_no}</p>}
                           {invoice.p_number && <p><strong>Telephone No:</strong> {invoice.p_number}</p>}
-                          {(invoice.ntn_number || !isPOInvoice) && <p><strong>NTN No:</strong> {invoice.ntn_number || 'N/A'}</p>}
+                          {invoice.ntn_number && <p><strong>NTN No:</strong> {invoice.ntn_number}</p>}
                         </div>
                         
                         {invoice.note && (
                           <div className="mt-4 p-3 bg-gray-50 rounded-lg">
-                            <h5 className="font-medium text-[#333] mb-2">
-                              {isPOInvoice ? 'Notes' : 'Note'}
-                            </h5>
+                            <h5 className="font-medium text-[#333] mb-2">Note</h5>
                             <p className="text-sm text-[#666]">{invoice.note}</p>
                           </div>
                         )}
@@ -752,10 +620,9 @@ This action cannot be undone.`;
                             <th className="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">NO.</th>
                             <th className="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">DESCRIPTION OF GOODS</th>
                             <th className="py-3 px-4 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">QUANTITY</th>
-                            {!isPOInvoice && <th className="py-3 px-4 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">NET WEIGHT IN KG</th>}
-                            <th className="py-3 px-4 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">UNIT PRICE</th>
-                            {!isPOInvoice && <th className="py-3 px-4 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">AMOUNT OF SALES TAX</th>}
-                            {isPOInvoice && <th className="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">SPECIFICATIONS</th>}
+                            <th className="py-3 px-4 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">NET WEIGHT IN KG</th>
+                            <th className="py-3 px-4 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">RATE</th>
+                            <th className="py-3 px-4 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">AMOUNT OF SALES TAX</th>
                             <th className="py-3 px-4 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">FINAL AMOUNT</th>
                           </tr>
                         </thead>
@@ -766,10 +633,9 @@ This action cannot be undone.`;
                                 <td className="py-4 px-4 text-sm text-gray-600">{item.item_no || (index + 1)}</td>
                                 <td className="py-4 px-4 text-sm text-gray-600">{item.description || 'N/A'}</td>
                                 <td className="py-4 px-4 text-sm text-gray-600 text-right">{parseFloat(item.quantity || 0).toLocaleString()}</td>
-                                {!isPOInvoice && <td className="py-4 px-4 text-sm text-gray-600 text-right">-</td>}
+                                <td className="py-4 px-4 text-sm text-gray-600 text-right">-</td>
                                 <td className="py-4 px-4 text-sm text-gray-600 text-right">{parseFloat(item.rate || 0).toLocaleString()}</td>
-                                {!isPOInvoice && <td className="py-4 px-4 text-sm text-gray-600 text-right">-</td>}
-                                {isPOInvoice && <td className="py-4 px-4 text-sm text-gray-600">{item.specifications || '-'}</td>}
+                                <td className="py-4 px-4 text-sm text-gray-600 text-right">-</td>
                                 <td className="py-4 px-4 text-sm font-semibold text-gray-900 text-right">{parseFloat(item.amount || 0).toLocaleString()}</td>
                               </tr>
                             ))
@@ -779,10 +645,9 @@ This action cannot be undone.`;
                               <td className="py-4 px-4 text-sm text-gray-600">1</td>
                               <td className="py-4 px-4 text-sm text-gray-600">{invoice.item_name || 'N/A'}</td>
                               <td className="py-4 px-4 text-sm text-gray-600 text-right">{parseFloat(invoice.quantity || 0).toLocaleString()}</td>
-                              {!isPOInvoice && <td className="py-4 px-4 text-sm text-gray-600 text-right">-</td>}
+                              <td className="py-4 px-4 text-sm text-gray-600 text-right">-</td>
                               <td className="py-4 px-4 text-sm text-gray-600 text-right">{parseFloat(invoice.rate || 0).toLocaleString()}</td>
-                              {!isPOInvoice && <td className="py-4 px-4 text-sm text-gray-600 text-right">{parseFloat(invoice.tax_amount || 0).toLocaleString()}</td>}
-                              {isPOInvoice && <td className="py-4 px-4 text-sm text-gray-600">-</td>}
+                              <td className="py-4 px-4 text-sm text-gray-600 text-right">{parseFloat(invoice.tax_amount || 0).toLocaleString()}</td>
                               <td className="py-4 px-4 text-sm font-semibold text-gray-900 text-right">{parseFloat(invoice.item_amount || 0).toLocaleString()}</td>
                             </tr>
                           )}
@@ -835,71 +700,12 @@ This action cannot be undone.`;
                   <div className={`inline-flex items-center px-3 py-2 rounded-lg font-medium ${
                     invoice.status === 'Paid' 
                       ? 'bg-green-100 text-green-800'
-                      : invoice.status === 'Sent'
-                      ? 'bg-green-100 text-green-800'
-                      : invoice.status === 'Not Sent'
-                      ? 'bg-orange-100 text-orange-800'
-                      : invoice.status === 'Overdue'
-                      ? 'bg-red-100 text-red-800'
-                      : invoice.status === 'Cancelled'
-                      ? 'bg-gray-100 text-gray-800'
                       : invoice.status === 'Pending'
                       ? 'bg-yellow-100 text-yellow-800'
-                      : 'bg-gray-100 text-gray-800'
+                      : 'bg-red-100 text-red-800'
                   }`}>
-                    {invoice.status || 'Not Sent'}
+                    {invoice.status || 'Pending'}
                   </div>
-
-                  {/* Status Change Dropdown for PO Invoices */}
-                  {isPOInvoice && (
-                    <div className="mt-4">
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Change Status
-                      </label>
-                      <select
-                        value={invoice.status || 'Not Sent'}
-                        onChange={handleStatusChange}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-                      >
-                        <option value="Not Sent">Not Sent</option>
-                        <option value="Draft">Draft</option>
-                        <option value="Sent">Sent</option>
-                        <option value="Paid">Paid</option>
-                        <option value="Overdue">Overdue</option>
-                        <option value="Cancelled">Cancelled</option>
-                      </select>
-                    </div>
-                  )}
-
-                  {/* Send Button for Not Sent PO Invoices */}
-                  {isPOInvoice && (invoice.status === 'Not Sent' || invoice.status === 'Draft') && (
-                    <div className="mt-4">
-                      <button
-                        onClick={() => handleStatusChange({ target: { value: 'Sent' } })}
-                        className="w-full flex items-center justify-center gap-2 py-2 px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
-                      >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-                        </svg>
-                        <span>Send Invoice</span>
-                      </button>
-                    </div>
-                  )}
-
-                  {/* Delete Button for PO Invoices */}
-                  {isPOInvoice && (
-                    <div className="mt-4 pt-4 border-t border-gray-200">
-                      <button
-                        onClick={handleDeletePOInvoice}
-                        className="w-full flex items-center justify-center gap-2 py-2 px-4 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm"
-                      >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                        </svg>
-                        <span>Delete PO Invoice</span>
-                      </button>
-                    </div>
-                  )}
                   
                   <div className="mt-4 pt-4 border-t border-gray-200">
                     <div className="text-sm text-gray-500 mb-1">Total Amount Due</div>
@@ -913,32 +719,15 @@ This action cannot be undone.`;
               {/* Action Box - Improved */}
               <div className="bg-white border border-gray-100 shadow-sm rounded-lg p-6">
                 <h3 className="font-semibold text-[#333843] mb-4 text-center">
-                  {isPOInvoice 
-                    ? (invoice.status === 'Draft' ? 'PO Invoice Draft' : `PO Invoice ${invoice.status}`)
-                    : (invoice.is_sent ? 'Invoice sent!' : 'Invoice not yet sent!')
-                  }
+                  {invoice.is_sent ? 'Invoice sent!' : 'Invoice not yet sent!'}
                 </h3>
-                {!isPOInvoice && (
-                  <button className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-[#1976D2] text-white rounded-lg hover:bg-[#1565C0] transition-colors">
-                    <svg className="w-5 h-5" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M18.3334 9.99935L1.66675 9.99935M18.3334 9.99935L11.6667 16.666M18.3334 9.99935L11.6667 3.33268"
-                        stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                    </svg>
-                    <span className="font-semibold">Send Invoice</span>
-                  </button>
-                )}
-                {isPOInvoice && (
-                  <button 
-                    onClick={() => navigate(`/purchase-order/${invoice.po_number}`)}
-                    className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-[#1976D2] text-white rounded-lg hover:bg-[#1565C0] transition-colors"
-                  >
-                    <svg className="w-5 h-5" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M18.3334 9.99935L1.66675 9.99935M18.3334 9.99935L11.6667 16.666M18.3334 9.99935L11.6667 3.33268"
-                        stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                    </svg>
-                    <span className="font-semibold">View Purchase Order</span>
-                  </button>
-                )}
+                <button className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-[#1976D2] text-white rounded-lg hover:bg-[#1565C0] transition-colors">
+                  <svg className="w-5 h-5" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M18.3334 9.99935L1.66675 9.99935M18.3334 9.99935L11.6667 16.666M18.3334 9.99935L11.6667 3.33268"
+                      stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                  <span className="font-semibold">Send Invoice</span>
+                </button>
               </div>
 
               {/* Payment History - Only show when toggled */}

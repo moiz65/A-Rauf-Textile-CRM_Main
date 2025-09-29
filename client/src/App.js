@@ -6,11 +6,11 @@ import Report from './pages/Report';
 import Customers from './pages/Customers';
 import Settings from './pages/Settings';
 import Dashboard from './pages/Dashboard';
-import Invoiceform from './components/InvoiceForm';
+import InvoiceForm from './components/InvoiceForm';
 import Expense from './pages/Expense';
 import ReportData from './pages/ReportData';
-import InvoiceTemplate from './pages/InvoiceTemplate';
-import InvoiceDetails from './components/InvoiceDetails';  
+import InvoiceDetails from './components/InvoiceDetails';
+import PurchaseOrder from './pages/PurchaseOrder';  
 
 
 // // Import Poppins font weights
@@ -32,11 +32,13 @@ function App() {
           <Route path="/report" element={<Report />} />
           <Route path="/customers" element={<Customers />} />
           <Route path="/settings" element={<Settings />} />
-          <Route path="/invoiceform" element={<Invoiceform />} />
+          <Route path="/invoiceform" element={<InvoiceForm />} />
           <Route path="/expense" element={<Expense />} />
           <Route path="/reportdata" element={<ReportData />} />
-          <Route path="/invoice/:id" element={<InvoiceTemplate />} />
-
+          <Route path="/invoice/:id" element={<InvoiceDetails />} />
+          <Route path="/invoice/:type/:id" element={<InvoiceDetails />} />
+          <Route path="/purchase-order" element={<PurchaseOrder />} />
+          <Route path="/purchase-order/:poId" element={<PurchaseOrder />} />
           {/* Add more routes as needed */}
         </Routes>
       </Router>
