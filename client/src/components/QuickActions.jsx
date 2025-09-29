@@ -1,53 +1,50 @@
 import React, { useState } from 'react';
-import { Package, BarChart3, CreditCard, Clock, Plus, ChevronRight } from 'lucide-react';
+import { FileText, BarChart3, DollarSign, ShoppingCart, Users, ChevronRight } from 'lucide-react';
 
-const QuickActions = () => {
+const QuickActions = ({ dashboardData }) => {
   const [activeAction, setActiveAction] = useState(null);
   const [isExpanded, setIsExpanded] = useState(false);
 
   const actions = [
     {
-      icon: Package,
-      label: 'Inventory',
-      description: 'Manage product stock and supplies',
+      icon: FileText,
+      label: 'Invoices',
+      description: `Manage invoices (${dashboardData?.quickActions?.totalInvoices || 0})`,
       color: 'bg-amber-100 text-amber-600',
       hoverColor: 'hover:bg-amber-50',
-      action: () => console.log('Inventory clicked')
+      action: () => window.location.href = '/Invoices'
     },
     {
-  icon: BarChart3,
-  label: 'Reports',
-  description: 'View business analytics and insights',
-  color: 'bg-blue-100 text-blue-600',
-  hoverColor: 'hover:bg-blue-50',
-  action: () => {
-    console.log('Reports clicked');
-    window.location.href = '/Report'; // or use navigation if using React Router
-  }
-  },
+      icon: BarChart3,
+      label: 'Reports',
+      description: 'View business analytics and insights',
+      color: 'bg-blue-100 text-blue-600',
+      hoverColor: 'hover:bg-blue-50',
+      action: () => window.location.href = '/Report'
+    },
     {
-      icon: CreditCard,
-      label: 'Accounts',
-      description: 'Access financial accounts',
+      icon: DollarSign,
+      label: 'Expenses',
+      description: `Track expenses (${dashboardData?.quickActions?.totalExpenses || 0})`,
       color: 'bg-emerald-100 text-emerald-600',
       hoverColor: 'hover:bg-emerald-50',
-      action: () => console.log('Accounts clicked')
+      action: () => window.location.href = '/Expense'
     },
     {
-      icon: Clock,
-      label: 'History',
-      description: 'View transaction records',
+      icon: ShoppingCart,
+      label: 'Purchase Orders',
+      description: `Manage POs (${dashboardData?.quickActions?.totalPurchaseOrders || 0})`,
       color: 'bg-rose-100 text-rose-600',
       hoverColor: 'hover:bg-rose-50',
-      action: () => console.log('History clicked')
+      action: () => window.location.href = '/PurchaseOrder'
     },
     {
-      icon: Plus,
-      label: 'New Order',
-      description: 'Create a new customer order',
+      icon: Users,
+      label: 'Customers',
+      description: `Manage customers (${dashboardData?.quickActions?.totalCustomers || 0})`,
       color: 'bg-violet-100 text-violet-600',
       hoverColor: 'hover:bg-violet-50',
-      action: () => console.log('New Order clicked')
+      action: () => window.location.href = '/Customers'
     }
   ];
 
