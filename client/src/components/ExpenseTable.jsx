@@ -1,5 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Search, Filter, FileDown, Ellipsis, Edit, Trash2, Printer, Download, Copy, Plus } from 'lucide-react';
+import { Search, Filter, FileDown, Ellipsis, Edit, Trash2, Printer, Download, Plus } from 'lucide-react';
+import SimpleCategoryStats from './SimpleCategoryStats';
+import CategoryAutocomplete from './CategoryAutocomplete';
 
 const ITEMS_PER_PAGE = 4;
 
@@ -25,15 +27,19 @@ const ExpenseTable = () => {
   const [showEditModal, setShowEditModal] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [allCategories, setAllCategories] = useState([]);
+  const [categoriesLoading, setCategoriesLoading] = useState(true);
   const dropdownRef = useRef(null);
 
-  const expenseCategories = ['All', 'Expense', 'Income', 'Asset', 'Liability'];
+  // Tab categories - only 4 main types
+  const tabCategories = ['All', 'Expense', 'Income', 'Asset', 'Liability'];
   const statusOptions = ['All', 'Paid', 'Pending'];
   const paymentMethods = ['Bank Transfer', 'Cash', 'Credit Card', 'Check', 'Online Payment'];
 
   // Fetch expenses data from API
   useEffect(() => {
     fetchExpenses();
+    fetchCategories();
   }, []);
 
   const fetchExpenses = async () => {
@@ -56,6 +62,26 @@ const ExpenseTable = () => {
     }
   };
 
+  const fetchCategories = async () => {
+    try {
+      setCategoriesLoading(true);
+      const response = await fetch('http://localhost:5000/api/categories');
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const result = await response.json();
+      const activeCategories = result.data.filter(cat => cat.status === 'Active' && cat.name !== 'All');
+      setAllCategories(activeCategories);
+    } catch (err) {
+      console.error('Error fetching categories:', err);
+      setAllCategories([]); // Fallback
+    } finally {
+      setCategoriesLoading(false);
+    }
+  };
+
   // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -67,15 +93,23 @@ const ExpenseTable = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  // Helper function to get category type from category name
+  const getCategoryType = (categoryName) => {
+    const categoryData = allCategories.find(cat => cat.name === categoryName);
+    return categoryData ? categoryData.type : categoryName; // fallback to category name if not found
+  };
+
   const filteredExpenses = expensesData
     .filter(expense =>
       expense.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
       expense.vendor.toLowerCase().includes(searchTerm.toLowerCase()) ||
       expense.description.toLowerCase().includes(searchTerm.toLowerCase())
     )
-    .filter(expense =>
-      activeTab === 'All' || expense.category === activeTab
-    )
+    .filter(expense => {
+      if (activeTab === 'All') return true;
+      const categoryType = getCategoryType(expense.category);
+      return categoryType === activeTab;
+    })
     .filter(expense =>
       (!filters.title || expense.title.toLowerCase().includes(filters.title.toLowerCase())) &&
       (!filters.vendor || expense.vendor.toLowerCase().includes(filters.vendor.toLowerCase())) &&
@@ -186,99 +220,8 @@ const ExpenseTable = () => {
     setActiveDropdown(null);
   };
 
-  const handlePrint = (expense) => {
-    const printWindow = window.open('', '_blank');
-    printWindow.document.write(`
-      <html>
-        <head>
-          <title>Expense Receipt: ${expense.title}</title>
-          <style>
-            body { font-family: Arial, sans-serif; padding: 20px; }
-            h1 { color: #333; }
-            .receipt { border: 1px solid #ddd; padding: 20px; max-width: 500px; margin: 0 auto; }
-            .row { display: flex; margin-bottom: 10px; }
-            .label { font-weight: bold; width: 150px; }
-            .value { flex: 1; }
-          </style>
-        </head>
-        <body>
-          <h1>Expense Receipt</h1>
-          <div class="receipt">
-            <div class="row"><div class="label">Title:</div><div class="value">${expense.title}</div></div>
-            <div class="row"><div class="label">Date:</div><div class="value">${new Date(expense.date).toLocaleDateString()}</div></div>
-            <div class="row"><div class="label">Vendor:</div><div class="value">${expense.vendor}</div></div>
-            <div class="row"><div class="label">Amount:</div><div class="value">PKR ${expense.amount.toLocaleString()}</div></div>
-            <div class="row"><div class="label">Category:</div><div class="value">${expense.category}</div></div>
-            <div class="row"><div class="label">Payment Method:</div><div class="value">${expense.paymentMethod}</div></div>
-            <div class="row"><div class="label">Status:</div><div class="value">${expense.status}</div></div>
-            <div class="row"><div class="label">Description:</div><div class="value">${expense.description}</div></div>
-          </div>
-          <script>window.print();</script>
-        </body>
-      </html>
-    `);
-    printWindow.document.close();
-    setActiveDropdown(null);
-  };
 
-  const handleDownload = (expense) => {
-    const data = {
-      title: expense.title,
-      date: new Date(expense.date).toLocaleDateString(),
-      vendor: expense.vendor,
-      amount: `PKR ${expense.amount.toLocaleString()}`,
-      category: expense.category,
-      paymentMethod: expense.paymentMethod,
-      status: expense.status,
-      description: expense.description
-    };
-    
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `expense_${expense.id}.json`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-    setActiveDropdown(null);
-  };
 
-  const handleDuplicate = async (expense) => {
-    const newExpense = {
-      title: `${expense.title} (Copy)`,
-      date: new Date().toISOString().split('T')[0],
-      vendor: expense.vendor,
-      amount: expense.amount,
-      category: expense.category,
-      paymentMethod: expense.paymentMethod,
-      description: expense.description,
-      status: 'Pending'
-    };
-    
-    try {
-      const response = await fetch('http://localhost:5000/api/expenses', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(newExpense)
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to duplicate expense');
-      }
-
-      // Refresh the data
-      await fetchExpenses();
-    } catch (err) {
-      console.error('Error duplicating expense:', err);
-      alert('Failed to duplicate expense. Please try again.');
-    }
-    
-    setActiveDropdown(null);
-  };
 
   const handleAddExpense = () => {
     const newExpense = {
@@ -351,15 +294,7 @@ const ExpenseTable = () => {
       case 'delete':
         handleDelete(expense);
         break;
-      case 'print':
-        handlePrint(expense);
-        break;
-      case 'download':
-        handleDownload(expense);
-        break;
-      case 'duplicate':
-        handleDuplicate(expense);
-        break;
+
       default:
         break;
     }
@@ -371,12 +306,13 @@ const ExpenseTable = () => {
     const [expenseItems, setExpenseItems] = useState([
       { item_no: 1, description: '', quantity: 1, unit_price: 0, amount: 0 }
     ]);
-    const [selectedCategory, setSelectedCategory] = useState('Expense');
+    const [subcategory, setSubcategory] = useState('');
     
     useEffect(() => {
       if (editingExpense) {
         setFormData(editingExpense);
-        setSelectedCategory(editingExpense.category || 'Expense');
+        // Set the existing category name
+        setSubcategory(editingExpense.category || '');
         
         // If editing and has items, use them; otherwise use default single item
         if (editingExpense.items && editingExpense.items.length > 0) {
@@ -404,7 +340,7 @@ const ExpenseTable = () => {
           status: 'Pending',
           description: ''
         });
-        setSelectedCategory('Expense');
+        setSubcategory('');
         setExpenseItems([
           { item_no: 1, description: '', quantity: 1, unit_price: 0, amount: 0 }
         ]);
@@ -419,19 +355,11 @@ const ExpenseTable = () => {
       }));
     };
 
-    const handleCategoryChange = (e) => {
-      const newCategory = e.target.value;
-      
-      // Check if user is trying to change category when there are multiple items
-      if (expenseItems.length > 1 && selectedCategory !== newCategory) {
-        alert('Cannot change category when multiple items exist. Please create a new expense for different categories.');
-        return;
-      }
-      
-      setSelectedCategory(newCategory);
+    const handleSubcategoryChange = (newSubcategory) => {
+      setSubcategory(newSubcategory);
       setFormData(prev => ({
         ...prev,
-        category: newCategory
+        category: newSubcategory
       }));
     };
 
@@ -493,7 +421,7 @@ const ExpenseTable = () => {
       e.preventDefault();
       
       // Validate required fields
-      if (!formData.title || !formData.date || !formData.vendor || !selectedCategory || !formData.paymentMethod) {
+      if (!formData.title || !formData.date || !formData.vendor || !subcategory || !formData.paymentMethod) {
         alert('Please fill in all required fields: Title, Date, Vendor, Category, and Payment Method');
         return;
       }
@@ -516,7 +444,7 @@ const ExpenseTable = () => {
       // Prepare data with items
       const expenseData = {
         ...formData,
-        category: selectedCategory,
+        category: subcategory,
         amount: totalAmount,
         items: validItems.map((item, index) => ({
           ...item,
@@ -575,22 +503,18 @@ const ExpenseTable = () => {
               
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
-                <select
-                  value={selectedCategory}
-                  onChange={handleCategoryChange}
-                  className="w-full p-2 border rounded-md"
+                <CategoryAutocomplete
+                  value={subcategory}
+                  onChange={handleSubcategoryChange}
+                  placeholder="Type category name..."
                   required
-                >
-                  {expenseCategories.filter(cat => cat !== 'All').map(category => (
-                    <option key={category} value={category}>{category}</option>
-                  ))}
-                </select>
-                {expenseItems.length > 1 && (
-                  <p className="text-xs text-gray-500 mt-1">
-                    Category applies to all items. Create separate expenses for different categories.
-                  </p>
-                )}
+                />
               </div>
+              {expenseItems.length > 1 && (
+                <p className="text-xs text-gray-500 mt-1">
+                  Category applies to all items. Create separate expenses for different categories.
+                </p>
+              )}
               
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Payment Method</label>
@@ -773,6 +697,9 @@ const ExpenseTable = () => {
 
   return (
     <div className="bg-white rounded-xl sm:rounded-[30px] shadow-sm border border-gray-100 p-4 sm:p-5">
+      {/* Category Statistics */}
+      <SimpleCategoryStats />
+      
       {/* Header Section */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-5">
         <div>
@@ -893,8 +820,10 @@ const ExpenseTable = () => {
               onChange={handleFilterChange}
             >
               <option value="">All Categories</option>
-              {expenseCategories.filter(cat => cat !== 'All').map(category => (
-                <option key={category} value={category}>{category}</option>
+              {allCategories.map(category => (
+                <option key={category.id} value={category.name}>
+                  {category.name} ({category.type})
+                </option>
               ))}
             </select>
           </div>
@@ -926,7 +855,7 @@ const ExpenseTable = () => {
       {/* Tab Navigation */}
       <div className="overflow-x-auto mb-4">
         <div className="flex border-b w-max min-w-full">
-          {expenseCategories.map(category => (
+          {tabCategories.map(category => (
             <button
               key={category}
               className={`px-3 py-2 text-xs sm:text-sm font-medium whitespace-nowrap border-b-2 ${
@@ -1048,27 +977,7 @@ const ExpenseTable = () => {
                                 <Trash2 className="w-4 h-4 mr-2" />
                                 Delete
                               </button>
-                              <button
-                                onClick={() => handleAction('print', expense)}
-                                className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left"
-                              >
-                                <Printer className="w-4 h-4 mr-2" />
-                                Print
-                              </button>
-                              <button
-                                onClick={() => handleAction('download', expense)}
-                                className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left"
-                              >
-                                <Download className="w-4 h-4 mr-2" />
-                                Download
-                              </button>
-                              <button
-                                onClick={() => handleAction('duplicate', expense)}
-                                className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left"
-                              >
-                                <Copy className="w-4 h-4 mr-2" />
-                                Duplicate
-                              </button>
+
                             </div>
                           </div>
                         )}

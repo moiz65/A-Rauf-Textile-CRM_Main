@@ -16,7 +16,7 @@ const Expense = () => {
       {/* Main Content */}
       <main className="flex-1 p-6 bg-[#F5F5F5] md:ml-64">
         <Header name="A RAUF TEXTILE" />
-        
+
         {/* Toggle Buttons */}
         <div className="mb-6">
           <div className="flex bg-white rounded-lg p-1 w-fit shadow-sm border border-gray-200">

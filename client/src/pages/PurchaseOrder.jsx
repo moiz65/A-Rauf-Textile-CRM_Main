@@ -10,6 +10,8 @@ const PurchaseOrder = () => {
   const navigate = useNavigate();
   const [activeView, setActiveView] = useState('list'); // 'list' or 'details'
   const [selectedPOId, setSelectedPOId] = useState(null);
+  const [summaryData, setSummaryData] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   // Handle URL parameter changes
   useEffect(() => {
@@ -20,34 +22,101 @@ const PurchaseOrder = () => {
       setActiveView('list');
       setSelectedPOId(null);
     }
+    fetchSummaryData();
   }, [poId]);
 
-  const summaryData = [
-    {
-      title: "Total Purchase Orders",
-      amount: "156",
-      currency: "",
-      indicator: { text: "+12", color: "blue" },
-    },
-    {
-      title: "Pending Orders",
-      amount: "23",
-      currency: "",
-      indicator: { text: "-3", color: "red" },
-    },
-    {
-      title: "Total Value",
-      amount: "2,847,392.50",
-      currency: "PKR",
-      indicator: { text: "+8.5%", color: "green" },
-    },
-    {
-      title: "This Month",
-      amount: "847,392.50",
-      currency: "PKR",
-      indicator: { text: "15 New", color: "yellow" },
-    },
-  ];
+  const fetchSummaryData = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch('http://localhost:5000/api/purchase-orders');
+      if (response.ok) {
+        const data = await response.json();
+        
+        // Helper function to format currency values properly
+        const formatCurrency = (value) => {
+          if (!value || isNaN(value)) return '0';
+          return new Intl.NumberFormat('en-PK', {
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 2
+          }).format(value);
+        };
+
+        // Calculate statistics from the data
+        const totalOrders = data.length;
+        const pendingOrders = data.filter(po => po.status === 'Pending').length;
+        const totalValue = data.reduce((sum, po) => sum + (parseFloat(po.total_amount) || 0), 0);
+        
+        // Calculate this month's value
+        const currentDate = new Date();
+        const currentMonth = currentDate.getMonth();
+        const currentYear = currentDate.getFullYear();
+        const thisMonthValue = data.filter(po => {
+          const poDate = new Date(po.po_date);
+          return poDate.getMonth() === currentMonth && poDate.getFullYear() === currentYear;
+        }).reduce((sum, po) => sum + (parseFloat(po.total_amount) || 0), 0);
+
+        setSummaryData([
+          {
+            title: "Total Purchase Orders",
+            amount: totalOrders.toString(),
+            currency: "",
+            indicator: { text: "+12", color: "blue" },
+          },
+          {
+            title: "Pending Orders",
+            amount: pendingOrders.toString(),
+            currency: "",
+            indicator: { text: "-3", color: "red" },
+          },
+          {
+            title: "Total Value",
+            amount: formatCurrency(totalValue),
+            currency: "PKR",
+            indicator: { text: "+8.5%", color: "green" },
+          },
+          {
+            title: "This Month",
+            amount: formatCurrency(thisMonthValue),
+            currency: "PKR",
+            indicator: { text: "15 New", color: "yellow" },
+          },
+        ]);
+      }
+    } catch (error) {
+      console.error('Error fetching summary data:', error);
+      // Set default values on error
+      setSummaryData([
+        {
+          title: "Total Purchase Orders",
+          amount: "0",
+          currency: "",
+          indicator: { text: "+12", color: "blue" },
+        },
+        {
+          title: "Pending Orders",
+          amount: "0",
+          currency: "",
+          indicator: { text: "-3", color: "red" },
+        },
+        {
+          title: "Total Value",
+          amount: "0",
+          currency: "PKR",
+          indicator: { text: "+8.5%", color: "green" },
+        },
+        {
+          title: "This Month",
+          amount: "0",
+          currency: "PKR",
+          indicator: { text: "15 New", color: "yellow" },
+        },
+      ]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+
 
   const handleViewPODetails = (poId) => {
     // Navigate to the detailed view with PO ID in URL

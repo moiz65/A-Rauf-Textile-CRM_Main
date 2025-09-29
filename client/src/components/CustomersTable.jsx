@@ -8,7 +8,6 @@ import {
   Trash2,
   Printer,
   Download,
-  Copy,
   Plus,
   User,
   Mail,
@@ -204,93 +203,7 @@ const CustomersTable = () => {
     }
   };
 
-  const handlePrint = (customer) => {
-    const printWindow = window.open('', '_blank');
-    printWindow.document.write(`
-      <html>
-        <head>
-          <title>Customer Details: ${customer.customer}</title>
-          <style>
-            body { font-family: Arial, sans-serif; padding: 20px; }
-            h1 { color: #333; }
-            .receipt { border: 1px solid #ddd; padding: 20px; max-width: 500px; margin: 0 auto; }
-            .row { display: flex; margin-bottom: 10px; }
-            .label { font-weight: bold; width: 150px; }
-            .value { flex: 1; }
-          </style>
-        </head>
-        <body>
-          <h1>Customer Details</h1>
-          <div class="receipt">
-            <div class="row"><div class="label">Name:</div><div class="value">${customer.customer}</div></div>
-            ${customer.company ? `<div class="row"><div class="label">Company:</div><div class="value">${customer.company}</div></div>` : ''}
-            <div class="row"><div class="label">Date:</div><div class="value">${customer.date}</div></div>
-            <div class="row"><div class="label">Phone:</div><div class="value">${customer.phone}</div></div>
-            <div class="row"><div class="label">Address:</div><div class="value">${customer.address}</div></div>
-            <div class="row"><div class="label">Email:</div><div class="value">${customer.email}</div></div>
-          </div>
-          <script>window.print();</script>
-        </body>
-      </html>
-    `);
-    printWindow.document.close();
-    setActiveDropdown(null);
-  };
 
-  const handleDownload = (customer) => {
-    const data = {
-      name: customer.customer,
-      company: customer.company,
-      date: customer.date,
-      phoneNumber: customer.phone,
-      address: customer.address,
-      email: customer.email
-    };
-
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `customer_${customer.customer_id}.json`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-    setActiveDropdown(null);
-  };
-
-  const handleDuplicate = async (customer) => {
-    const newCustomer = {
-      customer: `${customer.customer} (Copy)`,
-      company: customer.company,
-      date: new Date().toISOString().split('T')[0],
-      phone: customer.phone,
-      address: customer.address,
-      email: customer.email
-    };
-
-    try {
-      const response = await fetch('http://localhost:5000/api/v1/customertable', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(newCustomer)
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to duplicate customer');
-      }
-
-      await fetchCustomers();
-      showNotification("Customer duplicated", `Customer '${newCustomer.customer}' has been created.`);
-    } catch (err) {
-      console.error('Error duplicating customer:', err);
-      showNotification("Error", "Failed to duplicate customer. Please try again.");
-    }
-
-    setActiveDropdown(null);
-  };
 
   const handleAddCustomer = () => {
     const newCustomer = {
@@ -370,15 +283,7 @@ const CustomersTable = () => {
       case 'delete':
         handleDelete(customer);
         break;
-      case 'print':
-        handlePrint(customer);
-        break;
-      case 'download':
-        handleDownload(customer);
-        break;
-      case 'duplicate':
-        handleDuplicate(customer);
-        break;
+
       default:
         break;
     }
@@ -794,27 +699,7 @@ const CustomersTable = () => {
                           <Trash2 className="w-4 h-4 mr-2" />
                           Delete
                         </button>
-                        <button
-                          onClick={() => handleAction('print', customer)}
-                          className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left transition-colors"
-                        >
-                          <Printer className="w-4 h-4 mr-2" />
-                          Print
-                        </button>
-                        <button
-                          onClick={() => handleAction('download', customer)}
-                          className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left transition-colors"
-                        >
-                          <Download className="w-4 h-4 mr-2" />
-                          Download
-                        </button>
-                        <button
-                          onClick={() => handleAction('duplicate', customer)}
-                          className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left transition-colors"
-                        >
-                          <Copy className="w-4 h-4 mr-2" />
-                          Duplicate
-                        </button>
+
                       </div>
                     )}
                   </td>

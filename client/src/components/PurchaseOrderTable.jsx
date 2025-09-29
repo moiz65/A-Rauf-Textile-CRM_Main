@@ -8,7 +8,7 @@ import {
   Trash2, 
   Printer, 
   Download, 
-  Copy, 
+
   Plus, 
   Eye,
   X,
@@ -19,6 +19,7 @@ import {
   XCircle,
   RotateCcw
 } from 'lucide-react';
+import { generatePOId } from '../utils/idGenerator';
 
 const ITEMS_PER_PAGE = 10;
 
@@ -50,7 +51,7 @@ const PurchaseOrderTable = ({ onViewDetails }) => {
   const [loadingHistory, setLoadingHistory] = useState(false);
   const dropdownRef = useRef(null);
 
-  const statusTabs = ['All', 'Draft', 'Pending', 'Approved', 'Received', 'Cancelled'];
+  const statusTabs = ['All', 'Draft', 'Pending', 'Approved', 'Completed', 'Cancelled'];
 
   // Fetch purchase orders from API
   const fetchPurchaseOrders = async () => {
@@ -137,7 +138,7 @@ const PurchaseOrderTable = ({ onViewDetails }) => {
       'Draft': basePOs.filter(po => po.status === 'Draft').length,
       'Pending': basePOs.filter(po => po.status === 'Pending').length,
       'Approved': basePOs.filter(po => po.status === 'Approved').length,
-      'Received': basePOs.filter(po => po.status === 'Received').length,
+      'Completed': basePOs.filter(po => po.status === 'Completed').length,
       'Cancelled': basePOs.filter(po => po.status === 'Cancelled').length,
     };
     return counts;
@@ -155,7 +156,7 @@ const PurchaseOrderTable = ({ onViewDetails }) => {
       case 'Draft': return 'bg-gray-100 text-gray-800';
       case 'Pending': return 'bg-orange-100 text-orange-800';
       case 'Approved': return 'bg-blue-100 text-blue-800';
-      case 'Received': return 'bg-green-100 text-green-800';
+      case 'Completed': return 'bg-green-100 text-green-800';
       case 'Cancelled': return 'bg-red-100 text-red-800';
       default: return 'bg-gray-100 text-gray-800';
     }
@@ -357,18 +358,6 @@ const PurchaseOrderTable = ({ onViewDetails }) => {
     setActiveDropdown(null);
   };
 
-  const handleDuplicate = (po) => {
-    const newPO = {
-      ...po,
-      id: generateNewPOId(),
-      date: new Date().toISOString().split('T')[0],
-      status: 'Draft'
-    };
-    setPurchaseOrders(prev => [...prev, newPO]);
-    showNotification('PO Duplicated', `New PO ${newPO.id} created from ${po.id}`);
-    setActiveDropdown(null);
-  };
-
   const handleViewHistory = async (po) => {
     setSelectedPOHistory(po);
     setLoadingHistory(true);
@@ -414,7 +403,7 @@ const PurchaseOrderTable = ({ onViewDetails }) => {
             <div class="row"><div class="label">PO ID:</div><div class="value">${po.id}</div></div>
             <div class="row"><div class="label">Date:</div><div class="value">${po.date}</div></div>
             <div class="row"><div class="label">Supplier:</div><div class="value">${po.supplier}</div></div>
-            <div class="row"><div class="label">Amount:</div><div class="value">${po.currency} ${po.totalAmount.toLocaleString()}</div></div>
+            <div class="row"><div class="label">Amount:</div><div class="value">${po.currency} ${formatCurrency(po.totalAmount)}</div></div>
             <div class="row"><div class="label">Status:</div><div class="value">${po.status}</div></div>
             <div class="row"><div class="label">Items:</div><div class="value">${po.items}</div></div>
           </div>
@@ -451,25 +440,7 @@ const PurchaseOrderTable = ({ onViewDetails }) => {
   };
 
   const generateNewPOId = () => {
-    const now = new Date();
-    const year = now.getFullYear();
-    const month = (now.getMonth() + 1).toString().padStart(2, '0');
-    const day = now.getDate().toString().padStart(2, '0');
-    const hours = now.getHours().toString().padStart(2, '0');
-    const minutes = now.getMinutes().toString().padStart(2, '0');
-    const seconds = now.getSeconds().toString().padStart(2, '0');
-    
-    // Check if PO with this timestamp already exists
-    const baseId = `PO-${year}${month}${day}-${hours}${minutes}${seconds}`;
-    let counter = 1;
-    let finalId = baseId;
-    
-    while (purchaseOrders.some(po => po.id === finalId)) {
-      finalId = `${baseId}-${counter}`;
-      counter++;
-    }
-    
-    return finalId;
+    return generatePOId(purchaseOrders);
   };
 
   const handleAddPO = () => {
@@ -1130,7 +1101,7 @@ const PurchaseOrderTable = ({ onViewDetails }) => {
                   <option value="Draft">Draft</option>
                   <option value="Pending">Pending</option>
                   <option value="Approved">Approved</option>
-                  <option value="Received">Received</option>
+                  <option value="Completed">Completed</option>
                   <option value="Cancelled">Cancelled</option>
                 </select>
               </div>
@@ -1368,14 +1339,14 @@ const PurchaseOrderTable = ({ onViewDetails }) => {
                 <th className="pb-3 px-2 whitespace-nowrap">Status</th>
                 <th className="pb-3 px-2 whitespace-nowrap hidden md:table-cell">Invoice Status</th>
                 <th className="pb-3 px-2 whitespace-nowrap hidden sm:table-cell">Remaining</th>
-                <th className="pb-3 px-2 whitespace-nowrap hidden lg:table-cell">Items</th>
+
                 <th className="pb-3 px-2 whitespace-nowrap">Action</th>
               </tr>
             </thead>
             <tbody className="text-center divide-y divide-gray-100">
               {loading ? (
                 <tr>
-                  <td colSpan="9" className="py-8 text-center text-sm text-gray-500">
+                  <td colSpan="8" className="py-8 text-center text-sm text-gray-500">
                     <div className="flex items-center justify-center space-x-2">
                       <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
                       <span>Loading purchase orders...</span>
@@ -1384,7 +1355,7 @@ const PurchaseOrderTable = ({ onViewDetails }) => {
                 </tr>
               ) : error ? (
                 <tr>
-                  <td colSpan="9" className="py-8 text-center text-sm text-red-500">
+                  <td colSpan="8" className="py-8 text-center text-sm text-red-500">
                     <div className="flex flex-col items-center space-y-2">
                       <span>{error}</span>
                       <button 
@@ -1398,7 +1369,7 @@ const PurchaseOrderTable = ({ onViewDetails }) => {
                 </tr>
               ) : filteredPOs.length === 0 ? (
                 <tr>
-                  <td colSpan="9" className="py-4 text-center text-sm text-gray-500">
+                  <td colSpan="8" className="py-4 text-center text-sm text-gray-500">
                     No purchase orders found matching your criteria
                   </td>
                 </tr>
@@ -1439,7 +1410,7 @@ const PurchaseOrderTable = ({ onViewDetails }) => {
                       <div className="max-w-xs truncate">{po.supplier}</div>
                     </td>
                     <td className="px-4 py-4 text-sm font-medium text-gray-900 whitespace-nowrap">
-                      {po.currency} {po.totalAmount.toLocaleString()}
+                      {po.currency} {formatCurrency(po.totalAmount)}
                     </td>
                     <td className="px-4 py-4 text-sm whitespace-nowrap">
                       <span className={`px-2 py-1 inline-flex text-xs font-semibold rounded-full ${getStatusClass(po.status)}`}>
@@ -1481,9 +1452,7 @@ const PurchaseOrderTable = ({ onViewDetails }) => {
                         <span className="text-gray-400">—</span>
                       )}
                     </td>
-                    <td className="px-4 py-4 text-sm text-gray-900 whitespace-nowrap hidden lg:table-cell">
-                      {po.items}
-                    </td>
+
                     <td className="px-4 py-4 text-sm whitespace-nowrap relative">
                       <div className="flex justify-center">
                         <button
@@ -1553,37 +1522,12 @@ const PurchaseOrderTable = ({ onViewDetails }) => {
                               {/* Other actions - always available */}
                               <div className="border-t border-gray-100 my-1"></div>
                               <button
-                                onClick={() => handlePrint(po)}
-                                className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left"
-                              >
-                                <Printer className="w-4 h-4 mr-2" />
-                                Print
-                              </button>
-                              <button
-                                onClick={() => handleDownload(po)}
-                                className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left"
-                              >
-                                <Download className="w-4 h-4 mr-2" />
-                                Download
-                              </button>
-                              <button
                                 onClick={() => handleViewHistory(po)}
                                 className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left"
                               >
                                 <History className="w-4 h-4 mr-2" />
                                 View History
                               </button>
-
-                              {/* Duplicate - Only for non-cancelled POs */}
-                              {po.status !== 'Cancelled' && (
-                                <button
-                                  onClick={() => handleDuplicate(po)}
-                                  className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left"
-                                >
-                                  <Copy className="w-4 h-4 mr-2" />
-                                  Duplicate
-                                </button>
-                              )}
                             </div>
                           </div>
                         )}

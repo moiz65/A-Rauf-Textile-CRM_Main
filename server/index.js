@@ -28,6 +28,10 @@ db.connect((err) => {
   console.log("Connected to MySQL database");
 });
 
+// --- Dashboard Routes ---
+const dashboardRoutes = require('./routes/dashboard');
+app.use('/api/dashboard', dashboardRoutes);
+
 // --- Expense Routes ---
 
 // Get all expenses with optional filtering
@@ -453,6 +457,57 @@ app.get("/api/expense-chart-data", (req, res) => {
       return res.status(500).json({ error: "Failed to fetch expense chart data" });
     }
     res.json(results);
+  });
+});
+
+// Get expense category statistics
+app.get("/api/expense-categories-stats", (req, res) => {
+  const query = `
+    SELECT 
+      c.name as category_name,
+      c.type as category_type,
+      COALESCE(SUM(e.amount), 0) as total_amount,
+      COUNT(e.id) as expense_count,
+      COALESCE(SUM(CASE WHEN e.status = 'Paid' THEN e.amount ELSE 0 END), 0) as paid_amount,
+      COALESCE(SUM(CASE WHEN e.status = 'Pending' THEN e.amount ELSE 0 END), 0) as pending_amount
+    FROM categories c
+    LEFT JOIN expenses e ON c.name = e.category
+    GROUP BY c.name, c.type
+    ORDER BY c.type, total_amount DESC
+  `;
+
+  db.query(query, (err, results) => {
+    if (err) {
+      console.error("Error fetching expense category stats:", err.message);
+      return res.status(500).json({ message: "Failed to fetch category statistics", error: err.message });
+    }
+
+    // Group by category type
+    const categoryStats = {
+      Expense: { total_amount: 0, expense_count: 0, paid_amount: 0, pending_amount: 0, categories: [] },
+      Income: { total_amount: 0, expense_count: 0, paid_amount: 0, pending_amount: 0, categories: [] },
+      Asset: { total_amount: 0, expense_count: 0, paid_amount: 0, pending_amount: 0, categories: [] },
+      Liability: { total_amount: 0, expense_count: 0, paid_amount: 0, pending_amount: 0, categories: [] }
+    };
+
+    results.forEach(row => {
+      const type = row.category_type;
+      if (categoryStats[type]) {
+        categoryStats[type].total_amount += parseFloat(row.total_amount) || 0;
+        categoryStats[type].expense_count += parseInt(row.expense_count) || 0;
+        categoryStats[type].paid_amount += parseFloat(row.paid_amount) || 0;
+        categoryStats[type].pending_amount += parseFloat(row.pending_amount) || 0;
+        categoryStats[type].categories.push({
+          name: row.category_name,
+          total_amount: parseFloat(row.total_amount) || 0,
+          expense_count: parseInt(row.expense_count) || 0,
+          paid_amount: parseFloat(row.paid_amount) || 0,
+          pending_amount: parseFloat(row.pending_amount) || 0
+        });
+      }
+    });
+
+    res.json(categoryStats);
   });
 });
 
@@ -1064,65 +1119,63 @@ app.get("/api/invoices", (req, res) => {
   const params = [];
   const poParams = [];
   
-  // Apply filters to regular invoices
+  // Build WHERE conditions properly
+  const conditions = [];
+  
   if (status && status !== 'All') {
-    query = query.replace('WHERE 1=1', `WHERE 1=1 AND status = ?`);
+    conditions.push('status = ?');
     params.push(status);
   }
   
   if (minAmount) {
-    const condition = params.length === 0 ? 'WHERE 1=1 AND total_amount >= ?' : ' AND total_amount >= ?';
-    query = query.replace('WHERE 1=1', `WHERE 1=1${condition}`);
+    conditions.push('total_amount >= ?');
     params.push(parseFloat(minAmount));
   }
   
   if (maxAmount) {
-    const condition = ' AND total_amount <= ?';
-    query = query.replace('WHERE 1=1', `WHERE 1=1${condition}`);
+    conditions.push('total_amount <= ?');
     params.push(parseFloat(maxAmount));
   }
   
   if (dateFrom) {
-    const condition = ' AND bill_date >= ?';
-    query = query.replace('WHERE 1=1', `WHERE 1=1${condition}`);
+    conditions.push('bill_date >= ?');
     params.push(dateFrom);
   }
   
   if (dateTo) {
-    const condition = ' AND bill_date <= ?';
-    query = query.replace('WHERE 1=1', `WHERE 1=1${condition}`);
+    conditions.push('bill_date <= ?');
     params.push(dateTo);
   }
   
   if (customer) {
-    const condition = ' AND customer_name LIKE ?';
-    query = query.replace('WHERE 1=1', `WHERE 1=1${condition}`);
+    conditions.push('customer_name LIKE ?');
     params.push(`%${customer}%`);
   }
   
   if (currency && currency !== 'All') {
-    const condition = ' AND currency = ?';
-    query = query.replace('WHERE 1=1', `WHERE 1=1${condition}`);
+    conditions.push('currency = ?');
     params.push(currency);
   }
   
   if (invoice_number) {
-    const condition = ' AND invoice_number LIKE ?';
-    query = query.replace('WHERE 1=1', `WHERE 1=1${condition}`);
+    conditions.push('invoice_number LIKE ?');
     params.push(`%${invoice_number}%`);
   }
   
   if (is_sent !== undefined) {
-    const condition = ' AND is_sent = ?';
-    query = query.replace('WHERE 1=1', `WHERE 1=1${condition}`);
+    conditions.push('is_sent = ?');
     params.push(is_sent === 'true' ? 1 : 0);
   }
   
   if (search) {
-    const condition = ' AND (customer_name LIKE ? OR customer_email LIKE ? OR invoice_number LIKE ? OR item_name LIKE ? OR address LIKE ? OR note LIKE ?)';
-    query = query.replace('WHERE 1=1', `WHERE 1=1${condition}`);
+    conditions.push('(customer_name LIKE ? OR customer_email LIKE ? OR invoice_number LIKE ? OR item_name LIKE ? OR address LIKE ? OR note LIKE ?)');
     const searchTerm = `%${search}%`;
     params.push(searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm);
+  }
+  
+  // Apply conditions to regular invoice query
+  if (conditions.length > 0) {
+    query = query.replace('WHERE 1=1', `WHERE 1=1 AND ${conditions.join(' AND ')}`);
   }
   
   // Apply same filters to PO invoices part (only if PO invoices are included)

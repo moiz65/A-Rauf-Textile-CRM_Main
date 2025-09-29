@@ -3,7 +3,6 @@ import Sidebar from '../components/Sidebar';
 import Header from '../components/Header';
 import SummaryCard from '../components/SummaryCard';
 import InvoiceTable from '../components/InvoiceTable';
-import RecentActivity from '../components/RecentActivity';
 import TransactionHistory from '../components/TransactionHistory';
 import { toast } from 'sonner';
 
@@ -45,44 +44,7 @@ const Invoices = () => {
     { id: '#48394', date: '23 Jul 2023', account: 'Wijid', amount: '1200', status: 'Pending' },
   ];
 
-  const recentActivities = [
-    {
-      id: '1',
-      name: 'Zain',
-      value: '7,242',
-      percentage: '+7.34%',
-      trend: 'up',
-      initial: 'Z',
-      color: 'bg-blue-500',
-    },
-    {
-      id: '2',
-      name: 'Samsen',
-      value: '4,384',
-      percentage: '-3.85%',
-      trend: 'down',
-      initial: 'S',
-      color: 'bg-teal-500',
-    },
-    {
-      id: '3',
-      name: 'Nikom',
-      value: '539',
-      percentage: '-1.48%',
-      trend: 'down',
-      initial: 'N',
-      color: 'bg-green-500',
-    },
-    {
-      id: '4',
-      name: 'Pasion',
-      value: '539',
-      percentage: '-2.48%',
-      trend: 'down',
-      initial: 'P',
-      color: 'bg-red-500',
-    },
-  ];
+
 
   const transactions = [
     { id: '1', name: 'Muhammad Hamza', time: '11:23', initial: 'M' },
@@ -117,14 +79,9 @@ const Invoices = () => {
           ))}
         </section>
 
-        {/* Invoices and Recent Activity */}
-        <section className="grid grid-cols-1 lg:grid-cols-4 gap-5">
-          <div className="lg:col-span-3 mb-5">
-            <InvoiceTable invoices={invoiceData} onCreateInvoice={handleCreateInvoice} />
-          </div>
-          <div className="lg:col-span-1">
-            <RecentActivity customers={recentActivities} />
-          </div>
+        {/* Invoices - Full Width */}
+        <section className="w-full mb-5">
+          <InvoiceTable invoices={invoiceData} onCreateInvoice={handleCreateInvoice} />
         </section>
 
         {/* Transaction History */}
