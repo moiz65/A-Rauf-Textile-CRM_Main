@@ -3717,11 +3717,11 @@ app.get("/api/po-invoices/:id", (req, res) => {
         const poItemsQuery = `
           SELECT 
             1 as item_no,
-            COALESCE(description, 'Items as per agreement') as description,
+            COALESCE(notes, 'Items as per purchase order agreement') as description,
             1 as quantity,
             total_amount as unit_price,
             total_amount as amount,
-            'As per purchase order specifications' as specifications
+            CONCAT('Supplier: ', supplier_name, ' - As per PO specifications') as specifications
           FROM purchase_orders 
           WHERE po_number = ?
         `;
