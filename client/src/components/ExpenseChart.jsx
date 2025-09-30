@@ -1,6 +1,31 @@
 import React, { useState, useEffect } from 'react';
-import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, Tooltip, Area, CartesianGrid } from 'recharts';
-import { ArrowUpRight, MoreVertical, Download, Filter, ChevronDown } from 'lucide-react';
+import { 
+  LineChart, 
+  Line, 
+  XAxis, 
+  YAxis, 
+  ResponsiveContainer, 
+  Tooltip, 
+  Area, 
+  CartesianGrid,
+  BarChart,
+  Bar,
+  AreaChart,
+  PieChart,
+  Pie,
+  Cell
+} from 'recharts';
+import { 
+  ArrowUpRight, 
+  MoreVertical, 
+  Download, 
+  Filter, 
+  ChevronDown,
+  BarChart3,
+  TrendingUp,
+  Activity,
+  PieChart as PieChartIcon
+} from 'lucide-react';
 
 const ExpenseChart = ({ showControls = true }) => {
   const [timeRange, setTimeRange] = useState('1y');
@@ -9,6 +34,7 @@ const ExpenseChart = ({ showControls = true }) => {
   const [chartData, setChartData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [chartType, setChartType] = useState('line'); // New state for chart type
 
   // Fetch data from MySQL database
   useEffect(() => {
@@ -172,6 +198,29 @@ const ExpenseChart = ({ showControls = true }) => {
         
         {showControls && (
           <div className="flex items-center gap-2">
+            {/* Chart Type Selector */}
+            <div className="flex bg-gray-100 rounded-lg p-1">
+              {[
+                { type: 'line', icon: <TrendingUp className="w-3 h-3" />, label: 'Line' },
+                { type: 'bar', icon: <BarChart3 className="w-3 h-3" />, label: 'Bar' },
+                { type: 'area', icon: <Activity className="w-3 h-3" />, label: 'Area' }
+              ].map((chart) => (
+                <button
+                  key={chart.type}
+                  onClick={() => setChartType(chart.type)}
+                  className={`flex items-center gap-1 px-2 py-1 rounded text-xs transition-colors ${
+                    chartType === chart.type
+                      ? 'bg-white text-blue-600 shadow-sm'
+                      : 'text-gray-600 hover:text-gray-800'
+                  }`}
+                  title={`${chart.label} Chart`}
+                >
+                  {chart.icon}
+                  <span className="hidden sm:inline">{chart.label}</span>
+                </button>
+              ))}
+            </div>
+
             <div className="relative">
               <button 
                 onClick={() => setShowFilterMenu(!showFilterMenu)}
@@ -211,81 +260,131 @@ const ExpenseChart = ({ showControls = true }) => {
         )}
       </div>
 
-      {/* Enhanced chart with gradient and tooltip */}
+      {/* Dynamic chart based on selected type */}
       <div className="h-64 mb-6 relative">
         <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={data} margin={{ top: 10, right: 10, left: 10, bottom: 10 }}>
-            <defs>
-              <linearGradient id="colorAmount" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#3B82F6" stopOpacity={0.2}/>
-                <stop offset="95%" stopColor="#3B82F6" stopOpacity={0}/>
-              </linearGradient>
-            </defs>
-            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F3F4F6" />
-            <XAxis 
-              dataKey="month" 
-              axisLine={false}
-              tickLine={false}
-              tick={{ fontSize: 11, fill: '#6B7280' }}
-              padding={{ left: 10, right: 10 }}
-            />
-            <YAxis 
-              axisLine={false}
-              tickLine={false}
-              tick={{ fontSize: 11, fill: '#6B7280' }}
-              tickFormatter={(value) => `Rs${(value / 1000).toFixed(0)}k`}
-            />
-            <Tooltip 
-              contentStyle={{
-                background: 'white',
-                border: '1px solid #E5E7EB',
-                borderRadius: '8px',
-                boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
-                padding: '8px 12px'
-              }}
-              formatter={(value) => [`Rs${value.toLocaleString()}`, "Amount"]}
-              labelFormatter={(label) => `Month: ${label}`}
-            />
-            <Area 
-              type="monotone" 
-              dataKey="amount" 
-              stroke="#3B82F6" 
-              fill="url(#colorAmount)" 
-              strokeWidth={2}
-            />
-            <Line 
-              type="monotone" 
-              dataKey="amount" 
-              stroke="#3B82F6" 
-              strokeWidth={2}
-              dot={({ cx, cy, payload }) => (
-                <g>
-                  <circle cx={cx} cy={cy} r={4} fill="#3B82F6" />
-                  {payload.trend === 'up' && (
-                    <ArrowUpRight 
-                      x={cx - 6} 
-                      y={cy - 6} 
-                      width={12} 
-                      height={12} 
-                      fill="#10B981" 
-                      className="inline-block"
-                    />
-                  )}
-                  {payload.trend === 'down' && (
-                    <ArrowUpRight 
-                      x={cx - 6} 
-                      y={cy - 6} 
-                      width={12} 
-                      height={12} 
-                      fill="#EF4444" 
-                      className="inline-block rotate-180"
-                    />
-                  )}
-                </g>
-              )}
-              activeDot={{ r: 6, stroke: '#3B82F6', strokeWidth: 2, fill: '#FFFFFF' }}
-            />
-          </LineChart>
+          {chartType === 'line' && (
+            <LineChart data={data} margin={{ top: 10, right: 10, left: 10, bottom: 10 }}>
+              <defs>
+                <linearGradient id="colorAmount" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#3B82F6" stopOpacity={0.2}/>
+                  <stop offset="95%" stopColor="#3B82F6" stopOpacity={0}/>
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F3F4F6" />
+              <XAxis 
+                dataKey="month" 
+                axisLine={false}
+                tickLine={false}
+                tick={{ fontSize: 11, fill: '#6B7280' }}
+                padding={{ left: 10, right: 10 }}
+              />
+              <YAxis 
+                axisLine={false}
+                tickLine={false}
+                tick={{ fontSize: 11, fill: '#6B7280' }}
+                tickFormatter={(value) => `Rs${(value / 1000).toFixed(0)}k`}
+              />
+              <Tooltip 
+                contentStyle={{
+                  background: 'white',
+                  border: '1px solid #E5E7EB',
+                  borderRadius: '8px',
+                  boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+                  padding: '8px 12px'
+                }}
+                formatter={(value) => [`Rs${value.toLocaleString()}`, "Amount"]}
+                labelFormatter={(label) => `Month: ${label}`}
+              />
+              <Line 
+                type="monotone" 
+                dataKey="amount" 
+                stroke="#3B82F6" 
+                strokeWidth={2}
+                dot={{ r: 4, fill: '#3B82F6' }}
+                activeDot={{ r: 6, stroke: '#3B82F6', strokeWidth: 2, fill: '#FFFFFF' }}
+              />
+            </LineChart>
+          )}
+
+          {chartType === 'bar' && (
+            <BarChart data={data} margin={{ top: 10, right: 10, left: 10, bottom: 10 }}>
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F3F4F6" />
+              <XAxis 
+                dataKey="month" 
+                axisLine={false}
+                tickLine={false}
+                tick={{ fontSize: 11, fill: '#6B7280' }}
+                padding={{ left: 10, right: 10 }}
+              />
+              <YAxis 
+                axisLine={false}
+                tickLine={false}
+                tick={{ fontSize: 11, fill: '#6B7280' }}
+                tickFormatter={(value) => `Rs${(value / 1000).toFixed(0)}k`}
+              />
+              <Tooltip 
+                contentStyle={{
+                  background: 'white',
+                  border: '1px solid #E5E7EB',
+                  borderRadius: '8px',
+                  boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+                  padding: '8px 12px'
+                }}
+                formatter={(value) => [`Rs${value.toLocaleString()}`, "Amount"]}
+                labelFormatter={(label) => `Month: ${label}`}
+              />
+              <Bar 
+                dataKey="amount" 
+                fill="#3B82F6" 
+                radius={[4, 4, 0, 0]}
+                opacity={0.8}
+              />
+            </BarChart>
+          )}
+
+          {chartType === 'area' && (
+            <AreaChart data={data} margin={{ top: 10, right: 10, left: 10, bottom: 10 }}>
+              <defs>
+                <linearGradient id="colorAmountArea" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#3B82F6" stopOpacity={0.3}/>
+                  <stop offset="95%" stopColor="#3B82F6" stopOpacity={0.05}/>
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F3F4F6" />
+              <XAxis 
+                dataKey="month" 
+                axisLine={false}
+                tickLine={false}
+                tick={{ fontSize: 11, fill: '#6B7280' }}
+                padding={{ left: 10, right: 10 }}
+              />
+              <YAxis 
+                axisLine={false}
+                tickLine={false}
+                tick={{ fontSize: 11, fill: '#6B7280' }}
+                tickFormatter={(value) => `Rs${(value / 1000).toFixed(0)}k`}
+              />
+              <Tooltip 
+                contentStyle={{
+                  background: 'white',
+                  border: '1px solid #E5E7EB',
+                  borderRadius: '8px',
+                  boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+                  padding: '8px 12px'
+                }}
+                formatter={(value) => [`Rs${value.toLocaleString()}`, "Amount"]}
+                labelFormatter={(label) => `Month: ${label}`}
+              />
+              <Area 
+                type="monotone" 
+                dataKey="amount" 
+                stroke="#3B82F6" 
+                fill="url(#colorAmountArea)" 
+                strokeWidth={2}
+              />
+            </AreaChart>
+          )}
         </ResponsiveContainer>
       </div>
 

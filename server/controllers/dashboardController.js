@@ -9,25 +9,28 @@ class DashboardController {
       const lastMonth = new Date(new Date().setMonth(new Date().getMonth() - 1)).toISOString().slice(0, 7);
 
       const queries = {
-        // Total Revenue (from paid invoices)
+        // Total Revenue (from paid invoices - both regular and PO invoices)
         totalRevenue: `
-          SELECT COALESCE(SUM(total_amount), 0) as total
-          FROM invoice 
-          WHERE status = 'Paid'
+          SELECT COALESCE(
+            (SELECT SUM(total_amount) FROM invoice WHERE status = 'Paid') +
+            (SELECT SUM(total_amount) FROM po_invoices WHERE status = 'Paid'), 0
+          ) as total
         `,
         
-        // Last Month Revenue for comparison
+        // Last Month Revenue for comparison (both regular and PO invoices)
         lastMonthRevenue: `
-          SELECT COALESCE(SUM(total_amount), 0) as total
-          FROM invoice 
-          WHERE status = 'Paid' AND DATE_FORMAT(created_at, '%Y-%m') = ?
+          SELECT COALESCE(
+            (SELECT SUM(total_amount) FROM invoice WHERE status = 'Paid' AND DATE_FORMAT(created_at, '%Y-%m') = ?) +
+            (SELECT SUM(total_amount) FROM po_invoices WHERE status = 'Paid' AND DATE_FORMAT(created_at, '%Y-%m') = ?), 0
+          ) as total
         `,
 
-        // Current Month Revenue for comparison  
+        // Current Month Revenue for comparison (both regular and PO invoices)
         currentMonthRevenue: `
-          SELECT COALESCE(SUM(total_amount), 0) as total
-          FROM invoice 
-          WHERE status = 'Paid' AND DATE_FORMAT(created_at, '%Y-%m') = ?
+          SELECT COALESCE(
+            (SELECT SUM(total_amount) FROM invoice WHERE status = 'Paid' AND DATE_FORMAT(created_at, '%Y-%m') = ?) +
+            (SELECT SUM(total_amount) FROM po_invoices WHERE status = 'Paid' AND DATE_FORMAT(created_at, '%Y-%m') = ?), 0
+          ) as total
         `,
 
         // Total Expenses
@@ -51,11 +54,12 @@ class DashboardController {
           WHERE status = 'Paid' AND DATE_FORMAT(date, '%Y-%m') = ?
         `,
 
-        // Today's Revenue
+        // Today's Revenue (both regular and PO invoices)
         todayRevenue: `
-          SELECT COALESCE(SUM(total_amount), 0) as total
-          FROM invoice 
-          WHERE status = 'Paid' AND DATE(created_at) = ?
+          SELECT COALESCE(
+            (SELECT SUM(total_amount) FROM invoice WHERE status = 'Paid' AND DATE(created_at) = ?) +
+            (SELECT SUM(total_amount) FROM po_invoices WHERE status = 'Paid' AND DATE(created_at) = ?), 0
+          ) as total
         `,
 
         // Today's Expenses
@@ -65,27 +69,45 @@ class DashboardController {
           WHERE status = 'Paid' AND DATE(date) = ?
         `,
 
-        // Current Balance (simplified calculation)
+        // Current Balance (cash available - represents all paid invoices minus expenses)
         currentBalance: `
           SELECT 
             COALESCE(
-              (SELECT SUM(total_amount) FROM invoice WHERE status = 'Paid') - 
-              (SELECT SUM(amount) FROM expenses WHERE status = 'Paid'), 0
+              (SELECT SUM(total_amount) FROM invoice WHERE status = 'Paid') +
+              (SELECT SUM(total_amount) FROM po_invoices WHERE status = 'Paid'), 0
+            ) as revenue,
+            COALESCE((SELECT SUM(amount) FROM expenses WHERE status = 'Paid'), 0) as expenses,
+            (COALESCE(
+              (SELECT SUM(total_amount) FROM invoice WHERE status = 'Paid') +
+              (SELECT SUM(total_amount) FROM po_invoices WHERE status = 'Paid'), 0
+            ) - COALESCE((SELECT SUM(amount) FROM expenses WHERE status = 'Paid'), 0)) as balance
+        `,
+        
+        // Last month balance for percentage calculation  
+        lastMonthBalance: `
+          SELECT 
+            COALESCE(
+              (SELECT SUM(total_amount) FROM invoice WHERE status = 'Paid' AND DATE_FORMAT(created_at, '%Y-%m') = ?) - 
+              (SELECT SUM(amount) FROM expenses WHERE status = 'Paid' AND DATE_FORMAT(date, '%Y-%m') = ?), 0
             ) as balance
         `,
 
-        // Upcoming Payments (invoices that are sent but not paid)
+        // Upcoming Payments (invoices that are sent but not paid - both regular and PO)
         upcomingPayments: `
-          SELECT COALESCE(SUM(total_amount), 0) as total, COUNT(*) as count
-          FROM invoice 
-          WHERE status = 'Sent'
+          SELECT 
+            (COALESCE((SELECT SUM(total_amount) FROM invoice WHERE status IN ('Sent', 'Pending')), 0) +
+             COALESCE((SELECT SUM(total_amount) FROM po_invoices WHERE status IN ('Sent', 'Pending')), 0)) as total,
+            (COALESCE((SELECT COUNT(*) FROM invoice WHERE status IN ('Sent', 'Pending')), 0) +
+             COALESCE((SELECT COUNT(*) FROM po_invoices WHERE status IN ('Sent', 'Pending')), 0)) as count
         `,
 
-        // Overdue Invoices
+        // Overdue Invoices (both regular and PO)
         overdueInvoices: `
-          SELECT COALESCE(SUM(total_amount), 0) as total, COUNT(*) as count
-          FROM invoice 
-          WHERE status = 'Overdue'
+          SELECT 
+            (COALESCE((SELECT SUM(total_amount) FROM invoice WHERE status = 'Overdue'), 0) +
+             COALESCE((SELECT SUM(total_amount) FROM po_invoices WHERE status = 'Overdue'), 0)) as total,
+            (COALESCE((SELECT COUNT(*) FROM invoice WHERE status = 'Overdue'), 0) +
+             COALESCE((SELECT COUNT(*) FROM po_invoices WHERE status = 'Overdue'), 0)) as count
         `,
 
         // Total Customers
@@ -98,7 +120,7 @@ class DashboardController {
           SELECT COUNT(*) as count FROM purchase_orders
         `,
 
-        // Recent invoices for transaction history
+        // Recent invoices for transaction history (both regular and PO invoices)
         recentInvoices: `
           SELECT 
             id,
@@ -108,8 +130,22 @@ class DashboardController {
             currency,
             status,
             created_at,
-            updated_at
+            updated_at,
+            'regular' as invoice_type
           FROM invoice 
+          WHERE status = 'Paid'
+          UNION ALL
+          SELECT 
+            id,
+            invoice_number,
+            customer_name,
+            total_amount,
+            currency,
+            status,
+            created_at,
+            updated_at,
+            'po' as invoice_type
+          FROM po_invoices 
           WHERE status = 'Paid'
           ORDER BY updated_at DESC 
           LIMIT 5
@@ -124,12 +160,18 @@ class DashboardController {
           let params = [];
           
           // Add parameters based on query type
-          if (key === 'lastMonthRevenue' || key === 'lastMonthExpenses') {
-            params = [lastMonth];
-          } else if (key === 'currentMonthRevenue' || key === 'currentMonthExpenses') {
-            params = [currentMonth];
-          } else if (key === 'todayRevenue' || key === 'todayExpenses') {
+          if (key === 'lastMonthRevenue') {
+            params = [lastMonth, lastMonth]; // Two parameters for regular and PO invoices
+          } else if (key === 'currentMonthRevenue') {
+            params = [currentMonth, currentMonth]; // Two parameters for regular and PO invoices
+          } else if (key === 'todayRevenue') {
+            params = [today, today]; // Two parameters for regular and PO invoices
+          } else if (key === 'lastMonthExpenses' || key === 'currentMonthExpenses') {
+            params = [key.includes('last') ? lastMonth : currentMonth];
+          } else if (key === 'todayExpenses') {
             params = [today];
+          } else if (key === 'lastMonthBalance') {
+            params = [lastMonth, lastMonth]; // Two parameters for the same month
           }
 
           db.query(query, params, (err, result) => {
@@ -150,75 +192,169 @@ class DashboardController {
       const currentMonthExp = results.currentMonthExpenses[0]?.total || 0;
       const lastMonthExp = results.lastMonthExpenses[0]?.total || 0;
 
+      // Get detailed balance information
+      const balanceData = results.currentBalance[0] || {};
+      const paidRevenue = balanceData.revenue || 0;
+      const paidExpenses = balanceData.expenses || 0;
+      const currentBalance = balanceData.balance || 0;
+      
+      // Debug logging to understand the balance calculation
+      console.log('Balance Debug Info:', {
+        paidRevenue,
+        paidExpenses, 
+        currentBalance,
+        totalRevenue,
+        totalExpenses
+      });
+
       const netProfit = totalRevenue - totalExpenses;
       const currentMonthProfit = currentMonthRev - currentMonthExp;
       const lastMonthProfit = lastMonthRev - lastMonthExp;
 
-      // Calculate percentage changes
-      const revenueChange = lastMonthRev > 0 ? ((currentMonthRev - lastMonthRev) / lastMonthRev * 100) : 0;
-      const expenseChange = lastMonthExp > 0 ? ((currentMonthExp - lastMonthExp) / lastMonthExp * 100) : 0;
-      const profitChange = lastMonthProfit > 0 ? ((currentMonthProfit - lastMonthProfit) / lastMonthProfit * 100) : 0;
+      // Calculate percentage changes (handle division by zero)
+      const revenueChange = lastMonthRev > 0 ? ((currentMonthRev - lastMonthRev) / lastMonthRev * 100) : (currentMonthRev > 0 ? 100 : 0);
+      const expenseChange = lastMonthExp > 0 ? ((currentMonthExp - lastMonthExp) / lastMonthExp * 100) : (currentMonthExp > 0 ? 100 : 0);
+      const profitChange = lastMonthProfit !== 0 ? ((currentMonthProfit - lastMonthProfit) / Math.abs(lastMonthProfit) * 100) : 0;
 
-      // Format response
+      // Get additional business metrics
+      const additionalQueries = {
+        // Total invoices (both regular and PO invoices)
+        totalInvoices: `
+          SELECT 
+            (SELECT COUNT(*) FROM invoice) + (SELECT COUNT(*) FROM po_invoices) as count
+        `,
+        
+        // Pending invoices awaiting payment (both regular and PO invoices)
+        pendingInvoices: `
+          SELECT 
+            (COALESCE((SELECT COUNT(*) FROM invoice WHERE status IN ('Sent', 'Pending', 'Draft')), 0) +
+             COALESCE((SELECT COUNT(*) FROM po_invoices WHERE status IN ('Sent', 'Pending', 'Draft')), 0)) as count,
+            (COALESCE((SELECT SUM(total_amount) FROM invoice WHERE status IN ('Sent', 'Pending', 'Draft')), 0) +
+             COALESCE((SELECT SUM(total_amount) FROM po_invoices WHERE status IN ('Sent', 'Pending', 'Draft')), 0)) as total
+        `,
+        
+        // This month's new invoices (both regular and PO invoices)
+        thisMonthInvoices: `
+          SELECT 
+            COALESCE(
+              (SELECT COUNT(*) FROM invoice WHERE DATE_FORMAT(created_at, '%Y-%m') = ?) +
+              (SELECT COUNT(*) FROM po_invoices WHERE DATE_FORMAT(created_at, '%Y-%m') = ?), 0
+            ) as count
+        `,
+        
+        // Active purchase orders
+        activePurchaseOrders: `
+          SELECT COUNT(*) as count, COALESCE(SUM(total_amount), 0) as total
+          FROM purchase_orders 
+          WHERE status IN ('Pending', 'Approved', 'In Progress')
+        `,
+        
+        // Invoice completion rate (paid vs total - both regular and PO invoices)
+        paidInvoicesCount: `
+          SELECT 
+            COALESCE(
+              (SELECT COUNT(*) FROM invoice WHERE status = 'Paid') +
+              (SELECT COUNT(*) FROM po_invoices WHERE status = 'Paid'), 0
+            ) as count
+        `
+      };
+
+      // Execute additional queries
+      for (const [key, query] of Object.entries(additionalQueries)) {
+        let params = [];
+        if (key === 'thisMonthInvoices') {
+          params = [currentMonth, currentMonth];
+        }
+        
+        const queryResult = await new Promise((resolve, reject) => {
+          db.query(query, params, (err, result) => {
+            if (err) reject(err);
+            else resolve(result);
+          });
+        });
+        results[key] = queryResult;
+      }
+
+      // Calculate enhanced metrics
+      const totalInvoicesCount = results.totalInvoices[0]?.count || 0;
+      const paidInvoicesCount = results.paidInvoicesCount[0]?.count || 0;
+      const pendingInvoicesCount = results.pendingInvoices[0]?.count || 0;
+      const pendingInvoicesAmount = results.pendingInvoices[0]?.total || 0;
+      const thisMonthInvoicesCount = results.thisMonthInvoices[0]?.count || 0;
+      const activePOCount = results.activePurchaseOrders[0]?.count || 0;
+      const activePOAmount = results.activePurchaseOrders[0]?.total || 0;
+      
+      // Calculate completion rate
+      const completionRate = totalInvoicesCount > 0 ? ((paidInvoicesCount / totalInvoicesCount) * 100) : 0;
+
+      // Format response with enhanced business metrics
       const dashboardData = {
         stats: {
           totalRevenue: {
             amount: totalRevenue,
             change: `${revenueChange >= 0 ? '+' : ''}${revenueChange.toFixed(1)}%`,
-            changeType: revenueChange >= 0 ? 'up' : 'down'
+            changeType: revenueChange >= 0 ? 'up' : 'down',
+            subtitle: `From ${paidInvoicesCount} paid invoices`
           },
-          totalExpenses: {
-            amount: totalExpenses,
-            change: `${expenseChange >= 0 ? '+' : ''}${expenseChange.toFixed(1)}%`,
-            changeType: expenseChange >= 0 ? 'up' : 'down'
+          totalInvoices: {
+            amount: totalInvoicesCount,
+            change: `${thisMonthInvoicesCount} this month`,
+            changeType: thisMonthInvoicesCount > 0 ? 'up' : 'neutral',
+            subtitle: `${completionRate.toFixed(1)}% completion rate`
           },
-          netProfit: {
-            amount: netProfit,
-            change: `${profitChange >= 0 ? '+' : ''}${profitChange.toFixed(1)}%`,
-            changeType: profitChange >= 0 ? 'up' : 'down'
+          pendingPayments: {
+            amount: pendingInvoicesAmount,
+            change: `${pendingInvoicesCount} invoices`,
+            changeType: pendingInvoicesCount > 0 ? 'warning' : 'good',
+            subtitle: 'Awaiting customer payments'
           },
-          totalCustomers: {
-            amount: results.totalCustomers[0]?.count || 0,
-            change: '+0%',
-            changeType: 'neutral'
+          activePurchaseOrders: {
+            amount: activePOAmount,
+            change: `${activePOCount} active POs`,
+            changeType: activePOCount > 0 ? 'up' : 'neutral',
+            subtitle: 'Total commitment value'
           }
         },
         paymentSummary: {
-          currentBalance: results.currentBalance[0]?.balance || 0,
+          currentBalance: currentBalance,
+          balanceChange: {
+            percentage: `${revenueChange >= 0 ? '+' : ''}${revenueChange.toFixed(1)}%`,
+            type: revenueChange >= 0 ? 'positive' : 'negative'
+          },
           upcomingPayments: {
-            amount: results.upcomingPayments[0]?.total || 0,
-            count: results.upcomingPayments[0]?.count || 0,
-            badge: `${results.upcomingPayments[0]?.count || 0} New`
+            amount: pendingInvoicesAmount,
+            count: pendingInvoicesCount,
+            badge: `${pendingInvoicesCount} Pending`
           },
           overdueInvoices: {
             amount: results.overdueInvoices[0]?.total || 0,
             count: results.overdueInvoices[0]?.count || 0
           },
-          todayRevenue: {
-            amount: results.todayRevenue[0]?.total || 0,
-            change: '10%' // Could be calculated against yesterday
+          monthlyCollections: {
+            amount: currentMonthRev,
+            change: `${revenueChange >= 0 ? '+' : ''}${revenueChange.toFixed(1)}%`
           },
-          todayExpenses: {
-            amount: results.todayExpenses[0]?.total || 0,
-            change: '150%' // Could be calculated against yesterday
+          activePurchaseOrders: {
+            amount: activePOAmount,
+            count: activePOCount
           }
         },
         quickActions: {
-          totalInvoices: totalRevenue > 0 ? 1 : 0, // Could get actual count
+          totalInvoices: totalInvoicesCount || 0,
           totalPurchaseOrders: results.totalPurchaseOrders[0]?.count || 0,
-          totalExpenses: totalExpenses > 0 ? 1 : 0, // Could get actual count
+          totalExpenses: (results.totalExpenses[0]?.total > 0 ? 1 : 0),
           totalCustomers: results.totalCustomers[0]?.count || 0
         },
-        recentTransactions: results.recentInvoices.map(invoice => ({
+        recentTransactions: (results.recentInvoices || []).map(invoice => ({
           id: invoice.id,
-          name: invoice.customer_name,
+          name: invoice.customer_name || 'Unknown Customer',
           initial: invoice.customer_name ? invoice.customer_name.charAt(0).toUpperCase() : 'U',
-          amount: invoice.total_amount,
+          amount: invoice.total_amount || 0,
           currency: invoice.currency || 'PKR',
-          time: new Date(invoice.updated_at).toLocaleTimeString('en-US', { 
+          time: invoice.updated_at ? new Date(invoice.updated_at).toLocaleTimeString('en-US', { 
             hour: '2-digit', 
             minute: '2-digit' 
-          }),
+          }) : '00:00',
           transaction_type: 'Paid Invoice',
           invoice_id: invoice.id
         }))
@@ -264,10 +400,21 @@ class DashboardController {
           });
         }
 
-        const chartData = results.map(row => ({
-          month: row.month_name,
-          amount: row.total_amount || 0
-        }));
+        // Handle empty results - provide default chart structure
+        let chartData = [];
+        if (!results || results.length === 0) {
+          // Create default 12-month data with zeros
+          const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+          chartData = months.map(month => ({
+            month: month,
+            amount: 0
+          }));
+        } else {
+          chartData = results.map(row => ({
+            month: row.month_name || 'Unknown',
+            amount: row.total_amount || 0
+          }));
+        }
 
         res.json({
           success: true,
@@ -318,7 +465,7 @@ class DashboardController {
       const countResult = await new Promise((resolve, reject) => {
         db.query(countQuery, (err, result) => {
           if (err) reject(err);
-          else resolve(result[0].total);
+          else resolve(result[0] ? result[0].total : 0);
         });
       });
 
@@ -334,16 +481,16 @@ class DashboardController {
       const totalPages = Math.ceil(totalRecords / limit);
       const currentPage = parseInt(page);
 
-      const transactions = dataResult.map(invoice => ({
+      const transactions = (dataResult || []).map(invoice => ({
         id: invoice.id,
-        name: invoice.customer_name,
+        name: invoice.customer_name || 'Unknown Customer',
         initial: invoice.customer_name ? invoice.customer_name.charAt(0).toUpperCase() : 'U',
-        amount: invoice.total_amount,
+        amount: invoice.total_amount || 0,
         currency: invoice.currency || 'PKR',
-        time: new Date(invoice.updated_at).toLocaleTimeString('en-US', { 
+        time: invoice.updated_at ? new Date(invoice.updated_at).toLocaleTimeString('en-US', { 
           hour: '2-digit', 
           minute: '2-digit' 
-        }),
+        }) : '00:00',
         transaction_type: 'Paid Invoice',
         invoice_id: invoice.id
       }));

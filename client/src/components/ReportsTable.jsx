@@ -1249,27 +1249,7 @@ const ReportsTable = ({
                                   <Trash2 className="w-4 h-4 mr-2" />
                                   Delete
                                 </button>
-                                <button
-                                  onClick={() => handlePrint(report)}
-                                  className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left"
-                                >
-                                  <Printer className="w-4 h-4 mr-2" />
-                                  Print
-                                </button>
-                                <button
-                                  onClick={() => handleDownload(report)}
-                                  className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left"
-                                >
-                                  <Download className="w-4 h-4 mr-2" />
-                                  Download
-                                </button>
-                                <button
-                                  onClick={() => handleDuplicate(report)}
-                                  className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left"
-                                >
-                                  <Copy className="w-4 h-4 mr-2" />
-                                  Duplicate
-                                </button>
+
                               </div>
                             </div>
                           )}

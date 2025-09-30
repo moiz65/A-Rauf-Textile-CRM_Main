@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 
-const InvoiceForm = () => {
+const InvoiceForm = ({ initialData, onSubmit, onCancel }) => {
   // State for customers from database
   const [customers, setCustomers] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -84,6 +84,54 @@ const InvoiceForm = () => {
       setShowDropdown(filtered.length > 0 && searchTerm.length > 0);
     }
   }, [searchTerm, customers]);
+
+  // Handle initial data for editing
+  useEffect(() => {
+    if (initialData) {
+      // Populate form with existing invoice data
+      setFormData({
+        customerName: initialData.customer_name || initialData.customerName || '',
+        customerEmail: initialData.customer_email || initialData.customerEmail || '',
+        phone: initialData.customer_phone || initialData.phone || '',
+        a_p_Name: initialData.a_p_Name || '',
+        address: initialData.customer_address || initialData.address || '',
+        stRegNo: initialData.stRegNo || '',
+        ntnNumber: initialData.ntnNumber || '',
+        currency: initialData.currency || 'PKR',
+        salesTax: initialData.tax_rate || initialData.salesTax || 17,
+        subtotal: initialData.subtotal || 0,
+        taxAmount: initialData.tax_amount || initialData.taxAmount || 0,
+        totalAmount: initialData.total_amount || initialData.totalAmount || 0,
+        billDate: initialData.bill_date || initialData.billDate || new Date().toISOString().split('T')[0],
+        paymentDeadline: initialData.payment_deadline || initialData.paymentDeadline || new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        note: initialData.note || initialData.notes || '',
+      });
+
+      // Set search term to customer name for display
+      setSearchTerm(initialData.customer_name || initialData.customerName || '');
+
+      // Handle invoice items if they exist
+      if (initialData.items && Array.isArray(initialData.items) && initialData.items.length > 0) {
+        const mappedItems = initialData.items.map((item, index) => ({
+          id: index + 1,
+          description: item.description || item.item_name || '',
+          quantity: item.quantity || '',
+          rate: item.rate || item.unit_price || '',
+          amount: item.amount || item.total || 0
+        }));
+        setInvoiceItems(mappedItems);
+      } else if (initialData.item_name) {
+        // Handle single item format
+        setInvoiceItems([{
+          id: 1,
+          description: initialData.item_name,
+          quantity: initialData.quantity || '',
+          rate: initialData.rate || '',
+          amount: initialData.total_amount || initialData.totalAmount || 0
+        }]);
+      }
+    }
+  }, [initialData]);
 
   // Handle customer selection from dropdown
   const handleCustomerSelect = (customer) => {
@@ -264,6 +312,13 @@ const InvoiceForm = () => {
 
       console.log("Sending invoice data to API:", invoiceData); // Debug log
 
+      // Use onSubmit prop if provided (for integration), otherwise make direct API call
+      if (onSubmit) {
+        await onSubmit(invoiceData);
+        return; // Exit early, let parent handle the success flow
+      }
+
+      // Direct API call for standalone usage
       const response = await fetch("http://localhost:5000/api/invoices", {
         method: "POST",
         headers: {
@@ -470,7 +525,7 @@ const InvoiceForm = () => {
             <button
               type="button"
               onClick={addNewItem}
-              className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+              className="bg-blue-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
             >
               + Add Item
             </button>
@@ -661,16 +716,15 @@ const InvoiceForm = () => {
           <button
             type="button"
             className="bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold px-10 py-3 rounded-xl shadow-lg transition duration-300"
-            onClick={() => window.history.back()}
+            onClick={onCancel || (() => window.history.back())}
           >
-            Back
+            {onCancel ? 'Cancel' : 'Back'}
           </button>
           <button
             type="submit"
             className="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-10 py-3 rounded-xl shadow-lg transition duration-300"
-            
           >
-            Send Invoice
+            {initialData ? 'Update Invoice' : 'Send Invoice'}
           </button>
         </div>
       </form>

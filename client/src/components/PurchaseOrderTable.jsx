@@ -123,7 +123,8 @@ const PurchaseOrderTable = ({ onViewDetails }) => {
     const basePOs = purchaseOrders
       .filter(po =>
         po.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        po.supplier.toLowerCase().includes(searchTerm.toLowerCase())
+        po.supplier.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (po.originalData?.po_number || '').toLowerCase().includes(searchTerm.toLowerCase())
       )
       .filter(po =>
         (!filters.supplier || po.supplier.toLowerCase().includes(filters.supplier.toLowerCase())) &&
@@ -190,7 +191,8 @@ const PurchaseOrderTable = ({ onViewDetails }) => {
   const filteredPOs = purchaseOrders
     .filter(po =>
       po.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      po.supplier.toLowerCase().includes(searchTerm.toLowerCase())
+      po.supplier.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (po.originalData?.po_number || '').toLowerCase().includes(searchTerm.toLowerCase())
     )
     .filter(po => activeTab === 'All' || po.status === activeTab)
     .filter(po =>
@@ -260,7 +262,15 @@ const PurchaseOrderTable = ({ onViewDetails }) => {
   };
 
   const handleEdit = (po) => {
-    setEditingPO(po);
+    // Use originalData for editing to ensure all fields are populated
+    const poToEdit = po.originalData ? {
+      ...po.originalData,
+      // Ensure the transformed fields are also available
+      id: po.id,
+      totalAmount: po.totalAmount
+    } : po;
+    
+    setEditingPO(poToEdit);
     setShowEditModal(true);
     setActiveDropdown(null);
   };
@@ -871,13 +881,15 @@ const PurchaseOrderTable = ({ onViewDetails }) => {
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
         <div className="bg-white rounded-lg p-6 w-full max-w-6xl max-h-[90vh] overflow-y-auto">
           <h2 className="text-xl font-semibold mb-4">
-            {formData.id && purchaseOrders.some(po => po.id === formData.id) ? 'Edit PO' : 'Create New PO'}
+            {editingPO ? 'Edit Purchase Order' : 'Create New Purchase Order'}
           </h2>
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* PO Number and Date */}
             <div className="grid md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-gray-700 font-medium mb-2">PO Number *</label>
+                <label className="block text-gray-700 font-medium mb-2">
+                  PO Number * {!editingPO && <span className="text-xs text-green-600">(Auto-generated)</span>}
+                </label>
                 <input
                   type="text"
                   name="po_number"

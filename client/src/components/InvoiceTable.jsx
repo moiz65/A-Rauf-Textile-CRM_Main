@@ -174,6 +174,9 @@ const InvoiceForm = ({ onSubmit, onCancel, initialData = null }) => {
   // Initialize form with existing data if editing
   useEffect(() => {
     if (initialData) {
+      console.log('Initializing form with invoice data:', initialData);
+      
+      // Set form data
       setFormData({
         customerName: initialData.customer_name || "",
         customerEmail: initialData.customer_email || "",
@@ -182,19 +185,54 @@ const InvoiceForm = ({ onSubmit, onCancel, initialData = null }) => {
         address: initialData.address || "",
         stRegNo: initialData.st_reg_no || "",
         ntnNumber: initialData.ntn_number || "",
-        itemName: initialData.item_name || "",
-        quantity: initialData.quantity?.toString() || "",
-        rate: initialData.rate?.toString() || "",
         currency: initialData.currency || "PKR",
-        salesTax: initialData.salesTax || "",
-        itemAmount: initialData.item_amount?.toString() || "",
-        taxAmount: initialData.tax_amount?.toString() || "",
-        totalAmount: initialData.total_amount?.toString() || "",
-        billDate: initialData.bill_date || new Date().toISOString().split('T')[0],
-        paymentDeadline: initialData.payment_deadline || "",
-        note: initialData.Note || "",
+        salesTax: parseFloat(initialData.tax_rate || initialData.salesTax || 17),
+        subtotal: parseFloat(initialData.subtotal || 0),
+        taxAmount: parseFloat(initialData.tax_amount || 0),
+        totalAmount: parseFloat(initialData.total_amount || 0),
+        billDate: initialData.bill_date ? initialData.bill_date.split('T')[0] : new Date().toISOString().split('T')[0],
+        paymentDeadline: initialData.payment_deadline ? initialData.payment_deadline.split('T')[0] : "",
+        note: initialData.note || initialData.Note || "",
         status: initialData.status || "Pending"
       });
+
+      // Set search term for customer display
+      setSearchTerm(initialData.customer_name || "");
+
+      // Handle invoice items - check if there are multiple items or single item
+      if (initialData.items && Array.isArray(initialData.items) && initialData.items.length > 0) {
+        // Multiple items structure
+        const mappedItems = initialData.items.map((item, index) => ({
+          id: index + 1,
+          description: item.description || item.item_name || "",
+          quantity: item.quantity?.toString() || "",
+          rate: item.rate?.toString() || "",
+          amount: parseFloat(item.amount || 0)
+        }));
+        setInvoiceItems(mappedItems);
+        console.log('Set multiple invoice items:', mappedItems);
+      } else if (initialData.item_name || initialData.quantity || initialData.rate) {
+        // Single item structure (legacy)
+        const singleItem = [{
+          id: 1,
+          description: initialData.item_name || "",
+          quantity: initialData.quantity?.toString() || "",
+          rate: initialData.rate?.toString() || "",
+          amount: parseFloat(initialData.item_amount || initialData.subtotal || 0)
+        }];
+        setInvoiceItems(singleItem);
+        console.log('Set single invoice item:', singleItem);
+      } else {
+        // No item data, use default empty item
+        setInvoiceItems([{
+          id: 1,
+          description: "",
+          quantity: "",
+          rate: "",
+          amount: 0
+        }]);
+        console.log('No item data found, using default empty item');
+      }
     }
   }, [initialData]);
 
@@ -1093,7 +1131,54 @@ const InvoiceManagement = () => {
   const [loading, setLoading] = useState(true);
   const dropdownRefs = useRef([]);
 
-  // Calculate counts for tabs
+  // State for tab counts
+  const [tabCounts, setTabCounts] = useState({
+    'All': 0,
+    'Paid': 0,
+    'Pending': 0,
+    'Overdue': 0,
+    'PO Invoices': 0
+  });
+
+  // Fetch counts for all tabs separately to ensure accuracy
+  const fetchTabCounts = useCallback(async () => {
+    try {
+      console.log('Fetching fresh tab counts...');
+      
+      const [allResponse, poResponse] = await Promise.all([
+        // Get all regular invoices (excluding PO invoices)
+        fetch(`${API_BASE_URL}/invoices?exclude_po=true&limit=1000&_t=${Date.now()}`),
+        // Get all PO invoices
+        fetch(`${API_BASE_URL}/invoices?invoice_type=po_invoice&limit=1000&_t=${Date.now()}`)
+      ]);
+      
+      const [allData, poData] = await Promise.all([
+        allResponse.ok ? allResponse.json() : { data: [] },
+        poResponse.ok ? poResponse.json() : { data: [] }
+      ]);
+      
+      const allInvoices = allData.data || allData || [];
+      const poInvoices = poData.data || poData || [];
+      
+      console.log('Raw data - All invoices:', allInvoices.length, 'PO invoices:', poInvoices.length);
+      
+      const counts = {
+        'All': allInvoices.length,
+        'Paid': allInvoices.filter(inv => inv.status === 'Paid').length,
+        'Pending': allInvoices.filter(inv => inv.status === 'Pending').length,
+        'Overdue': allInvoices.filter(inv => inv.status === 'Overdue').length,
+        'PO Invoices': poInvoices.length
+      };
+      
+      console.log('Updated tab counts:', counts);
+      setTabCounts(counts);
+      
+    } catch (error) {
+      console.error('Error fetching tab counts:', error);
+    }
+  }, []);
+
+  // Calculate counts for tabs from current data (fallback)
   const getTabCounts = () => {
     const counts = {
       'All': 0,
@@ -1117,6 +1202,13 @@ const InvoiceManagement = () => {
         } else if (invoice.status === 'Overdue') {
           counts['Overdue']++;
         }
+      }
+    });
+
+    // Use fetched counts if they're more reliable (not zero)
+    Object.keys(counts).forEach(key => {
+      if (tabCounts[key] > 0 && counts[key] === 0) {
+        counts[key] = tabCounts[key];
       }
     });
 
@@ -1168,8 +1260,8 @@ const InvoiceManagement = () => {
         }
       });
       
-      // Add sorting and pagination - sort by updated_at/created_at for latest confirmed first
-      queryParams.append('sortBy', 'updated_at');
+      // Add sorting and pagination - sort by created_at for latest first (most reliable timestamp)
+      queryParams.append('sortBy', 'created_at');
       queryParams.append('sortOrder', 'DESC');
       queryParams.append('limit', '100'); // Get more records for client-side pagination
       
@@ -1192,6 +1284,11 @@ const InvoiceManagement = () => {
       const invoicesArray = result.data || result; // Support both new and old response formats
       setInvoicesData(Array.isArray(invoicesArray) ? invoicesArray : []);
       
+      // Update tab counts after data change
+      setTimeout(() => {
+        fetchTabCounts();
+      }, 100);
+      
     } catch (error) {
       console.error('Error fetching invoices:', error);
       showNotification("Error", "Failed to fetch invoices");
@@ -1203,7 +1300,7 @@ const InvoiceManagement = () => {
   
   const fetchInvoices = useCallback((customFilters = null) => {
     return fetchInvoicesRef.current(customFilters);
-  }, []);
+  }, [fetchTabCounts]);
 
   // Debounced effect for filters to prevent too frequent API calls
   useEffect(() => {
@@ -1215,11 +1312,12 @@ const InvoiceManagement = () => {
     return () => clearTimeout(timeoutId);
   }, [filters, searchTerm, activeTab]);
 
-  // Load invoices on component mount
+  // Load invoices and tab counts on component mount
   useEffect(() => {
-    console.log('Component mounted, loading initial invoices');
+    console.log('Component mounted, loading initial invoices and tab counts');
     fetchInvoices({});
-  }, []);
+    fetchTabCounts();
+  }, [fetchTabCounts]);
 
   // Show notification
   const showNotification = (title, description, duration = 3000) => {
@@ -1287,6 +1385,50 @@ const InvoiceManagement = () => {
         invoice.status === activeTab && invoice.invoice_type !== 'po_invoice'
       );
     }
+
+    // Apply additional filters
+    if (filters.customer && filters.customer.trim()) {
+      filtered = filtered.filter(invoice => 
+        (invoice.customer_name || '').toLowerCase().includes(filters.customer.toLowerCase()) ||
+        (invoice.supplier_name || '').toLowerCase().includes(filters.customer.toLowerCase())
+      );
+    }
+
+    if (filters.invoice_number && filters.invoice_number.trim()) {
+      filtered = filtered.filter(invoice =>
+        (invoice.invoice_number || '').toLowerCase().includes(filters.invoice_number.toLowerCase())
+      );
+    }
+
+    if (filters.dateFrom) {
+      filtered = filtered.filter(invoice => {
+        const invoiceDate = new Date(invoice.bill_date || invoice.invoice_date);
+        const fromDate = new Date(filters.dateFrom);
+        return invoiceDate >= fromDate;
+      });
+    }
+
+    if (filters.dateTo) {
+      filtered = filtered.filter(invoice => {
+        const invoiceDate = new Date(invoice.bill_date || invoice.invoice_date);
+        const toDate = new Date(filters.dateTo);
+        return invoiceDate <= toDate;
+      });
+    }
+
+    if (filters.minAmount && !isNaN(parseFloat(filters.minAmount))) {
+      filtered = filtered.filter(invoice => {
+        const amount = parseFloat(invoice.total_amount || invoice.invoice_amount || 0);
+        return amount >= parseFloat(filters.minAmount);
+      });
+    }
+
+    if (filters.maxAmount && !isNaN(parseFloat(filters.maxAmount))) {
+      filtered = filtered.filter(invoice => {
+        const amount = parseFloat(invoice.total_amount || invoice.invoice_amount || 0);
+        return amount <= parseFloat(filters.maxAmount);
+      });
+    }
     
     // Sort invoices with latest confirmed first (Sent/Paid status priority)
     filtered.sort((a, b) => {
@@ -1325,7 +1467,7 @@ const InvoiceManagement = () => {
     });
     
     return filtered;
-  }, [invoicesData, activeTab]);
+  }, [invoicesData, activeTab, filters]);
 
   // Pagination calculations
   const totalPages = Math.ceil(filteredInvoices().length / itemsPerPage);
@@ -1425,14 +1567,29 @@ const InvoiceManagement = () => {
     setActiveDropdown(null);
   };
 
-  const handleEditInvoice = (invoice) => {
+  const handleEditInvoice = async (invoice) => {
     if (invoice.invoice_type === 'po_invoice') {
       // For PO invoices, show a message that they should be edited from the PO page
       showNotification("Info", "PO invoices should be edited from the Purchase Order page");
       navigate(`/purchase-order/${invoice.po_number}`);
     } else {
-      setEditingInvoice(invoice);
-      setShowInvoiceForm(true);
+      try {
+        // Fetch complete invoice data from API
+        const response = await fetch(`${API_BASE_URL}/invoices/${invoice.id}`);
+        
+        if (!response.ok) {
+          throw new Error('Failed to fetch invoice details');
+        }
+        
+        const completeInvoiceData = await response.json();
+        console.log('Complete invoice data for editing:', completeInvoiceData);
+        
+        setEditingInvoice(completeInvoiceData);
+        setShowInvoiceForm(true);
+      } catch (error) {
+        console.error('Error fetching invoice for editing:', error);
+        showNotification("Error", "Failed to load invoice details for editing");
+      }
     }
     setActiveDropdown(null);
   };
@@ -1467,6 +1624,9 @@ const InvoiceManagement = () => {
         }
         
         setInvoicesData(prev => prev.filter(item => item.id !== invoice.id));
+        
+        // Update tab counts after deletion
+        fetchTabCounts();
         
         if (invoice.invoice_type === 'po_invoice' && responseData) {
           showNotification(
@@ -1504,6 +1664,10 @@ const InvoiceManagement = () => {
         
         setInvoicesData(prev => prev.filter(item => !selectedRows.includes(item.id)));
         setSelectedRows([]);
+        
+        // Update tab counts after bulk deletion
+        fetchTabCounts();
+        
         showNotification("Bulk delete successful", `${selectedRows.length} invoices have been deleted`);
       } catch (error) {
         console.error('Error deleting invoices:', error);
@@ -1541,8 +1705,9 @@ const InvoiceManagement = () => {
         throw new Error(`Failed to ${editingInvoice ? 'update' : 'create'} invoice`);
       }
       
-      // Refresh the invoice list
+      // Refresh the invoice list and tab counts
       await fetchInvoices();
+      await fetchTabCounts();
       
       showNotification(
         `Invoice ${editingInvoice ? 'updated' : 'created'}`,
@@ -1836,31 +2001,40 @@ const InvoiceManagement = () => {
 
         {/* Tab Navigation */}
         <div className="overflow-x-auto mb-4">
-          <div className="flex border-b w-max min-w-full">
-            {['All', 'Paid', 'Pending', 'Overdue', 'PO Invoices'].map(status => {
-              const counts = getTabCounts();
-              return (
-                <button
-                  key={status}
-                  className={`px-3 py-2 text-sm font-medium whitespace-nowrap border-b-2 ${
-                    activeTab === status
-                      ? 'border-blue-500 text-blue-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                  }`}
-                  onClick={() => {
-                    console.log('Tab clicked:', status);
-                    setActiveTab(status);
-                    setCurrentPage(1);
-                    // Clear status filter when clicking tabs to avoid conflicts
-                    if (status !== 'All' && status !== 'PO Invoices') {
-                      setFilters(prev => ({ ...prev, status: '' }));
-                    }
-                  }}
-              >
-                {status} ({counts[status] || 0})
-              </button>
-              );
-            })}
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex border-b w-max min-w-full">
+              {['All', 'Paid', 'Pending', 'Overdue', 'PO Invoices'].map(status => {
+                const counts = getTabCounts();
+                return (
+                  <button
+                    key={status}
+                    className={`px-3 py-2 text-sm font-medium whitespace-nowrap border-b-2 ${
+                      activeTab === status
+                        ? 'border-blue-500 text-blue-600'
+                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    }`}
+                    onClick={() => {
+                      console.log('Tab clicked:', status);
+                      setActiveTab(status);
+                      setCurrentPage(1);
+                      // Clear status filter when clicking tabs to avoid conflicts
+                      if (status !== 'All' && status !== 'PO Invoices') {
+                        setFilters(prev => ({ ...prev, status: '' }));
+                      }
+                    }}
+                >
+                  {status} ({counts[status] || 0})
+                </button>
+                );
+              })}
+            </div>
+            <button
+              onClick={fetchTabCounts}
+              className="text-xs text-blue-500 hover:text-blue-700 px-2 py-1 rounded border border-blue-200 hover:bg-blue-50"
+              title="Refresh tab counts"
+            >
+              Refresh Counts
+            </button>
           </div>
         </div>
 

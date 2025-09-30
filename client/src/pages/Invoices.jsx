@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import Sidebar from '../components/Sidebar';
 import Header from '../components/Header';
 import SummaryCard from '../components/SummaryCard';
@@ -6,49 +6,133 @@ import InvoiceTable from '../components/InvoiceTable';
 import TransactionHistory from '../components/TransactionHistory';
 import { toast } from 'sonner';
 
+const API_BASE_URL = 'http://localhost:5000/api';
+
 const Invoices = () => {
-  const summaryData = [
+  const [summaryData, setSummaryData] = useState([
     {
-      title: "Today's Revenue",
-      amount: "2,837.90",
-      currency: "PKR",
-      indicator: { text: "+10%", color: "blue" },
+      title: "Total Invoices",
+      amount: "0",
+      currency: "",
+      indicator: { text: "Loading...", color: "gray" },
     },
     {
-      title: "Today's Expenses",
-      amount: "25,938.86",
-      currency: "PKR",
-      indicator: { text: "-5%", color: "red" },
+      title: "Awaiting Payment",
+      amount: "0",
+      currency: "PKR", 
+      indicator: { text: "Loading...", color: "gray" },
     },
     {
-      title: "Overdue Invoices",
-      amount: "6,947.00",
+      title: "Overdue Amount",
+      amount: "0",
       currency: "PKR",
-      indicator: { text: "+7", color: "green" },
+      indicator: { text: "Loading...", color: "gray" },
     },
     {
-      title: "Upcoming Payments",
-      amount: "6,947.00",
+      title: "Paid Invoices",
+      amount: "0",
       currency: "PKR",
-      indicator: { text: "5 New", color: "yellow" },
+      indicator: { text: "Loading...", color: "gray" },
     },
-  ];
+  ]);
+  const [loading, setLoading] = useState(true);
 
-  const invoiceData = [
-    { id: '#23456', date: '23 Jan 2023', account: 'Hamza', amount: '1200', status: 'Paid' },
-    { id: '#56489-A', date: '23 Feb 2023', account: 'Zain', amount: '7000', status: 'Paid' },
-    { id: '#56489-B', date: '23 Mar 2023', account: 'Shaker', amount: '7000', status: 'Paid' },
-    { id: '#98380', date: '23 Apr 2023', account: 'Majid', amount: '5698', status: 'Paid' },
-    { id: '#90394', date: '23 May 2023', account: 'Sajid', amount: '1200', status: 'Paid' },
-    { id: '#929348', date: '23 Jun 2023', account: 'Wajid', amount: '1200', status: 'Paid' },
-    { id: '#48394', date: '23 Jul 2023', account: 'Wijid', amount: '1200', status: 'Pending' },
-  ];
+  // Fetch real invoice statistics
+  const fetchInvoiceStats = async () => {
+    try {
+      setLoading(true);
+      
+      // Fetch all invoices data (both regular and PO invoices)
+      const [regularResponse, poResponse] = await Promise.all([
+        fetch(`${API_BASE_URL}/invoices?exclude_po=true&limit=1000`),
+        fetch(`${API_BASE_URL}/invoices?invoice_type=po_invoice&limit=1000`)
+      ]);
+      
+      const [regularData, poData] = await Promise.all([
+        regularResponse.ok ? regularResponse.json() : { data: [] },
+        poResponse.ok ? poResponse.json() : { data: [] }
+      ]);
+      
+      const regularInvoices = regularData.data || [];
+      const poInvoices = poData.data || [];
+      const allInvoices = [...regularInvoices, ...poInvoices];
+      
+      // Helper function to format currency
+      const formatCurrency = (value) => {
+        if (!value || isNaN(value)) return '0';
+        return new Intl.NumberFormat('en-PK', {
+          minimumFractionDigits: 0,
+          maximumFractionDigits: 2
+        }).format(value);
+      };
+      
+      // Calculate statistics
+      // All paid invoices
+      const paidInvoices = allInvoices.filter(inv => inv.status === 'Paid');
+      const paidAmount = paidInvoices.reduce((sum, inv) => sum + (parseFloat(inv.total_amount) || 0), 0);
+      
+      // Outstanding invoices (Sent, Pending, Draft - awaiting payment)
+      const outstandingInvoices = allInvoices.filter(inv => 
+        inv.status === 'Sent' || inv.status === 'Pending' || inv.status === 'Draft'
+      );
+      const outstandingAmount = outstandingInvoices.reduce((sum, inv) => sum + (parseFloat(inv.total_amount) || 0), 0);
+      
+      // Overdue invoices (need immediate attention)
+      const overdueInvoices = allInvoices.filter(inv => inv.status === 'Overdue');
+      const overdueAmount = overdueInvoices.reduce((sum, inv) => sum + (parseFloat(inv.total_amount) || 0), 0);
+      
+      setSummaryData([
+        {
+          title: "Total Invoices",
+          amount: allInvoices.length.toString(),
+          currency: "",
+          indicator: { 
+            text: `${regularInvoices.length} Regular + ${poInvoices.length} PO`,
+            color: allInvoices.length > 0 ? "blue" : "gray" 
+          },
+        },
+        {
+          title: "Pending Payment", 
+          amount: formatCurrency(outstandingAmount),
+          currency: "PKR",
+          indicator: { 
+            text: `${outstandingInvoices.length} Invoices`,
+            color: outstandingInvoices.length > 0 ? "yellow" : "green" 
+          },
+        },
+        {
+          title: "Overdue Amount",
+          amount: formatCurrency(overdueAmount),
+          currency: "PKR",
+          indicator: { 
+            text: overdueInvoices.length > 0 ? `${overdueInvoices.length} Need Action` : "All Clear",
+            color: overdueInvoices.length > 0 ? "red" : "green" 
+          },
+        },
+        {
+          title: "Paid Invoices",
+          amount: formatCurrency(paidAmount),
+          currency: "PKR",
+          indicator: { 
+            text: `${paidInvoices.length} Completed`,
+            color: paidInvoices.length > 0 ? "green" : "gray" 
+          },
+        },
+      ]);
+      
+    } catch (error) {
+      console.error('Error fetching invoice statistics:', error);
+      toast.error('Failed to load invoice statistics');
+    } finally {
+      setLoading(false);
+    }
+  };
 
+  useEffect(() => {
+    fetchInvoiceStats();
+  }, []);
 
-
-  const transactions = [
-    { id: '1', name: 'Muhammad Hamza', time: '11:23', initial: 'M' },
-  ];
+  // InvoiceTable and TransactionHistory components now fetch their own data
 
   const handleCreateInvoice = () => {
     toast.success('Creating a new invoice...', {
@@ -64,15 +148,17 @@ const Invoices = () => {
       </div>
       {/* Main Content */}
       <main className="flex-1 p-6 bg-[#F5F5F5] md:ml-64">
-        <Header name="A RAUF TEXTILE" />
-
+        <div className="flex justify-between items-center mb-6">
+        
+        </div>
+  <Header name="A RAUF TEXTILE" />
         {/* Summary Cards */}
         <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 mb-6">
           {summaryData.map((item, index) => (
             <SummaryCard
               key={index}
               title={item.title}
-              amount={item.amount}
+              amount={loading ? "..." : item.amount}
               currency={item.currency}
               indicator={item.indicator}
             />
@@ -81,12 +167,12 @@ const Invoices = () => {
 
         {/* Invoices - Full Width */}
         <section className="w-full mb-5">
-          <InvoiceTable invoices={invoiceData} onCreateInvoice={handleCreateInvoice} />
+          <InvoiceTable onCreateInvoice={handleCreateInvoice} />
         </section>
 
         {/* Transaction History */}
         <section className="mt-5">
-          <TransactionHistory transactions={transactions} />
+          <TransactionHistory />
         </section>
       </main>
     </div>

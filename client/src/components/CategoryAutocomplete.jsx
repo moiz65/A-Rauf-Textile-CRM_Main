@@ -5,6 +5,7 @@ const CategoryAutocomplete = ({
   value, 
   onChange, 
   placeholder = "Enter category name...",
+  categoryType = "Expense",
   required = false 
 }) => {
   const [suggestions, setSuggestions] = useState([]);
@@ -14,10 +15,10 @@ const CategoryAutocomplete = ({
   const inputRef = useRef(null);
   const suggestionsRef = useRef(null);
 
-  // Fetch all existing categories
+  // Fetch all existing categories when component mounts or categoryType changes
   useEffect(() => {
     fetchAllCategories();
-  }, []);
+  }, [categoryType]);
 
   // Filter suggestions based on input
   useEffect(() => {
@@ -36,11 +37,16 @@ const CategoryAutocomplete = ({
 
   const fetchAllCategories = async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/categories');
+      const response = await fetch(`http://localhost:5000/api/categories?type=${categoryType}`);
       if (response.ok) {
         const result = await response.json();
         const allCategories = result.data
-          .filter(cat => cat.status === 'Active' && cat.name !== 'All')
+          .filter(cat => 
+            cat.status === 'Active' && 
+            cat.name !== 'All' && 
+            cat.type === categoryType &&
+            !['Expense', 'Income', 'Asset', 'Liability'].includes(cat.name) // Exclude type names as categories
+          )
           .map(cat => ({
             name: cat.name,
             type: cat.type
@@ -139,11 +145,6 @@ const CategoryAutocomplete = ({
               onClick={() => handleSuggestionClick(suggestion)}
             >
               <span className="font-medium">{suggestion.name}</span>
-              <span className={`ml-2 text-xs px-2 py-0.5 rounded ${
-                index === activeSuggestion ? 'bg-blue-400' : 'bg-gray-200 text-gray-600'
-              }`}>
-                {suggestion.type}
-              </span>
             </div>
           ))}
         </div>

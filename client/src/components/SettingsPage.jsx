@@ -7,12 +7,13 @@ import defaultAvatar from '../assets/header/pfp.png';
 const SettingsPage = () => {
   // User data state
   const [userData, setUserData] = useState({
-    name: 'Muhammad Ahmed',
-    email: 'ahmed@arauftextile.com',
-    phone: '+923001234567',
-    company: 'A Rauf Textile',
-    address: '123 Textile Street, Karachi, Pakistan',
-    username: 'ahmed_rauf',
+    id: null,
+    name: '',
+    email: '',
+    phone: '',
+    company: '',
+    address: '',
+    username: '',
     currentPassword: '',
     newPassword: '',
     confirmPassword: '',
@@ -33,14 +34,46 @@ const SettingsPage = () => {
   });
   const [activeTab, setActiveTab] = useState('profile');
   const [isUploading, setIsUploading] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
-  // Simulate loading user data
+  // Load user data from database
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setIsLoading(false);
-    }, 1000);
-    return () => clearTimeout(timer);
+    const fetchUserData = async () => {
+      try {
+        // Get the logged-in user's ID from localStorage
+        const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
+        const userId = currentUser.id || 1;
+        
+        const response = await fetch(`http://localhost:5000/api/settings/${userId}`);
+        const data = await response.json();
+        
+        if (data.success && data.data) {
+          const { personal, security } = data.data;
+          setUserData({
+            id: userId,
+            name: `${personal.firstName} ${personal.lastName}`,
+            email: personal.email,
+            phone: personal.phone || '',
+            company: personal.company || 'A Rauf Textile',
+            address: personal.address || '',
+            username: personal.email.split('@')[0],
+            currentPassword: '',
+            newPassword: '',
+            confirmPassword: '',
+            role: 'admin',
+            twoFactorEnabled: security.twoFactorEnabled || false,
+            notifications: security.loginNotifications || true
+          });
+        }
+      } catch (error) {
+        console.error('Error fetching user data:', error);
+        showError('Failed to load user data');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchUserData();
   }, []);
 
   const handleChange = (e) => {
@@ -123,6 +156,11 @@ const SettingsPage = () => {
     setTimeout(() => setSuccessMessage(''), 5000);
   };
 
+  const showError = (message) => {
+    setErrors(prev => ({ ...prev, general: message }));
+    setTimeout(() => setErrors(prev => ({ ...prev, general: '' })), 5000);
+  };
+
   const handleSubmit = async (section) => {
     setIsEditing(null);
     
@@ -144,11 +182,74 @@ const SettingsPage = () => {
 
     setIsLoading(true);
     
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    
-    setIsLoading(false);
-    showSuccess(`${section.charAt(0).toUpperCase() + section.slice(1)} settings updated successfully`);
+    try {
+      if (section === 'profile') {
+        // Update profile information
+        const [firstName, ...lastNameParts] = userData.name.split(' ');
+        const lastName = lastNameParts.join(' ') || '';
+        
+        const response = await fetch(`http://localhost:5000/api/settings/${userData.id}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            personal: {
+              firstName,
+              lastName,
+              email: userData.email,
+              phone: userData.phone,
+              company: userData.company,
+              address: userData.address
+            },
+            security: {
+              twoFactorEnabled: userData.twoFactorEnabled,
+              loginNotifications: userData.notifications
+            }
+          }),
+        });
+        
+        const data = await response.json();
+        if (data.success) {
+          showSuccess('Profile updated successfully');
+        } else {
+          showError(data.message || 'Failed to update profile');
+        }
+        
+      } else if (section === 'security' && userData.newPassword) {
+        // Update password
+        const response = await fetch(`http://localhost:5000/api/settings/${userData.id}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            password: {
+              currentPassword: userData.currentPassword,
+              newPassword: userData.newPassword,
+            }
+          }),
+        });
+        
+        const data = await response.json();
+        if (data.success) {
+          setUserData(prev => ({
+            ...prev,
+            currentPassword: '',
+            newPassword: '',
+            confirmPassword: ''
+          }));
+          showSuccess('Password updated successfully');
+        } else {
+          showError(data.message || 'Failed to update password');
+        }
+      }
+    } catch (error) {
+      console.error('Error updating settings:', error);
+      showError('Failed to update settings. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleCancelEdit = () => {
@@ -257,6 +358,20 @@ const SettingsPage = () => {
             <button 
               onClick={() => setSuccessMessage('')} 
               className="ml-auto text-green-700 hover:text-green-800"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
+        )}
+
+        {/* Error message */}
+        {errors.general && (
+          <div className="mb-6 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg flex items-center gap-2 shadow-sm">
+            <X className="h-5 w-5" />
+            <span>{errors.general}</span>
+            <button 
+              onClick={() => setErrors(prev => ({ ...prev, general: '' }))} 
+              className="ml-auto text-red-700 hover:text-red-800"
             >
               <X className="h-5 w-5" />
             </button>

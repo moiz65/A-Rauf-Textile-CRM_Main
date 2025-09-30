@@ -41,74 +41,123 @@ const PurchaseOrder = () => {
           }).format(value);
         };
 
-        // Calculate statistics from the data
-        const totalOrders = data.length;
-        const pendingOrders = data.filter(po => po.status === 'Pending').length;
-        const totalValue = data.reduce((sum, po) => sum + (parseFloat(po.total_amount) || 0), 0);
-        
-        // Calculate this month's value
+        // Calculate current month and last month for comparisons
         const currentDate = new Date();
         const currentMonth = currentDate.getMonth();
         const currentYear = currentDate.getFullYear();
-        const thisMonthValue = data.filter(po => {
+        const lastMonth = currentMonth === 0 ? 11 : currentMonth - 1;
+        const lastMonthYear = currentMonth === 0 ? currentYear - 1 : currentYear;
+
+        // Calculate statistics from the data
+        const totalOrders = data.length;
+        const pendingOrders = data.filter(po => po.status === 'Pending').length;
+        const approvedOrders = data.filter(po => po.status === 'Approved').length;
+        const completedOrders = data.filter(po => po.status === 'Completed').length;
+        const cancelledOrders = data.filter(po => po.status === 'Cancelled').length;
+        
+        // Analyze invoice status for better insights
+        const fullyInvoicedOrders = data.filter(po => po.invoice_status === 'Fully Invoiced').length;
+        const partiallyInvoicedOrders = data.filter(po => po.invoice_status === 'Partially Invoiced').length;
+        const notInvoicedOrders = data.filter(po => !po.invoice_status || po.invoice_status === 'Not Invoiced').length;
+        
+        const totalValue = data.reduce((sum, po) => sum + (parseFloat(po.total_amount) || 0), 0);
+        const invoicedValue = data.reduce((sum, po) => {
+          // Calculate invoiced amount based on remaining value
+          const total = parseFloat(po.total_amount) || 0;
+          const remaining = parseFloat(po.remaining_amount) || 0;
+          return sum + (total - remaining);
+        }, 0);
+        
+        // Calculate this month's orders and value
+        const thisMonthOrders = data.filter(po => {
           const poDate = new Date(po.po_date);
           return poDate.getMonth() === currentMonth && poDate.getFullYear() === currentYear;
-        }).reduce((sum, po) => sum + (parseFloat(po.total_amount) || 0), 0);
+        });
+        const thisMonthValue = thisMonthOrders.reduce((sum, po) => sum + (parseFloat(po.total_amount) || 0), 0);
+        const thisMonthCount = thisMonthOrders.length;
+
+        // Calculate last month's orders for comparison
+        const lastMonthOrders = data.filter(po => {
+          const poDate = new Date(po.po_date);
+          return poDate.getMonth() === lastMonth && poDate.getFullYear() === lastMonthYear;
+        });
+        const lastMonthValue = lastMonthOrders.reduce((sum, po) => sum + (parseFloat(po.total_amount) || 0), 0);
+        const lastMonthCount = lastMonthOrders.length;
+
+        // Calculate percentage changes
+        const orderCountChange = lastMonthCount > 0 ? ((thisMonthCount - lastMonthCount) / lastMonthCount * 100) : (thisMonthCount > 0 ? 100 : 0);
+        const valueChange = lastMonthValue > 0 ? ((thisMonthValue - lastMonthValue) / lastMonthValue * 100) : (thisMonthValue > 0 ? 100 : 0);
+
+        // Calculate meaningful pending insights
+        const activeOrdersCount = pendingOrders + approvedOrders; // Orders that need attention
+        const ordersReadyForInvoicing = approvedOrders - fullyInvoicedOrders; // Approved but not fully invoiced
 
         setSummaryData([
           {
             title: "Total Purchase Orders",
             amount: totalOrders.toString(),
             currency: "",
-            indicator: { text: "+12", color: "blue" },
+            indicator: { 
+              text: orderCountChange >= 0 ? `+${Math.round(orderCountChange)}%` : `${Math.round(orderCountChange)}%`,
+              color: orderCountChange >= 0 ? "green" : "red"
+            },
           },
           {
-            title: "Pending Orders",
-            amount: pendingOrders.toString(),
+            title: "Active Orders",
+            amount: approvedOrders.toString(),
             currency: "",
-            indicator: { text: "-3", color: "red" },
+            indicator: { 
+              text: partiallyInvoicedOrders > 0 ? `${partiallyInvoicedOrders} In Progress` : (fullyInvoicedOrders > 0 ? "All Complete" : `${approvedOrders} Approved`),
+              color: partiallyInvoicedOrders > 0 ? "yellow" : (fullyInvoicedOrders > 0 ? "green" : "blue")
+            },
           },
           {
             title: "Total Value",
             amount: formatCurrency(totalValue),
             currency: "PKR",
-            indicator: { text: "+8.5%", color: "green" },
+            indicator: { 
+              text: invoicedValue > 0 ? `${((invoicedValue / totalValue) * 100).toFixed(0)}% Invoiced` : "0% Invoiced",
+              color: invoicedValue === totalValue ? "green" : (invoicedValue > 0 ? "yellow" : "red")
+            },
           },
           {
             title: "This Month",
             amount: formatCurrency(thisMonthValue),
             currency: "PKR",
-            indicator: { text: "15 New", color: "yellow" },
+            indicator: { 
+              text: `${thisMonthCount} New`,
+              color: thisMonthCount > 0 ? "blue" : "gray"
+            },
           },
         ]);
       }
     } catch (error) {
       console.error('Error fetching summary data:', error);
-      // Set default values on error
+      // Set default values on error with logical defaults
       setSummaryData([
         {
           title: "Total Purchase Orders",
           amount: "0",
           currency: "",
-          indicator: { text: "+12", color: "blue" },
+          indicator: { text: "0%", color: "gray" },
         },
         {
-          title: "Pending Orders",
+          title: "Active Orders",
           amount: "0",
           currency: "",
-          indicator: { text: "-3", color: "red" },
+          indicator: { text: "None Yet", color: "gray" },
         },
         {
           title: "Total Value",
           amount: "0",
           currency: "PKR",
-          indicator: { text: "+8.5%", color: "green" },
+          indicator: { text: "0% Invoiced", color: "gray" },
         },
         {
           title: "This Month",
           amount: "0",
           currency: "PKR",
-          indicator: { text: "15 New", color: "yellow" },
+          indicator: { text: "0 New", color: "gray" },
         },
       ]);
     } finally {

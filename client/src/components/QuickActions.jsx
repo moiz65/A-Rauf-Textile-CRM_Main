@@ -36,7 +36,7 @@ const QuickActions = ({ dashboardData }) => {
       description: `Manage POs (${dashboardData?.quickActions?.totalPurchaseOrders || 0})`,
       color: 'bg-rose-100 text-rose-600',
       hoverColor: 'hover:bg-rose-50',
-      action: () => window.location.href = '/PurchaseOrder'
+      action: () => window.location.href = '/purchase-order'
     },
     {
       icon: Users,

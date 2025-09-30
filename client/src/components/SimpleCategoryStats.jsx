@@ -63,32 +63,44 @@ const SimpleCategoryStats = () => {
   const categories = [
     {
       title: 'Total Expenses',
-      amount: categoryStats.Expense?.total_amount || 0,
-      count: categoryStats.Expense?.expense_count || 0,
+      paidAmount: categoryStats.Expense?.paid_amount || 0,
+      pendingAmount: categoryStats.Expense?.pending_amount || 0,
+      paidCount: categoryStats.Expense?.paid_count || 0,
+      pendingCount: categoryStats.Expense?.pending_count || 0,
+      totalCount: categoryStats.Expense?.total_count || 0,
       color: 'text-red-600',
       bgColor: 'bg-red-50',
       borderColor: 'border-red-200'
     },
     {
       title: 'Total Income',
-      amount: categoryStats.Income?.total_amount || 0,
-      count: categoryStats.Income?.expense_count || 0,
+      paidAmount: categoryStats.Income?.paid_amount || 0,
+      pendingAmount: categoryStats.Income?.pending_amount || 0,
+      paidCount: categoryStats.Income?.paid_count || 0,
+      pendingCount: categoryStats.Income?.pending_count || 0,
+      totalCount: categoryStats.Income?.total_count || 0,
       color: 'text-green-600',
       bgColor: 'bg-green-50',
       borderColor: 'border-green-200'
     },
     {
       title: 'Total Assets',
-      amount: categoryStats.Asset?.total_amount || 0,
-      count: categoryStats.Asset?.expense_count || 0,
+      paidAmount: categoryStats.Asset?.paid_amount || 0,
+      pendingAmount: categoryStats.Asset?.pending_amount || 0,
+      paidCount: categoryStats.Asset?.paid_count || 0,
+      pendingCount: categoryStats.Asset?.pending_count || 0,
+      totalCount: categoryStats.Asset?.total_count || 0,
       color: 'text-blue-600',
       bgColor: 'bg-blue-50',
       borderColor: 'border-blue-200'
     },
     {
       title: 'Total Liabilities',
-      amount: categoryStats.Liability?.total_amount || 0,
-      count: categoryStats.Liability?.expense_count || 0,
+      paidAmount: categoryStats.Liability?.paid_amount || 0,
+      pendingAmount: categoryStats.Liability?.pending_amount || 0,
+      paidCount: categoryStats.Liability?.paid_count || 0,
+      pendingCount: categoryStats.Liability?.pending_count || 0,
+      totalCount: categoryStats.Liability?.total_count || 0,
       color: 'text-orange-600',
       bgColor: 'bg-orange-50',
       borderColor: 'border-orange-200'
@@ -102,14 +114,28 @@ const SimpleCategoryStats = () => {
           key={index} 
           className={`${category.bgColor} ${category.borderColor} rounded-lg border p-6 hover:shadow-md transition-shadow`}
         >
-          <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center justify-between mb-3">
             <h3 className="text-sm font-medium text-gray-700">{category.title}</h3>
             <span className={`text-xs px-2 py-1 rounded-full ${category.bgColor} ${category.color}`}>
-              {category.count} items
+              {category.totalCount} items
             </span>
           </div>
-          <div className={`text-2xl font-bold ${category.color}`}>
-            {formatCurrency(category.amount)}
+          
+          {/* Main Total Amount */}
+          <div className={`text-2xl font-bold ${category.color} mb-3`}>
+            {formatCurrency(category.paidAmount + category.pendingAmount)}
+          </div>
+          
+          {/* Breakdown */}
+          <div className="space-y-1">
+            <div className="flex justify-between items-center text-sm">
+              <span className="text-green-600 font-medium">Paid ({category.paidCount})</span>
+              <span className="text-green-600 font-semibold">{formatCurrency(category.paidAmount)}</span>
+            </div>
+            <div className="flex justify-between items-center text-sm">
+              <span className="text-yellow-600 font-medium">Pending ({category.pendingCount})</span>
+              <span className="text-yellow-600 font-semibold">{formatCurrency(category.pendingAmount)}</span>
+            </div>
           </div>
         </div>
       ))}

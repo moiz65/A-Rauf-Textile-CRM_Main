@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { ArrowLeft, Download, Printer, Edit, Share2, Eye, EyeOff, X } from 'lucide-react';
-import { generateInvoiceId } from '../utils/idGenerator';
+import { generateInvoiceId, generateIncrementalPOInvoiceId } from '../utils/idGenerator';
 import Logo from '../assets/Logo/Logo.png';
 
 const PurchaseOrderDetails = ({ poId, onBack }) => {
@@ -30,7 +30,8 @@ const PurchaseOrderDetails = ({ poId, onBack }) => {
         
         // Transform API data to match component format
         const transformedPO = {
-          id: data.po_number || data.id,
+          id: data.id, // Keep the database ID
+          databaseId: data.id, // Store database ID separately
           number: data.po_number || data.id,
           date: data.po_date,
           deliveryDate: data.delivery_date || new Date(Date.now() + 10*24*60*60*1000).toISOString().split('T')[0], // 10 days from PO date
@@ -129,36 +130,65 @@ const PurchaseOrderDetails = ({ poId, onBack }) => {
     setLoadingHistory(false);
   };
 
-  // Calculate PO summary data
-  const getPOSummary = () => {
-    const poTotal = purchaseOrder?.totalAmount || 0;
-    const totalInvoiced = invoiceHistory.reduce((sum, inv) => {
-      return sum + (parseFloat(inv.total_amount || inv.invoice_amount) || 0);
-    }, 0);
-    const remainingAmount = Math.max(0, poTotal - totalInvoiced);
-    const invoicingPercentage = poTotal > 0 ? (totalInvoiced / poTotal) * 100 : 0;
+  // Fetch PO summary data from server
+  const [poSummary, setPOSummary] = useState({
+    poTotal: 0,
+    totalInvoiced: 0,
+    remainingAmount: 0,
+    invoicingPercentage: 0,
+    invoiceCount: 0,
+    status: 'Not Invoiced'
+  });
+
+  const fetchPOSummary = async () => {
+    if (!poId) return;
     
-    return {
-      poTotal,
-      totalInvoiced,
-      remainingAmount,
-      invoicingPercentage: Math.round(invoicingPercentage * 100) / 100,
-      invoiceCount: invoiceHistory.length,
-      status: totalInvoiced >= poTotal ? 'Fully Invoiced' : 
-              totalInvoiced > 0 ? 'Partially Invoiced' : 'Not Invoiced'
-    };
+    try {
+      const response = await fetch(`http://localhost:5000/api/purchase-orders/${poId}/summary`);
+      if (response.ok) {
+        const summary = await response.json();
+        const invoicingPercentage = summary.po_total > 0 ? (summary.total_invoiced / summary.po_total) * 100 : 0;
+        
+        setPOSummary({
+          poTotal: summary.po_total || 0,
+          totalInvoiced: summary.total_invoiced || 0,
+          remainingAmount: summary.remaining_amount || 0,
+          invoicingPercentage: Math.round(invoicingPercentage * 100) / 100,
+          invoiceCount: summary.invoice_count || 0,
+          status: summary.remaining_amount <= 0 ? 'Fully Invoiced' : 
+                  summary.total_invoiced > 0 ? 'Partially Invoiced' : 'Not Invoiced'
+        });
+        
+        console.log('PO Summary updated:', {
+          remaining: summary.remaining_amount,
+          total_invoiced: summary.total_invoiced,
+          po_total: summary.po_total
+        });
+      } else {
+        console.error('Failed to fetch PO summary');
+      }
+    } catch (error) {
+      console.error('Error fetching PO summary:', error);
+    }
   };
 
-  // Fetch invoice history when PO data is loaded
+  // Legacy function for backward compatibility
+  const getPOSummary = () => {
+    return poSummary;
+  };
+
+  // Fetch PO summary and invoice history when PO ID is loaded
   useEffect(() => {
-    if (purchaseOrder?.number) {
+    if (poId) {
+      fetchPOSummary();
       fetchInvoiceHistory();
     }
-  }, [purchaseOrder?.number]);
+  }, [poId]);
 
-  // Fetch invoice history when showing payment history (refresh)
+  // Refresh PO summary when showing payment history
   useEffect(() => {
-    if (showPaymentHistory && purchaseOrder?.number) {
+    if (showPaymentHistory && poId) {
+      fetchPOSummary();
       fetchInvoiceHistory();
     }
   }, [showPaymentHistory]);
@@ -530,13 +560,58 @@ const PurchaseOrderDetails = ({ poId, onBack }) => {
     }
   };
 
+  // Function to fetch existing PO invoices for this specific PO (for incremental numbering)
+  const fetchPOInvoicesForCurrentPO = async () => {
+    try {
+      // Use database ID if available, otherwise use the poId (which might be PO number)
+      const searchId = purchaseOrder?.databaseId || purchaseOrder?.id || poId;
+      const response = await fetch(`http://localhost:5000/api/po-invoices/details?po_id=${searchId}`);
+      if (response.ok) {
+        const data = await response.json();
+        console.log(`Fetched ${data.length} existing invoices for PO ${searchId}`);
+        return data;
+      } else {
+        console.error('Failed to fetch PO invoices for current PO, using empty array for ID generation');
+        return [];
+      }
+    } catch (error) {
+      console.error('Error fetching PO invoices for current PO, using empty array for ID generation:', error);
+      return []; // Return empty array on error, will still generate a unique ID
+    }
+  };
+
+  // Function to fetch all PO invoice numbers for unique ID generation
+  const fetchPOInvoiceNumbers = async () => {
+    try {
+      const response = await fetch('http://localhost:5000/api/po-invoices');
+      if (response.ok) {
+        const invoiceNumbers = await response.json();
+        console.log('Fetched PO invoice numbers for ID generation:', invoiceNumbers.length, 'existing invoice numbers');
+        
+        // Server returns array of strings, convert to format expected by ID generator
+        // ID generator expects array of objects with invoice_number property
+        const formattedData = invoiceNumbers.map(number => ({ invoice_number: number }));
+        
+        console.log('Formatted for ID Generator:', formattedData.length, 'invoice objects');
+        
+        return formattedData;
+      } else {
+        console.error('Failed to fetch PO invoice numbers, using empty array for ID generation');
+        return [];
+      }
+    } catch (error) {
+      console.error('Error fetching PO invoice numbers, using empty array for ID generation:', error);
+      return []; // Return empty array on error, will still generate a unique ID
+    }
+  };
+
   // Invoice Modal Component
   const InvoiceModal = () => {
     const [invoiceData, setInvoiceData] = useState({
-      invoiceNumber: generateInvoiceId([]), // Generate memorable PO invoice ID
+      invoiceNumber: '', // Will be generated after fetching existing invoices
       invoiceDate: new Date().toISOString().split('T')[0],
       dueDate: new Date(Date.now() + 30*24*60*60*1000).toISOString().split('T')[0], // 30 days from now
-      customer: {
+      supplier: {
         name: purchaseOrder?.supplier?.name || '',
         email: purchaseOrder?.supplier?.email || '',
         phone: purchaseOrder?.supplier?.phone || '',
@@ -552,11 +627,59 @@ const PurchaseOrderDetails = ({ poId, onBack }) => {
       taxRate: purchaseOrder?.taxRate || 0,
       taxAmount: purchaseOrder?.taxAmount || 0,
       total: purchaseOrder?.totalAmount || 0,
-      invoiceAmount: purchaseOrder?.totalAmount || 0, // Amount user wants to invoice
+      invoiceAmount: 0, // Will be set to remaining amount
       remainingAmount: 0, // Will be calculated
       notes: `Generated from Purchase Order: ${purchaseOrder?.number || ''}`,
-      po_id: purchaseOrder?.id || poId // Link to PO
+      po_id: purchaseOrder?.databaseId || purchaseOrder?.id || poId // Link to PO with database ID
     });
+
+    // Initialize invoice amount with remaining amount when PO summary is loaded
+    useEffect(() => {
+      if (poSummary.remainingAmount > 0) {
+        setInvoiceData(prev => ({
+          ...prev,
+          invoiceAmount: poSummary.remainingAmount,
+          subtotal: poSummary.remainingAmount,
+          total: poSummary.remainingAmount,
+          remainingAmount: 0 // Will be 0 after this invoice
+        }));
+      }
+    }, [poSummary.remainingAmount]);
+
+    // Generate unique incremental PO invoice number on component mount
+    useEffect(() => {
+      const generateUniquePOInvoiceNumber = async () => {
+        try {
+          // Fetch existing invoices for this specific PO
+          const existingPOInvoices = await fetchPOInvoicesForCurrentPO();
+          // Fetch all PO invoices for collision checking
+          const allPOInvoices = await fetchPOInvoiceNumbers();
+          
+          // Generate incremental ID (PI25-001, PI25-001-1, PI25-001-2, etc.)
+          const newInvoiceNumber = generateIncrementalPOInvoiceId(existingPOInvoices, allPOInvoices);
+          
+          console.log(`Generated PO invoice number for PO ${poId}:`, newInvoiceNumber);
+          console.log(`- Existing invoices for this PO: ${existingPOInvoices.length}`);
+          console.log(`- Total PO invoices in system: ${allPOInvoices.length}`);
+          
+          setInvoiceData(prev => ({
+            ...prev,
+            invoiceNumber: newInvoiceNumber
+          }));
+        } catch (error) {
+          console.error('Error generating PO invoice number:', error);
+          // Fallback: generate with empty arrays
+          const fallbackNumber = generateIncrementalPOInvoiceId([], []);
+          console.log('Using fallback PO invoice number:', fallbackNumber);
+          setInvoiceData(prev => ({
+            ...prev,
+            invoiceNumber: fallbackNumber
+          }));
+        }
+      };
+      
+      generateUniquePOInvoiceNumber();
+    }, []); // Only run once on mount
 
     const handleInputChange = (e) => {
       const { name, value } = e.target;
@@ -566,49 +689,26 @@ const PurchaseOrderDetails = ({ poId, onBack }) => {
       }));
     };
 
-    const handleCustomerChange = (e) => {
+    const handleSupplierChange = (e) => {
       const { name, value } = e.target;
       setInvoiceData(prev => ({
         ...prev,
-        customer: {
-          ...prev.customer,
+        supplier: {
+          ...prev.supplier,
           [name]: value
         }
       }));
     };
 
-    const handleItemChange = (index, field, value) => {
-      const updatedItems = [...invoiceData.items];
-      updatedItems[index] = { ...updatedItems[index], [field]: value };
-      
-      // Auto-calculate amount for quantity and unitPrice changes
-      if (field === 'quantity' || field === 'unitPrice') {
-        const quantity = field === 'quantity' ? parseFloat(value) || 0 : updatedItems[index].quantity;
-        const unitPrice = field === 'unitPrice' ? parseFloat(value) || 0 : updatedItems[index].unitPrice;
-        updatedItems[index].amount = quantity * unitPrice;
-      }
-      
-      // Recalculate totals
-      const subtotal = updatedItems.reduce((sum, item) => sum + (item.amount || 0), 0);
-      const taxAmount = subtotal * (invoiceData.taxRate / 100);
-      const total = subtotal + taxAmount;
-      
-      setInvoiceData(prev => ({
-        ...prev,
-        items: updatedItems,
-        subtotal,
-        taxAmount,
-        total
-      }));
-    };
+    // Items are now read-only since they come from PO
+    // Only the invoice amount can be changed to control partial invoicing
 
 
 
     const handleInvoiceAmountChange = (e) => {
       const invoiceAmount = parseFloat(e.target.value) || 0;
       
-      // Get accurate summary data
-      const poSummary = getPOSummary();
+      // Use current PO summary data
       const availableAmount = poSummary.remainingAmount;
       
       // Ensure invoice amount doesn't exceed available amount
@@ -635,12 +735,12 @@ const PurchaseOrderDetails = ({ poId, onBack }) => {
           invoice_number: invoiceData.invoiceNumber,
           invoice_date: invoiceData.invoiceDate,
           due_date: invoiceData.dueDate,
-          po_id: invoiceData.po_id,
+          po_id: purchaseOrder?.databaseId || purchaseOrder?.id, // Use database ID
           po_number: purchaseOrder?.number,
-          customer_name: invoiceData.customer.name,
-          customer_email: invoiceData.customer.email,
-          customer_phone: invoiceData.customer.phone,
-          customer_address: invoiceData.customer.address,
+          customer_name: invoiceData.supplier.name, // Use customer_name to match DB field
+          customer_email: invoiceData.supplier.email,
+          customer_phone: invoiceData.supplier.phone,
+          customer_address: invoiceData.supplier.address,
           subtotal: invoiceData.subtotal,
           tax_rate: invoiceData.taxRate,
           tax_amount: invoiceData.taxAmount,
@@ -664,19 +764,22 @@ const PurchaseOrderDetails = ({ poId, onBack }) => {
 
         if (response.ok) {
           const result = await response.json();
+          
+          // Refresh PO summary to get updated remaining amount
+          await fetchPOSummary();
+          
+          // Refresh invoice history to show the new invoice
+          await fetchInvoiceHistory();
+          
           alert(`Invoice ${invoiceData.invoiceNumber} created successfully!\nInvoice Amount: PKR ${invoiceData.invoiceAmount.toLocaleString()}\nRemaining PO Amount: PKR ${invoiceData.remainingAmount.toLocaleString()}`);
           setShowInvoiceModal(false);
-          // Refresh invoice history to show the new invoice
-          if (showPaymentHistory) {
-            await fetchInvoiceHistory();
-          }
-          // No need to reload the entire page
         } else {
-          throw new Error('Failed to create invoice');
+          const errorData = await response.json().catch(() => ({ message: 'Failed to create invoice' }));
+          throw new Error(errorData.message || 'Failed to create invoice');
         }
       } catch (error) {
         console.error('Error creating invoice:', error);
-        alert('Error creating invoice. Please try again.');
+        alert(`Error creating invoice: ${error.message}\n\nPlease try again.`);
       }
     };
 
@@ -701,9 +804,9 @@ const PurchaseOrderDetails = ({ poId, onBack }) => {
                 <input
                   type="text"
                   name="invoiceNumber"
-                  value={invoiceData.invoiceNumber}
+                  value={invoiceData.invoiceNumber || 'Generating...'}
                   onChange={handleInputChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-gray-50"
                   readOnly
                 />
               </div>
@@ -804,8 +907,11 @@ const PurchaseOrderDetails = ({ poId, onBack }) => {
                         </div>
                         <div className="mb-4">
                           <label className="block text-sm font-medium text-blue-700 mb-2">
-                            Invoice Amount *
+                            Invoice Amount * (This controls the total invoice value)
                           </label>
+                          <p className="text-xs text-blue-600 mb-2">
+                            💡 Enter the amount you want to invoice from this PO. You can create partial invoices.
+                          </p>
                           <input
                             type="number"
                             value={invoiceData.invoiceAmount}
@@ -824,7 +930,10 @@ const PurchaseOrderDetails = ({ poId, onBack }) => {
                             </div>
                           )}
                           <div className="text-xs text-green-600 mt-1">
-                            After this invoice, remaining: PKR {invoiceData.remainingAmount.toLocaleString()}
+                            After this invoice, remaining: PKR {(() => {
+                              const summary = getPOSummary();
+                              return (summary.remainingAmount - (invoiceData.invoiceAmount || 0)).toLocaleString();
+                            })()}
                           </div>
                         </div>
                       </>
@@ -836,15 +945,15 @@ const PurchaseOrderDetails = ({ poId, onBack }) => {
 
             {/* Customer Info */}
             <div className="bg-gray-50 p-4 rounded-lg">
-              <h4 className="font-medium text-gray-700 mb-3">Customer Information</h4>
+              <h4 className="font-medium text-gray-700 mb-3">Supplier Information</h4>
               <div className="grid md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Customer Name</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Supplier Name</label>
                   <input
                     type="text"
                     name="name"
-                    value={invoiceData.customer.name}
-                    onChange={handleCustomerChange}
+                    value={invoiceData.supplier.name}
+                    onChange={handleSupplierChange}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
@@ -853,8 +962,8 @@ const PurchaseOrderDetails = ({ poId, onBack }) => {
                   <input
                     type="email"
                     name="email"
-                    value={invoiceData.customer.email}
-                    onChange={handleCustomerChange}
+                    value={invoiceData.supplier.email}
+                    onChange={handleSupplierChange}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
@@ -863,8 +972,8 @@ const PurchaseOrderDetails = ({ poId, onBack }) => {
                   <input
                     type="text"
                     name="phone"
-                    value={invoiceData.customer.phone}
-                    onChange={handleCustomerChange}
+                    value={invoiceData.supplier.phone}
+                    onChange={handleSupplierChange}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
@@ -873,17 +982,20 @@ const PurchaseOrderDetails = ({ poId, onBack }) => {
                   <input
                     type="text"
                     name="address"
-                    value={invoiceData.customer.address}
-                    onChange={handleCustomerChange}
+                    value={invoiceData.supplier.address}
+                    onChange={handleSupplierChange}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
               </div>
             </div>
 
-            {/* Items Table */}
+            {/* Items Table - Read Only */}
             <div className="bg-gray-50 p-4 rounded-lg">
-              <h4 className="font-medium text-gray-700 mb-3">Invoice Items</h4>
+              <h4 className="font-medium text-gray-700 mb-3">Invoice Items (From Purchase Order)</h4>
+              <p className="text-sm text-gray-600 mb-3">
+                ℹ️ Items are from the Purchase Order and cannot be modified
+              </p>
               <div className="overflow-x-auto">
                 <table className="w-full border-collapse border border-gray-300">
                   <thead>
@@ -896,33 +1008,24 @@ const PurchaseOrderDetails = ({ poId, onBack }) => {
                   </thead>
                   <tbody>
                     {invoiceData.items.map((item, index) => (
-                      <tr key={index} className="hover:bg-gray-50">
+                      <tr key={index} className="bg-gray-100">
                         <td className="border border-gray-300 px-3 py-2">
-                          <input
-                            type="text"
-                            value={item.description}
-                            onChange={(e) => handleItemChange(index, 'description', e.target.value)}
-                            className="w-full px-2 py-1 border-0 bg-transparent focus:ring-0"
-                          />
+                          <div className="px-2 py-1 text-gray-700 bg-gray-100 rounded">
+                            {item.description}
+                          </div>
                         </td>
-                        <td className="border border-gray-300 px-3 py-2">
-                          <input
-                            type="number"
-                            value={item.quantity}
-                            onChange={(e) => handleItemChange(index, 'quantity', e.target.value)}
-                            className="w-full px-2 py-1 border-0 bg-transparent text-center focus:ring-0"
-                            min="0"
-                          />
+                        <td className="border border-gray-300 px-3 py-2 text-center">
+                          <div className="px-2 py-1 text-gray-700 bg-gray-100 rounded text-center">
+                            {item.quantity}
+                          </div>
                         </td>
-                        <td className="border border-gray-300 px-3 py-2">
-                          <input
-                            type="number"
-                            value={item.unitPrice}
-                            onChange={(e) => handleItemChange(index, 'unitPrice', e.target.value)}
-                            className="w-full px-2 py-1 border-0 bg-transparent text-right focus:ring-0"
-                            min="0"
-                            step="0.01"
-                          />
+                        <td className="border border-gray-300 px-3 py-2 text-right">
+                          <div className="px-2 py-1 text-gray-700 bg-gray-100 rounded text-right">
+                            {(item.unitPrice || 0).toLocaleString('en-PK', {
+                              minimumFractionDigits: 2,
+                              maximumFractionDigits: 2
+                            })}
+                          </div>
                         </td>
                         <td className="border border-gray-300 px-3 py-2 text-right font-medium">
                           PKR {(item.amount || 0).toLocaleString('en-PK', {
@@ -937,18 +1040,28 @@ const PurchaseOrderDetails = ({ poId, onBack }) => {
               </div>
             </div>
 
-            {/* Totals */}
-            <div className="flex justify-end">
-              <div className="w-full max-w-sm bg-white p-4 rounded-lg border">
-                <div className="space-y-3">
-                  <div className="flex justify-between pt-2 border-t border-gray-200">
-                    <span className="font-bold text-lg">Invoice Total:</span>
-                    <span className="font-bold text-lg text-blue-600">PKR {invoiceData.total.toLocaleString('en-PK')}</span>
-                  </div>
-                  <div className="flex justify-between text-gray-600">
-                    <span className="font-medium">Remaining PO Amount:</span>
-                    <span className="font-medium">PKR {invoiceData.remainingAmount.toLocaleString('en-PK')}</span>
-                  </div>
+            {/* Summary Totals */}
+            <div className="bg-blue-50 p-6 rounded-lg border border-blue-200">
+              <h4 className="font-semibold text-gray-800 mb-4 text-lg">Purchase Order Invoice Summary</h4>
+              <div className="space-y-3">
+                {/* Total PO Amount */}
+                <div className="flex justify-between items-center py-2 border-b border-blue-200">
+                  <span className="font-medium text-gray-700">Total PO Amount:</span>
+                  <span className="font-bold text-lg">PKR {(purchaseOrder?.totalAmount || 0).toLocaleString('en-PK')}/-</span>
+                </div>
+                
+                {/* Total Invoice Amount */}
+                <div className="flex justify-between items-center py-2 border-b border-blue-200">
+                  <span className="font-medium text-blue-700">Total Invoice Amount:</span>
+                  <span className="font-bold text-lg text-blue-600">PKR {(invoiceData.invoiceAmount || 0).toLocaleString('en-PK')}/-</span>
+                </div>
+                
+                {/* Remaining Amount */}
+                <div className="flex justify-between items-center py-2 bg-green-50 px-4 rounded-md border border-green-200">
+                  <span className="font-medium text-green-700">Remaining Amount:</span>
+                  <span className="font-bold text-lg text-green-600">
+                    PKR {((purchaseOrder?.totalAmount || 0) - (invoiceData.invoiceAmount || 0)).toLocaleString('en-PK')}/-
+                  </span>
                 </div>
               </div>
             </div>
@@ -1027,29 +1140,41 @@ const PurchaseOrderDetails = ({ poId, onBack }) => {
         </div>
         
         <div className="flex gap-2">
-          <button
-            onClick={async () => {
-              // Fetch latest invoice history before opening modal
-              setLoadingHistory(true);
-              await fetchInvoiceHistory();
-              setLoadingHistory(false);
-              setShowInvoiceModal(true);
-            }}
-            disabled={loadingHistory}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {loadingHistory ? (
-              <>
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                <span>Loading...</span>
-              </>
-            ) : (
-              <>
-                <Edit className="w-4 h-4" />
-                <span>Make Invoice</span>
-              </>
-            )}
-          </button>
+          {/* Only show Make Invoice button if PO is not fully invoiced */}
+          {poSummary.remainingAmount > 0 && (
+            <button
+              onClick={async () => {
+                // Refresh PO summary and fetch latest invoice history before opening modal
+                setLoadingHistory(true);
+                await fetchPOSummary();
+                await fetchInvoiceHistory();
+                setLoadingHistory(false);
+                setShowInvoiceModal(true);
+              }}
+              disabled={loadingHistory}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {loadingHistory ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                  <span>Loading...</span>
+                </>
+              ) : (
+                <>
+                  <Edit className="w-4 h-4" />
+                  <span>Make Invoice</span>
+                </>
+              )}
+            </button>
+          )}
+          
+          {/* Show fully invoiced message when PO is complete */}
+          {poSummary.remainingAmount <= 0 && poSummary.totalInvoiced > 0 && (
+            <div className="flex items-center gap-2 px-4 py-2 bg-green-100 text-green-700 rounded-md">
+              <div className="w-4 h-4 rounded-full bg-green-500"></div>
+              <span>Fully Invoiced</span>
+            </div>
+          )}
           <button
             onClick={() => setShowPaymentHistory(!showPaymentHistory)}
             className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors"
@@ -1293,8 +1418,8 @@ const PurchaseOrderDetails = ({ poId, onBack }) => {
                             <p>{invoice.due_date ? new Date(invoice.due_date).toLocaleDateString() : 'N/A'}</p>
                           </div>
                           <div>
-                            <p className="font-medium">Customer:</p>
-                            <p>{invoice.customer_name || 'N/A'}</p>
+                            <p className="font-medium">Supplier:</p>
+                            <p>{invoice.supplier_name || 'N/A'}</p>
                           </div>
                         </div>
                       </div>
@@ -1341,7 +1466,7 @@ const PurchaseOrderDetails = ({ poId, onBack }) => {
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-2 text-sm text-orange-700">
                             <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
-                            <span className="font-medium">Awaiting Payment</span>
+                            <span className="font-medium">Pending Payment</span>
                             <span className="text-gray-500">•</span>
                             <span>
                               {invoice.due_date 

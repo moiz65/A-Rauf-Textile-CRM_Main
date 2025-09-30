@@ -78,7 +78,13 @@ const Login = () => {
       const data = await res.json();
       setIsLoading(false);
       if (data.success) {
-        // You can store user info in localStorage/sessionStorage if needed
+        // Store user info in localStorage for session management
+        localStorage.setItem('currentUser', JSON.stringify({
+          id: data.user.id,
+          firstName: data.user.firstName,
+          lastName: data.user.lastName,
+          email: data.user.email
+        }));
         navigate("/dashboard");
       } else {
         setError(data.message || "Login failed");

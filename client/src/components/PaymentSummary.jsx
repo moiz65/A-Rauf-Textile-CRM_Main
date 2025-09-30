@@ -12,32 +12,32 @@ const PaymentSummary = ({ dashboardData }) => {
 
   const payments = [
     {
-      label: 'Upcoming Payments',
+      label: 'Pending Payments',
       amount: formatCurrency(dashboardData?.paymentSummary?.upcomingPayments?.amount || 0),
-      badge: dashboardData?.paymentSummary?.upcomingPayments?.badge || '0 New',
-      trend: 'up',
-      icon: <TrendingUp className="w-4 h-4 text-emerald-500" />
-    },
-    {
-      label: 'Overdue Invoices',
-      amount: formatCurrency(dashboardData?.paymentSummary?.overdueInvoices?.amount || 0),
-      badge: `${dashboardData?.paymentSummary?.overdueInvoices?.count || 0} Overdue`,
-      trend: 'neutral',
-      icon: <Lock className="w-4 h-4 text-amber-500" />
-    },
-    {
-      label: "Today's Revenue",
-      amount: formatCurrency(dashboardData?.paymentSummary?.todayRevenue?.amount || 0),
-      badge: dashboardData?.paymentSummary?.todayRevenue?.change || '0%',
+      badge: dashboardData?.paymentSummary?.upcomingPayments?.badge || '0 Pending',
       trend: 'up',
       icon: <TrendingUp className="w-4 h-4 text-blue-500" />
     },
     {
-      label: "Today's Expenses",
-      amount: formatCurrency(dashboardData?.paymentSummary?.todayExpenses?.amount || 0),
-      badge: dashboardData?.paymentSummary?.todayExpenses?.change || '0%',
-      trend: 'down',
-      icon: <TrendingDown className="w-4 h-4 text-rose-500" />
+      label: 'Overdue Invoices',
+      amount: formatCurrency(dashboardData?.paymentSummary?.overdueInvoices?.amount || 0),
+      badge: `${dashboardData?.paymentSummary?.overdueInvoices?.count || 0} Need Action`,
+      trend: 'neutral',
+      icon: <Lock className="w-4 h-4 text-red-500" />
+    },
+    {
+      label: "Monthly Collections",
+      amount: formatCurrency(dashboardData?.paymentSummary?.monthlyCollections?.amount || 0),
+      badge: dashboardData?.paymentSummary?.monthlyCollections?.change || '+0%',
+      trend: 'up',
+      icon: <TrendingUp className="w-4 h-4 text-emerald-500" />
+    },
+    {
+      label: "Active Purchase Orders",
+      amount: formatCurrency(dashboardData?.paymentSummary?.activePurchaseOrders?.amount || 0),
+      badge: `${dashboardData?.paymentSummary?.activePurchaseOrders?.count || 0} Active`,
+      trend: 'up',
+      icon: <TrendingUp className="w-4 h-4 text-purple-500" />
     }
   ];
 
@@ -63,8 +63,12 @@ const PaymentSummary = ({ dashboardData }) => {
               <span className="text-3xl font-bold text-white">
                 Rs {formatCurrency(dashboardData?.paymentSummary?.currentBalance || 0)}
               </span>
-              <span className="flex items-center px-2 py-1 rounded-full bg-white text-emerald-700 text-xs font-medium">
-                +2.5% <ArrowUpRight className="w-3 h-3 ml-1" />
+              <span className={`flex items-center px-2 py-1 rounded-full bg-white text-xs font-medium ${
+                dashboardData?.paymentSummary?.balanceChange?.type === 'positive' ? 'text-emerald-700' : 
+                dashboardData?.paymentSummary?.balanceChange?.type === 'negative' ? 'text-red-700' : 'text-gray-700'
+              }`}>
+                {dashboardData?.paymentSummary?.balanceChange?.percentage || '0%'} 
+                <ArrowUpRight className="w-3 h-3 ml-1" />
               </span>
             </div>
           </div>

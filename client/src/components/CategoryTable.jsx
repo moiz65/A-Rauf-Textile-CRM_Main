@@ -588,14 +588,13 @@ const CategoryTable = () => {
                 <th className="pb-3 px-2 whitespace-nowrap">Type</th>
                 <th className="pb-3 px-2 whitespace-nowrap">Status</th>
                 <th className="pb-3 px-2 whitespace-nowrap hidden md:table-cell">Created Date</th>
-                <th className="pb-3 px-2 whitespace-nowrap hidden lg:table-cell">Expense Count</th>
                 <th className="pb-3 px-2 whitespace-nowrap">Action</th>
               </tr>
             </thead>
             <tbody className="text-center divide-y divide-gray-100">
               {filteredCategories.length === 0 ? (
                 <tr>
-                  <td colSpan="8" className="py-4 text-center text-sm text-gray-500">
+                  <td colSpan="7" className="py-4 text-center text-sm text-gray-500">
                     No categories found matching your criteria
                   </td>
                 </tr>
@@ -630,9 +629,6 @@ const CategoryTable = () => {
                     </td>
                     <td className="px-4 py-4 text-sm text-gray-500 whitespace-nowrap hidden md:table-cell">
                       {new Date(category.createdDate).toLocaleDateString()}
-                    </td>
-                    <td className="px-4 py-4 text-sm text-gray-900 whitespace-nowrap hidden lg:table-cell">
-                      <span className="font-medium">{category.expenseCount}</span>
                     </td>
                     <td className="px-4 py-4 text-sm whitespace-nowrap relative">
                       <div className="flex justify-center">

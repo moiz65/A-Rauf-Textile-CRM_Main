@@ -42,6 +42,18 @@ const Signup = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setMessage("");
+    
+    // Basic validation
+    if (!form.firstName.trim() || !form.lastName.trim() || !form.email.trim() || !form.password.trim()) {
+      setMessage("All fields are required.");
+      return;
+    }
+    
+    if (form.password.length < 6) {
+      setMessage("Password must be at least 6 characters long.");
+      return;
+    }
+    
     try {
       const res = await fetch("http://localhost:5000/signup", {
         method: "POST",
@@ -49,14 +61,16 @@ const Signup = () => {
         body: JSON.stringify(form)
       });
       const data = await res.json();
-      if (data.success) {
+      
+      if (res.ok && data.success) {
         setMessage("Account created successfully!");
         setForm({ firstName: "", lastName: "", email: "", password: "" });
       } else {
-        setMessage(data.error || "Signup failed.");
+        setMessage(data.message || data.error || "Signup failed.");
       }
     } catch (err) {
-      setMessage("Server error.");
+      console.error("Signup error:", err);
+      setMessage("Server error. Please try again.");
     }
   };
 

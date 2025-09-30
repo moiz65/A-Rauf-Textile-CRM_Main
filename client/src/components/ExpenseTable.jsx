@@ -96,7 +96,7 @@ const ExpenseTable = () => {
   // Helper function to get category type from category name
   const getCategoryType = (categoryName) => {
     const categoryData = allCategories.find(cat => cat.name === categoryName);
-    return categoryData ? categoryData.type : categoryName; // fallback to category name if not found
+    return categoryData ? categoryData.type : 'Expense'; // Default to 'Expense' if not found
   };
 
   const filteredExpenses = expensesData
@@ -155,7 +155,9 @@ const ExpenseTable = () => {
   };
 
   const getCategoryClass = (category) => {
-    switch(category) {
+    // Get the category type to determine color
+    const categoryType = getCategoryType(category);
+    switch(categoryType) {
       case 'Expense': return 'bg-red-100 text-red-800';
       case 'Income': return 'bg-green-100 text-green-800';
       case 'Asset': return 'bg-blue-100 text-blue-800';
@@ -229,7 +231,8 @@ const ExpenseTable = () => {
       date: new Date().toISOString().split('T')[0],
       vendor: '',
       amount: 0,
-      category: 'Expense',
+      category: '',
+      categoryType: 'Expense',
       paymentMethod: 'Cash',
       description: '',
       status: 'Pending'
@@ -310,7 +313,13 @@ const ExpenseTable = () => {
     
     useEffect(() => {
       if (editingExpense) {
-        setFormData(editingExpense);
+        // Determine the category type from the existing category
+        const existingCategoryType = getCategoryType(editingExpense.category) || 'Expense';
+        
+        setFormData({
+          ...editingExpense,
+          categoryType: existingCategoryType
+        });
         // Set the existing category name
         setSubcategory(editingExpense.category || '');
         
@@ -335,7 +344,8 @@ const ExpenseTable = () => {
           date: today,
           vendor: '',
           amount: 0,
-          category: 'Expense',
+          category: '',
+          categoryType: 'Expense',
           paymentMethod: 'Cash',
           status: 'Pending',
           description: ''
@@ -421,7 +431,7 @@ const ExpenseTable = () => {
       e.preventDefault();
       
       // Validate required fields
-      if (!formData.title || !formData.date || !formData.vendor || !subcategory || !formData.paymentMethod) {
+      if (!formData.title || !formData.date || !formData.vendor || !subcategory || !subcategory.trim() || !formData.paymentMethod) {
         alert('Please fill in all required fields: Title, Date, Vendor, Category, and Payment Method');
         return;
       }
@@ -445,6 +455,7 @@ const ExpenseTable = () => {
       const expenseData = {
         ...formData,
         category: subcategory,
+        categoryType: formData.categoryType || 'Expense',
         amount: totalAmount,
         items: validItems.map((item, index) => ({
           ...item,
@@ -503,12 +514,32 @@ const ExpenseTable = () => {
               
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
-                <CategoryAutocomplete
-                  value={subcategory}
-                  onChange={handleSubcategoryChange}
-                  placeholder="Type category name..."
-                  required
-                />
+                <div className="space-y-2">
+                  {/* Type Selection */}
+                  <select
+                    value={formData.categoryType || 'Expense'}
+                    onChange={(e) => {
+                      const type = e.target.value;
+                      setFormData(prev => ({ ...prev, categoryType: type }));
+                    }}
+                    className="w-full p-2 border rounded-md text-sm"
+                    required
+                  >
+                    <option value="Expense">Expense</option>
+                    <option value="Income">Income</option>
+                    <option value="Asset">Asset</option>
+                    <option value="Liability">Liability</option>
+                  </select>
+                  
+                  {/* Category Name Input */}
+                  <CategoryAutocomplete
+                    value={subcategory}
+                    onChange={handleSubcategoryChange}
+                    placeholder="Type category name..."
+                    categoryType={formData.categoryType || 'Expense'}
+                    required
+                  />
+                </div>
               </div>
               {expenseItems.length > 1 && (
                 <p className="text-xs text-gray-500 mt-1">

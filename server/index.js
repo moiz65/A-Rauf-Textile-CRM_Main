@@ -11,6 +11,11 @@ app.use(cors());
 app.use(express.json());
 app.use(bodyParser.json());
 
+// Test endpoint
+app.get("/test", (req, res) => {
+  res.json({ success: true, message: "Server is working!" });
+});
+
 // --- MySQL Database Connection ---
 const db = mysql.createConnection({
   host: "localhost",
@@ -26,6 +31,54 @@ db.connect((err) => {
     return;
   }
   console.log("Connected to MySQL database");
+  
+  // Create users table if it doesn't exist (simple structure)
+  const createUsersTable = `
+    CREATE TABLE IF NOT EXISTS users (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      firstName TEXT NOT NULL,
+      lastName TEXT NOT NULL,
+      email TEXT NOT NULL,
+      password TEXT NOT NULL
+    )
+  `;
+  
+  db.query(createUsersTable, (err) => {
+    if (err) {
+      console.error("Error creating users table:", err);
+    } else {
+      console.log("Users table ready");
+      
+      // Insert default user if not exists
+      const checkUser = "SELECT * FROM users WHERE email = ?";
+      db.query(checkUser, ['digious.Sol@gmail.com'], (err, results) => {
+        if (err) {
+          console.error("Error checking user:", err);
+        } else if (results.length === 0) {
+          const insertUser = `
+            INSERT INTO users (firstName, lastName, email, password) 
+            VALUES (?, ?, ?, ?)
+          `;
+          const userValues = [
+            'Muhammad', 
+            'Ahmed', 
+            'digious.Sol@gmail.com', 
+            'Pakistan@123'
+          ];
+          
+          db.query(insertUser, userValues, (err, result) => {
+            if (err) {
+              console.error("Error creating default user:", err);
+            } else {
+              console.log("Default user created with ID:", result.insertId);
+            }
+          });
+        } else {
+          console.log("Default user already exists");
+        }
+      });
+    }
+  });
 });
 
 // --- Dashboard Routes ---
@@ -140,6 +193,7 @@ app.post("/api/expenses", (req, res) => {
     vendor,
     amount,
     category,
+    categoryType = 'Expense',
     paymentMethod,
     status = 'Pending',
     description = '',
@@ -151,18 +205,51 @@ app.post("/api/expenses", (req, res) => {
     return res.status(400).json({ message: "Missing required fields" });
   }
 
+  // Function to ensure category exists
+  const ensureCategoryExists = (categoryName, categoryType, callback) => {
+    // Skip type names as categories
+    if (['Expense', 'Income', 'Asset', 'Liability'].includes(categoryName)) {
+      return callback(null);
+    }
+
+    // Check if category exists
+    const checkQuery = "SELECT id FROM categories WHERE name = ? AND type = ?";
+    db.query(checkQuery, [categoryName, categoryType], (err, results) => {
+      if (err) return callback(err);
+      
+      if (results.length > 0) {
+        // Category exists
+        return callback(null);
+      }
+      
+      // Create new category
+      const createQuery = `
+        INSERT INTO categories (name, description, type, status, created_date)
+        VALUES (?, ?, ?, 'Active', CURDATE())
+      `;
+      db.query(createQuery, [categoryName, `Auto-created ${categoryType} category`, categoryType], callback);
+    });
+  };
+
   // For multiple items, calculate total amount from items
   let totalAmount = amount;
   if (items && items.length > 0) {
     totalAmount = items.reduce((sum, item) => sum + (item.amount || 0), 0);
   }
 
-  // Start transaction for expense and items
-  db.beginTransaction((err) => {
+  // Ensure category exists before creating expense
+  ensureCategoryExists(category, categoryType, (err) => {
     if (err) {
-      console.error("Error starting transaction:", err);
-      return res.status(500).json({ message: "Failed to start transaction", error: err.message });
+      console.error("Error ensuring category exists:", err);
+      return res.status(500).json({ message: "Failed to create category", error: err.message });
     }
+
+    // Start transaction for expense and items
+    db.beginTransaction((err) => {
+      if (err) {
+        console.error("Error starting transaction:", err);
+        return res.status(500).json({ message: "Failed to start transaction", error: err.message });
+      }
 
     const query = `
       INSERT INTO expenses (title, date, vendor, amount, category, paymentMethod, status, description)
@@ -181,111 +268,39 @@ app.post("/api/expenses", (req, res) => {
       const expenseId = result.insertId;
       console.log('Expense created with ID:', expenseId);
 
-      // Insert expense items if provided
-      if (items && items.length > 0) {
-        const itemsQuery = `
-          INSERT INTO expense_items (expense_id, item_no, description, quantity, unit_price, amount)
-          VALUES ?
-        `;
-
-        const itemsValues = items.map(item => [
-          expenseId,
-          item.item_no || 1,
-          item.description || '',
-          item.quantity || 1,
-          item.unit_price || 0,
-          item.amount || 0
-        ]);
-
-        db.query(itemsQuery, [itemsValues], (err, itemsResult) => {
-          if (err) {
-            console.error("Error creating expense items:", err);
-            console.error("Note: If expense_items table doesn't exist, please run database_updates.sql");
-            // Still commit the expense even if items table doesn't exist
-            return db.commit((commitErr) => {
-              if (commitErr) {
-                console.error("Error committing transaction:", commitErr);
-                return db.rollback(() => {
-                  res.status(500).json({ message: "Failed to commit transaction", error: commitErr.message });
-                });
-              }
-
-              console.log('Expense created successfully (without items due to table error)');
-              res.status(201).json({
-                message: "Expense created successfully",
-                expense: {
-                  id: expenseId,
-                  title,
-                  date,
-                  vendor,
-                  amount: totalAmount,
-                  category,
-                  paymentMethod,
-                  status,
-                  description,
-                  items_count: 0,
-                  note: "Items table not available - run database_updates.sql"
-                }
-              });
-            });
-          }
-
-          // Commit transaction and return success
-          db.commit((err) => {
-            if (err) {
-              console.error("Error committing transaction:", err);
-              return db.rollback(() => {
-                res.status(500).json({ message: "Failed to commit transaction", error: err.message });
-              });
-            }
-
-            console.log('Expense and items created successfully');
-            res.status(201).json({
-              message: "Expense created successfully",
-              expense: {
-                id: expenseId,
-                title,
-                date,
-                vendor,
-                amount: totalAmount,
-                category,
-                paymentMethod,
-                status,
-                description,
-                items_count: items.length
-              }
-            });
+      // Skip expense items for now since table doesn't exist
+      // TODO: Create expense_items table if detailed item tracking is needed
+      
+      // Just commit the expense
+      db.commit((err) => {
+        if (err) {
+          console.error("Error committing transaction:", err);
+          return db.rollback(() => {
+            res.status(500).json({ message: "Failed to commit transaction", error: err.message });
           });
-        });
-      } else {
-        // No items, just commit expense
-        db.commit((err) => {
-          if (err) {
-            console.error("Error committing transaction:", err);
-            return db.rollback(() => {
-              res.status(500).json({ message: "Failed to commit transaction", error: err.message });
-            });
-          }
+        }
 
-          console.log('Expense created successfully');
-          res.status(201).json({
-            message: "Expense created successfully",
-            expense: {
-              id: expenseId,
-              title,
-              date,
-              vendor,
-              amount: totalAmount,
-              category,
-              paymentMethod,
-              status,
-              description
-            }
-          });
+        console.log('Expense created successfully');
+        res.status(201).json({
+          message: "Expense created successfully",
+          expense: {
+            id: expenseId,
+            title,
+            date,
+            vendor,
+            amount: totalAmount,
+            category,
+            categoryType,
+            paymentMethod,
+            status,
+            description,
+            items_count: items ? items.length : 0
+          }
         });
-      }
+      });
     });
   });
+  }); // Close ensureCategoryExists callback
 });
 
 // Update expense
@@ -297,6 +312,7 @@ app.put("/api/expenses/:id", (req, res) => {
     vendor,
     amount,
     category,
+    categoryType = 'Expense',
     paymentMethod,
     status,
     description
@@ -306,6 +322,39 @@ app.put("/api/expenses/:id", (req, res) => {
   if (!title || !date || !vendor || !amount || !category || !paymentMethod || !status) {
     return res.status(400).json({ message: "Missing required fields" });
   }
+
+  // Function to ensure category exists (same as in create)
+  const ensureCategoryExists = (categoryName, categoryType, callback) => {
+    // Skip type names as categories
+    if (['Expense', 'Income', 'Asset', 'Liability'].includes(categoryName)) {
+      return callback(null);
+    }
+
+    // Check if category exists
+    const checkQuery = "SELECT id FROM categories WHERE name = ? AND type = ?";
+    db.query(checkQuery, [categoryName, categoryType], (err, results) => {
+      if (err) return callback(err);
+      
+      if (results.length > 0) {
+        // Category exists
+        return callback(null);
+      }
+      
+      // Create new category
+      const createQuery = `
+        INSERT INTO categories (name, description, type, status, created_date)
+        VALUES (?, ?, ?, 'Active', CURDATE())
+      `;
+      db.query(createQuery, [categoryName, `Auto-created ${categoryType} category`, categoryType], callback);
+    });
+  };
+
+  // Ensure category exists before updating expense
+  ensureCategoryExists(category, categoryType, (err) => {
+    if (err) {
+      console.error("Error ensuring category exists:", err);
+      return res.status(500).json({ message: "Failed to create category", error: err.message });
+    }
 
   const query = `
     UPDATE expenses 
@@ -338,6 +387,7 @@ app.put("/api/expenses/:id", (req, res) => {
       });
     });
   });
+  }); // Close ensureCategoryExists callback
 });
 
 // Delete expense
@@ -380,8 +430,8 @@ app.get("/api/expenses-stats", (req, res) => {
     "SELECT COUNT(*) as total FROM expenses",
     "SELECT COUNT(*) as pending FROM expenses WHERE status = 'Pending'",
     "SELECT COUNT(*) as paid FROM expenses WHERE status = 'Paid'",
-    "SELECT SUM(amount) as totalAmount FROM expenses WHERE status = 'Paid'",
-    "SELECT category, COUNT(*) as count, SUM(amount) as total FROM expenses GROUP BY category"
+    "SELECT COALESCE(SUM(amount), 0) as totalAmount FROM expenses WHERE status = 'Paid'",
+    "SELECT category, COUNT(*) as count, COALESCE(SUM(amount), 0) as total FROM expenses GROUP BY category"
   ];
 
   db.query(queries.join(';'), (err, results) => {
@@ -390,12 +440,13 @@ app.get("/api/expenses-stats", (req, res) => {
       return res.status(500).json({ message: "Failed to fetch expense statistics", error: err.message });
     }
     
+    // Handle empty results gracefully
     const stats = {
-      total: results[0][0].total,
-      pending: results[1][0].pending,
-      paid: results[2][0].paid,
-      totalAmount: results[3][0].totalAmount || 0,
-      byCategory: results[4]
+      total: results[0] && results[0][0] ? results[0][0].total : 0,
+      pending: results[1] && results[1][0] ? results[1][0].pending : 0,
+      paid: results[2] && results[2][0] ? results[2][0].paid : 0,
+      totalAmount: results[3] && results[3][0] ? (results[3][0].totalAmount || 0) : 0,
+      byCategory: results[4] || []
     };
     
     res.json(stats);
@@ -410,7 +461,7 @@ app.get("/api/expenses-chart", (req, res) => {
     SELECT 
       MONTH(date) as month,
       YEAR(date) as year,
-      SUM(amount) as total,
+      COALESCE(SUM(amount), 0) as total,
       COUNT(*) as count,
       category
     FROM expenses 
@@ -425,7 +476,8 @@ app.get("/api/expenses-chart", (req, res) => {
       return res.status(500).json({ message: "Failed to fetch chart data", error: err.message });
     }
     
-    res.json(results);
+    // Return empty array if no data instead of null
+    res.json(results || []);
   });
 });
 
@@ -435,10 +487,10 @@ app.get("/api/expense-chart-data", (req, res) => {
     SELECT 
       DATE_FORMAT(date, '%b') as month,
       YEAR(date) as year,
-      SUM(amount) as amount,
+      COALESCE(SUM(amount), 0) as amount,
       CASE 
-        WHEN SUM(amount) > COALESCE(
-          (SELECT SUM(amount) 
+        WHEN COALESCE(SUM(amount), 0) > COALESCE(
+          (SELECT COALESCE(SUM(amount), 0) 
            FROM expenses e2 
            WHERE YEAR(e2.date) = YEAR(e1.date) 
            AND MONTH(e2.date) = MONTH(e1.date) - 1
@@ -456,6 +508,19 @@ app.get("/api/expense-chart-data", (req, res) => {
       console.error("Error fetching expense chart data:", err);
       return res.status(500).json({ error: "Failed to fetch expense chart data" });
     }
+    
+    // Return empty array with default structure if no data
+    if (!results || results.length === 0) {
+      const currentMonth = new Date().toLocaleDateString('en-US', { month: 'short' });
+      const currentYear = new Date().getFullYear();
+      return res.json([{
+        month: currentMonth,
+        year: currentYear,
+        amount: 0,
+        trend: 'neutral'
+      }]);
+    }
+    
     res.json(results);
   });
 });
@@ -464,16 +529,19 @@ app.get("/api/expense-chart-data", (req, res) => {
 app.get("/api/expense-categories-stats", (req, res) => {
   const query = `
     SELECT 
-      c.name as category_name,
       c.type as category_type,
-      COALESCE(SUM(e.amount), 0) as total_amount,
-      COUNT(e.id) as expense_count,
       COALESCE(SUM(CASE WHEN e.status = 'Paid' THEN e.amount ELSE 0 END), 0) as paid_amount,
-      COALESCE(SUM(CASE WHEN e.status = 'Pending' THEN e.amount ELSE 0 END), 0) as pending_amount
+      COALESCE(SUM(CASE WHEN e.status = 'Pending' THEN e.amount ELSE 0 END), 0) as pending_amount,
+      COUNT(CASE WHEN e.status = 'Paid' THEN e.id END) as paid_count,
+      COUNT(CASE WHEN e.status = 'Pending' THEN e.id END) as pending_count,
+      COUNT(e.id) as total_count
     FROM categories c
-    LEFT JOIN expenses e ON c.name = e.category
-    GROUP BY c.name, c.type
-    ORDER BY c.type, total_amount DESC
+    LEFT JOIN expenses e ON c.name = e.category AND c.type = (
+      SELECT type FROM categories WHERE name = e.category LIMIT 1
+    )
+    WHERE c.type IN ('Expense', 'Income', 'Asset', 'Liability')
+    GROUP BY c.type
+    ORDER BY c.type
   `;
 
   db.query(query, (err, results) => {
@@ -482,28 +550,47 @@ app.get("/api/expense-categories-stats", (req, res) => {
       return res.status(500).json({ message: "Failed to fetch category statistics", error: err.message });
     }
 
-    // Group by category type
+    // Initialize default structure
     const categoryStats = {
-      Expense: { total_amount: 0, expense_count: 0, paid_amount: 0, pending_amount: 0, categories: [] },
-      Income: { total_amount: 0, expense_count: 0, paid_amount: 0, pending_amount: 0, categories: [] },
-      Asset: { total_amount: 0, expense_count: 0, paid_amount: 0, pending_amount: 0, categories: [] },
-      Liability: { total_amount: 0, expense_count: 0, paid_amount: 0, pending_amount: 0, categories: [] }
+      Expense: { 
+        paid_amount: 0, 
+        pending_amount: 0, 
+        paid_count: 0, 
+        pending_count: 0,
+        total_count: 0
+      },
+      Income: { 
+        paid_amount: 0, 
+        pending_amount: 0, 
+        paid_count: 0, 
+        pending_count: 0,
+        total_count: 0
+      },
+      Asset: { 
+        paid_amount: 0, 
+        pending_amount: 0, 
+        paid_count: 0, 
+        pending_count: 0,
+        total_count: 0
+      },
+      Liability: { 
+        paid_amount: 0, 
+        pending_amount: 0, 
+        paid_count: 0, 
+        pending_count: 0,
+        total_count: 0
+      }
     };
 
+    // Fill with actual data
     results.forEach(row => {
       const type = row.category_type;
       if (categoryStats[type]) {
-        categoryStats[type].total_amount += parseFloat(row.total_amount) || 0;
-        categoryStats[type].expense_count += parseInt(row.expense_count) || 0;
-        categoryStats[type].paid_amount += parseFloat(row.paid_amount) || 0;
-        categoryStats[type].pending_amount += parseFloat(row.pending_amount) || 0;
-        categoryStats[type].categories.push({
-          name: row.category_name,
-          total_amount: parseFloat(row.total_amount) || 0,
-          expense_count: parseInt(row.expense_count) || 0,
-          paid_amount: parseFloat(row.paid_amount) || 0,
-          pending_amount: parseFloat(row.pending_amount) || 0
-        });
+        categoryStats[type].paid_amount = parseFloat(row.paid_amount) || 0;
+        categoryStats[type].pending_amount = parseFloat(row.pending_amount) || 0;
+        categoryStats[type].paid_count = parseInt(row.paid_count) || 0;
+        categoryStats[type].pending_count = parseInt(row.pending_count) || 0;
+        categoryStats[type].total_count = parseInt(row.total_count) || 0;
       }
     });
 
@@ -518,7 +605,8 @@ app.get("/api/v1/customertable", (req, res) => {
       console.error("Error fetching customers:", err.message);
       return res.status(500).json({ message: "Failed to fetch customers", error: err.message });
     }
-    res.json(results);
+    // Return empty array if no customers exist instead of null
+    res.json(results || []);
   });
 });
 
@@ -702,29 +790,37 @@ app.get("/api/v1/customers/suggestions", (req, res) => {
         db.query(query, [searchTerm], (err, results) => {
           if (err) {
             console.error("Error in customer suggestions query:", err);
+            // Don't fail the entire request if one table has issues
             resolve([]);
           } else {
-            resolve(results.map(row => row.name).filter(name => name && name.trim()));
+            // Handle empty results gracefully
+            const names = (results || []).map(row => row.name).filter(name => name && name.trim());
+            resolve(names);
           }
         });
       })
     )
   ).then(results => {
     // Combine and deduplicate results
-    results.forEach(customerList => {
-      customerList.forEach(customer => customerSet.add(customer));
+    (results || []).forEach(customerList => {
+      (customerList || []).forEach(customer => {
+        if (customer) customerSet.add(customer);
+      });
     });
     
     // Convert to array, sort, and limit to 5
     const suggestions = Array.from(customerSet)
-      .filter(customer => customer.toLowerCase().startsWith(q.toLowerCase()))
+      .filter(customer => customer && customer.toLowerCase().startsWith(q.toLowerCase()))
       .sort()
       .slice(0, 5);
     
     res.json(suggestions);
   }).catch(err => {
     console.error("Error fetching customer suggestions:", err);
-    res.status(500).json({ error: "Failed to fetch customer suggestions" });
+    res.status(500).json({ 
+      error: "Failed to fetch customer suggestions",
+      suggestions: []
+    });
   });
 });
 
@@ -732,32 +828,53 @@ app.get("/api/v1/customers/suggestions", (req, res) => {
 
 // Signup endpoint
 app.post("/signup", (req, res) => {
+  console.log("Signup request received:", req.body);
+  
   const { firstName, lastName, email, password } = req.body;
 
   // Validate required fields
   if (!firstName || !lastName || !email || !password) {
-    return res.status(400).json({ message: "All fields are required" });
+    console.log("Missing required fields:", { firstName, lastName, email, password });
+    return res.status(400).json({ success: false, message: "All fields are required" });
   }
 
-  const query = "INSERT INTO users (firstName, lastName, email, password) VALUES (?, ?, ?, ?)";
-  const values = [firstName, lastName, email, password];
-
-  db.query(query, values, (err, result) => {
-    if (err) {
-      console.error("Error signing up:", err.message);
-      return res.status(500).json({ message: "Failed to signup", error: err.message });
+  // Check if user already exists
+  const checkQuery = "SELECT * FROM users WHERE email = ?";
+  db.query(checkQuery, [email], (checkErr, checkResults) => {
+    if (checkErr) {
+      console.error("Error checking existing user:", checkErr);
+      return res.status(500).json({ success: false, message: "Database error", error: checkErr.message });
     }
-    res.status(201).json({ message: "User created successfully", insertId: result.insertId });
+    
+    if (checkResults.length > 0) {
+      return res.status(400).json({ success: false, message: "User with this email already exists" });
+    }
+    
+    // Insert new user
+    const query = "INSERT INTO users (firstName, lastName, email, password) VALUES (?, ?, ?, ?)";
+    const values = [firstName, lastName, email, password];
+
+    db.query(query, values, (err, result) => {
+      if (err) {
+        console.error("Error inserting user:", err);
+        return res.status(500).json({ success: false, message: "Failed to create account", error: err.message });
+      }
+      
+      console.log("User created successfully:", result.insertId);
+      res.status(201).json({ success: true, message: "Account created successfully", insertId: result.insertId });
+    });
   });
 });
 
 // Login endpoint
 app.post("/login", (req, res) => {
+  console.log("Login request received:", { email: req.body.email });
+  
   const { email, password } = req.body;
 
   // Validate required fields
   if (!email || !password) {
-    return res.status(400).json({ message: "Email and password are required" });
+    return res.status(400).json({ success: false, message: "Email and password are required" });
   }
 
   const query = "SELECT * FROM users WHERE email = ? AND password = ?";
@@ -765,14 +882,99 @@ app.post("/login", (req, res) => {
 
   db.query(query, values, (err, results) => {
     if (err) {
-      console.error("Error logging in:", err.message);
-      return res.status(500).json({ message: "Failed to login", error: err.message });
+      console.error("Error logging in:", err);
+      return res.status(500).json({ success: false, message: "Database error", error: err.message });
     }
+    
     if (results.length > 0) {
-      res.json({ success: true, user: results[0] });
+      console.log("Login successful for:", email);
+      res.json({ success: true, message: "Login successful", user: results[0] });
     } else {
+      console.log("Invalid login attempt for:", email);
       res.status(401).json({ success: false, message: "Invalid email or password" });
     }
+  });
+});
+
+// Get user profile
+app.get("/api/users/:id", (req, res) => {
+  const userId = req.params.id;
+  
+  const query = "SELECT * FROM users WHERE id = ?";
+  db.query(query, [userId], (err, results) => {
+    if (err) {
+      console.error("Error fetching user:", err.message);
+      return res.status(500).json({ message: "Failed to fetch user", error: err.message });
+    }
+    if (results.length > 0) {
+      const user = results[0];
+      // Remove password from response
+      delete user.password;
+      res.json({ success: true, user });
+    } else {
+      res.status(404).json({ success: false, message: "User not found" });
+    }
+  });
+});
+
+// Update user profile
+app.put("/api/users/:id", (req, res) => {
+  const userId = req.params.id;
+  const { firstName, lastName, email, phone, company, address, avatar } = req.body;
+  
+  const query = `
+    UPDATE users 
+    SET firstName = ?, lastName = ?, email = ?, phone = ?, company = ?, address = ?, avatar = ?
+    WHERE id = ?
+  `;
+  const values = [firstName, lastName, email, phone, company, address, avatar, userId];
+  
+  db.query(query, values, (err, result) => {
+    if (err) {
+      console.error("Error updating user:", err.message);
+      return res.status(500).json({ message: "Failed to update user", error: err.message });
+    }
+    
+    if (result.affectedRows > 0) {
+      res.json({ success: true, message: "Profile updated successfully" });
+    } else {
+      res.status(404).json({ success: false, message: "User not found" });
+    }
+  });
+});
+
+// Update user password
+app.put("/api/users/:id/password", (req, res) => {
+  const userId = req.params.id;
+  const { currentPassword, newPassword } = req.body;
+  
+  // First verify current password
+  const verifyQuery = "SELECT password FROM users WHERE id = ?";
+  db.query(verifyQuery, [userId], (err, results) => {
+    if (err) {
+      console.error("Error verifying password:", err.message);
+      return res.status(500).json({ message: "Failed to verify password", error: err.message });
+    }
+    
+    if (results.length === 0) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+    
+    const user = results[0];
+    if (user.password !== currentPassword) {
+      return res.status(400).json({ success: false, message: "Current password is incorrect" });
+    }
+    
+    // Update password
+    const updateQuery = "UPDATE users SET password = ? WHERE id = ?";
+    db.query(updateQuery, [newPassword, userId], (err, result) => {
+      if (err) {
+        console.error("Error updating password:", err.message);
+        return res.status(500).json({ message: "Failed to update password", error: err.message });
+      }
+      
+      res.json({ success: true, message: "Password updated successfully" });
+    });
   });
 });
 
@@ -798,9 +1000,15 @@ app.get("/api/v1/reports/stats", (req, res) => {
     
     // Transform results into a more usable format
     const stats = {};
-    results.forEach(row => {
-      stats[row.status] = row.count;
-    });
+    
+    // Handle empty results - provide default stats
+    if (!results || results.length === 0) {
+      stats['All'] = 0;
+    } else {
+      results.forEach(row => {
+        stats[row.status] = row.count || 0;
+      });
+    }
     
     res.json(stats);
   });
@@ -935,7 +1143,7 @@ app.get("/api/v1/reports", (req, res) => {
         return res.status(500).json({ message: "Failed to get count", error: countErr.message });
       }
       
-      const totalRecords = countResults[0].total;
+      const totalRecords = countResults[0] ? countResults[0].total : 0;
       const totalPages = Math.ceil(totalRecords / limitNum);
       
       res.json({
@@ -1027,6 +1235,7 @@ app.get("/api/invoices", (req, res) => {
     is_sent,
     currency,
     invoice_number,
+    invoice_type, // Parameter to specify invoice type: 'regular', 'po_invoice', or undefined for both
     exclude_po = 'false', // Parameter to exclude PO invoices from results
     sortBy = 'bill_date',
     sortOrder = 'DESC',
@@ -1034,48 +1243,126 @@ app.get("/api/invoices", (req, res) => {
     limit = 50
   } = req.query;
   
-  // Unified query to combine regular invoices and PO invoices
-  let query = `
-    SELECT 
-      id,
-      invoice_number,
-      customer_name,
-      customer_email,
-      p_number,
-      a_p_number,
-      address,
-      st_reg_no,
-      ntn_number,
-      item_name,
-      quantity,
-      rate,
-      currency,
-      salesTax,
-      item_amount,
-      bill_date,
-      delivery_date,
-      terms_of_payment,
-      payment_deadline,
-      note,
-      subtotal,
-      tax_rate,
-      tax_amount,
-      total_amount,
-      status,
-      is_sent,
-      sent_at,
-      created_at,
-      updated_at,
-      'regular' as invoice_type,
-      NULL as po_number,
-      NULL as po_id
-    FROM invoice
-    WHERE 1=1
-  `;
+  // Build query based on invoice_type parameter
+  let query = '';
   
-  // Conditionally add UNION for PO invoices (exclude if exclude_po=true)
-  if (exclude_po !== 'true') {
-    query += `
+  if (invoice_type === 'po_invoice') {
+    // Only PO invoices
+    query = `
+      SELECT 
+        id,
+        invoice_number,
+        customer_name,
+        customer_email,
+        customer_phone as p_number,
+        '' as a_p_number,
+        customer_address as address,
+        '' as st_reg_no,
+        '' as ntn_number,
+        'PO Invoice Items' as item_name,
+        1 as quantity,
+        total_amount as rate,
+        currency,
+        tax_rate as salesTax,
+        total_amount as item_amount,
+        invoice_date as bill_date,
+        due_date as delivery_date,
+        'Generated from PO' as terms_of_payment,
+        due_date as payment_deadline,
+        notes as note,
+        subtotal,
+        tax_rate,
+        tax_amount,
+        total_amount,
+        status,
+        CASE WHEN status = 'Sent' THEN 1 ELSE 0 END as is_sent,
+        CASE WHEN status = 'Sent' THEN created_at ELSE NULL END as sent_at,
+        created_at,
+        updated_at,
+        'po_invoice' as invoice_type,
+        po_number,
+        po_id
+      FROM po_invoices
+      WHERE 1=1
+    `;
+  } else if (invoice_type === 'regular' || exclude_po === 'true') {
+    // Only regular invoices
+    query = `
+      SELECT 
+        id,
+        invoice_number,
+        customer_name,
+        customer_email,
+        p_number,
+        a_p_number,
+        address,
+        st_reg_no,
+        ntn_number,
+        item_name,
+        quantity,
+        rate,
+        currency,
+        salesTax,
+        item_amount,
+        bill_date,
+        delivery_date,
+        terms_of_payment,
+        payment_deadline,
+        note,
+        subtotal,
+        tax_rate,
+        tax_amount,
+        total_amount,
+        status,
+        is_sent,
+        sent_at,
+        created_at,
+        updated_at,
+        'regular' as invoice_type,
+        NULL as po_number,
+        NULL as po_id
+      FROM invoice
+      WHERE 1=1
+    `;
+  } else {
+    // Both types (UNION ALL) - default behavior when no specific type is requested
+    query = `
+      SELECT 
+        id,
+        invoice_number,
+        customer_name,
+        customer_email,
+        p_number,
+        a_p_number,
+        address,
+        st_reg_no,
+        ntn_number,
+        item_name,
+        quantity,
+        rate,
+        currency,
+        salesTax,
+        item_amount,
+        bill_date,
+        delivery_date,
+        terms_of_payment,
+        payment_deadline,
+        note,
+        subtotal,
+        tax_rate,
+        tax_amount,
+        total_amount,
+        status,
+        is_sent,
+        sent_at,
+        created_at,
+        updated_at,
+        'regular' as invoice_type,
+        NULL as po_number,
+        NULL as po_id
+      FROM invoice
+      WHERE 1=1
+      
       UNION ALL
       
       SELECT 
@@ -1117,9 +1404,8 @@ app.get("/api/invoices", (req, res) => {
   }
   
   const params = [];
-  const poParams = [];
   
-  // Build WHERE conditions properly
+  // Build WHERE conditions based on invoice type
   const conditions = [];
   
   if (status && status !== 'All') {
@@ -1138,12 +1424,20 @@ app.get("/api/invoices", (req, res) => {
   }
   
   if (dateFrom) {
-    conditions.push('bill_date >= ?');
+    if (invoice_type === 'po_invoice') {
+      conditions.push('invoice_date >= ?');
+    } else {
+      conditions.push('bill_date >= ?');
+    }
     params.push(dateFrom);
   }
   
   if (dateTo) {
-    conditions.push('bill_date <= ?');
+    if (invoice_type === 'po_invoice') {
+      conditions.push('invoice_date <= ?');
+    } else {
+      conditions.push('bill_date <= ?');
+    }
     params.push(dateTo);
   }
   
@@ -1162,95 +1456,39 @@ app.get("/api/invoices", (req, res) => {
     params.push(`%${invoice_number}%`);
   }
   
-  if (is_sent !== undefined) {
+  if (is_sent !== undefined && invoice_type !== 'po_invoice') {
     conditions.push('is_sent = ?');
     params.push(is_sent === 'true' ? 1 : 0);
   }
   
   if (search) {
-    conditions.push('(customer_name LIKE ? OR customer_email LIKE ? OR invoice_number LIKE ? OR item_name LIKE ? OR address LIKE ? OR note LIKE ?)');
-    const searchTerm = `%${search}%`;
-    params.push(searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm);
+    if (invoice_type === 'po_invoice') {
+      conditions.push('(customer_name LIKE ? OR customer_email LIKE ? OR invoice_number LIKE ? OR notes LIKE ?)');
+      const searchTerm = `%${search}%`;
+      params.push(searchTerm, searchTerm, searchTerm, searchTerm);
+    } else {
+      conditions.push('(customer_name LIKE ? OR customer_email LIKE ? OR invoice_number LIKE ? OR item_name LIKE ? OR address LIKE ? OR note LIKE ?)');
+      const searchTerm = `%${search}%`;
+      params.push(searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm);
+    }
   }
   
-  // Apply conditions to regular invoice query
+  // Apply conditions to the query
   if (conditions.length > 0) {
     query = query.replace('WHERE 1=1', `WHERE 1=1 AND ${conditions.join(' AND ')}`);
   }
   
-  // Apply same filters to PO invoices part (only if PO invoices are included)
-  if (exclude_po !== 'true') {
-    const poFilters = [];
-    if (status && status !== 'All') {
-      poFilters.push(' AND status = ?');
-      poParams.push(status);
-    }
-    
-    if (minAmount) {
-      poFilters.push(' AND total_amount >= ?');
-      poParams.push(parseFloat(minAmount));
-    }
-    
-    if (maxAmount) {
-      poFilters.push(' AND total_amount <= ?');
-      poParams.push(parseFloat(maxAmount));
-    }
-    
-    if (dateFrom) {
-      poFilters.push(' AND invoice_date >= ?');
-      poParams.push(dateFrom);
-    }
-    
-    if (dateTo) {
-      poFilters.push(' AND invoice_date <= ?');
-      poParams.push(dateTo);
-    }
-    
-    if (customer) {
-      poFilters.push(' AND customer_name LIKE ?');
-      poParams.push(`%${customer}%`);
-    }
-    
-    if (currency && currency !== 'All') {
-      poFilters.push(' AND currency = ?');
-      poParams.push(currency);
-    }
-    
-    if (invoice_number) {
-      poFilters.push(' AND invoice_number LIKE ?');
-      poParams.push(`%${invoice_number}%`);
-    }
-    
-    if (is_sent !== undefined) {
-      poFilters.push(` AND CASE WHEN status = 'Sent' THEN 1 ELSE 0 END = ?`);
-      poParams.push(is_sent === 'true' ? 1 : 0);
-    }
-    
-    if (search) {
-      poFilters.push(' AND (customer_name LIKE ? OR customer_email LIKE ? OR invoice_number LIKE ? OR notes LIKE ?)');
-      const searchTerm = `%${search}%`;
-      poParams.push(searchTerm, searchTerm, searchTerm, searchTerm);
-    }
-    
-    // Apply PO filters to the second part of UNION
-    if (poFilters.length > 0) {
-      query = query.replace('FROM po_invoices\n      WHERE 1=1', `FROM po_invoices\n      WHERE 1=1${poFilters.join('')}`);
-    }
-  }
-  
-  // Combine parameters for both parts of the union
-  const allParams = [...params, ...poParams];
-  
-  // Wrap the UNION query and apply sorting
-  const allowedSortFields = ['id', 'invoice_number', 'customer_name', 'bill_date', 'total_amount', 'status', 'created_at'];
+  // Wrap the query and apply sorting
+  const allowedSortFields = ['id', 'invoice_number', 'customer_name', 'bill_date', 'total_amount', 'status', 'created_at', 'updated_at'];
   const allowedSortOrders = ['ASC', 'DESC'];
   
-  let finalQuery = `SELECT * FROM (${query}) AS unified_invoices`;
+  let finalQuery = invoice_type ? query : `SELECT * FROM (${query}) AS unified_invoices`;
   
   if (allowedSortFields.includes(sortBy) && allowedSortOrders.includes(sortOrder.toUpperCase())) {
     finalQuery += ` ORDER BY ${sortBy} ${sortOrder.toUpperCase()}`;
   } else {
-    finalQuery += " ORDER BY bill_date DESC";
+    // Default to created_at DESC for latest first
+    finalQuery += " ORDER BY created_at DESC";
   }
   
   // Pagination
@@ -1258,25 +1496,25 @@ app.get("/api/invoices", (req, res) => {
   const limitNum = parseInt(limit, 10) || 50;
   const offset = (pageNum - 1) * limitNum;
   
-  // First get the total count for pagination using the same unified query
-  const countQuery = `SELECT COUNT(*) as total FROM (${query}) AS count_table`;
+  // First get the total count for pagination
+  const countQuery = invoice_type ? `SELECT COUNT(*) as total FROM (${query}) AS count_table` : `SELECT COUNT(*) as total FROM (${query}) AS count_table`;
   
-  db.query(countQuery, allParams, (err, countResults) => {
+  db.query(countQuery, params, (err, countResults) => {
     if (err) {
       console.error("Error counting invoices:", err);
       res.status(500).json({ error: "Failed to count invoices" });
       return;
     }
     
-    const totalRecords = countResults[0].total;
+    const totalRecords = countResults[0] ? countResults[0].total : 0;
     const totalPages = Math.ceil(totalRecords / limitNum);
     
     // Add pagination to main query
     finalQuery += " LIMIT ? OFFSET ?";
-    allParams.push(limitNum, offset);
+    const queryParams = [...params, limitNum, offset];
     
     // Execute main query
-    db.query(finalQuery, allParams, (err, results) => {
+    db.query(finalQuery, queryParams, (err, results) => {
       if (err) {
         console.error("Error fetching invoices:", err);
         res.status(500).json({ error: "Failed to fetch invoices" });
@@ -1319,14 +1557,14 @@ app.get("/api/invoices/filters/options", (req, res) => {
       COUNT(CASE WHEN status = 'Cancelled' THEN 1 END) as cancelled_count,
       COUNT(CASE WHEN is_sent = 1 THEN 1 END) as sent_count,
       COUNT(CASE WHEN is_sent = 0 THEN 1 END) as not_sent_count,
-      MIN(total_amount) as min_amount,
-      MAX(total_amount) as max_amount,
-      AVG(total_amount) as avg_amount,
-      MIN(bill_date) as earliest_date,
-      MAX(bill_date) as latest_date
+      COALESCE(MIN(total_amount), 0) as min_amount,
+      COALESCE(MAX(total_amount), 0) as max_amount,
+      COALESCE(AVG(total_amount), 0) as avg_amount,
+      COALESCE(MIN(bill_date), CURDATE()) as earliest_date,
+      COALESCE(MAX(bill_date), CURDATE()) as latest_date
      FROM invoice`,
     // Get top customers by invoice count
-    "SELECT customer_name, COUNT(*) as invoice_count, SUM(total_amount) as total_amount FROM invoice GROUP BY customer_name ORDER BY invoice_count DESC LIMIT 10"
+    "SELECT customer_name, COUNT(*) as invoice_count, COALESCE(SUM(total_amount), 0) as total_amount FROM invoice GROUP BY customer_name ORDER BY invoice_count DESC LIMIT 10"
   ];
 
   const executeQueries = async () => {
@@ -1336,7 +1574,7 @@ app.get("/api/invoices/filters/options", (req, res) => {
           new Promise((resolve, reject) => {
             db.query(query, (err, result) => {
               if (err) reject(err);
-              else resolve(result);
+              else resolve(result || []);
             });
           })
         )
@@ -1344,16 +1582,52 @@ app.get("/api/invoices/filters/options", (req, res) => {
 
       const [statuses, currencies, statistics, topCustomers] = results;
 
+      // Handle empty tables gracefully
+      const defaultStatistics = {
+        total_invoices: 0,
+        paid_count: 0,
+        pending_count: 0,
+        draft_count: 0,
+        cancelled_count: 0,
+        sent_count: 0,
+        not_sent_count: 0,
+        min_amount: 0,
+        max_amount: 0,
+        avg_amount: 0,
+        earliest_date: new Date().toISOString().split('T')[0],
+        latest_date: new Date().toISOString().split('T')[0]
+      };
+
       res.json({
-        statuses: statuses.map(row => row.status),
-        currencies: currencies.map(row => row.currency),
-        statistics: statistics[0],
-        topCustomers: topCustomers,
+        statuses: (statuses || []).map(row => row.status).filter(status => status),
+        currencies: (currencies || []).map(row => row.currency).filter(currency => currency),
+        statistics: (statistics && statistics[0]) ? statistics[0] : defaultStatistics,
+        topCustomers: topCustomers || [],
         success: true
       });
     } catch (error) {
       console.error("Error fetching filter options:", error);
-      res.status(500).json({ error: "Failed to fetch filter options" });
+      res.status(500).json({ 
+        error: "Failed to fetch filter options",
+        statuses: ['Draft', 'Pending', 'Sent', 'Paid', 'Overdue', 'Cancelled'],
+        currencies: ['PKR', 'USD'],
+        statistics: {
+          total_invoices: 0,
+          paid_count: 0,
+          pending_count: 0,
+          draft_count: 0,
+          cancelled_count: 0,
+          sent_count: 0,
+          not_sent_count: 0,
+          min_amount: 0,
+          max_amount: 0,
+          avg_amount: 0,
+          earliest_date: new Date().toISOString().split('T')[0],
+          latest_date: new Date().toISOString().split('T')[0]
+        },
+        topCustomers: [],
+        success: false
+      });
     }
   };
 
@@ -1607,38 +1881,131 @@ app.put("/api/invoices/:id", (req, res) => {
   const { id } = req.params;
   const {
     customer_name, customer_email, p_number, a_p_number, address,
-    st_reg_no, ntn_number, item_name, quantity, rate, currency,
-    salesTax, item_amount, tax_amount, total_amount, bill_date,
-    payment_deadline, Note, status
+    st_reg_no, ntn_number, currency, subtotal, tax_rate, tax_amount, 
+    total_amount, bill_date, payment_deadline, note, status, items
   } = req.body;
 
-  const query = `
-    UPDATE invoice SET
-      customer_name = ?, customer_email = ?, p_number = ?, a_p_number = ?, address = ?,
-      st_reg_no = ?, ntn_number = ?, item_name = ?, quantity = ?, rate = ?, currency = ?,
-      salesTax = ?, item_amount = ?, tax_amount = ?, total_amount = ?, bill_date = ?,
-      payment_deadline = ?, note = ?, status = ?
-    WHERE id = ?
-  `;
+  console.log('Updating invoice with data:', req.body);
 
-  const values = [
-    customer_name, customer_email, p_number, a_p_number, address,
-    st_reg_no, ntn_number, item_name, quantity, rate, currency,
-    salesTax, item_amount, tax_amount, total_amount, bill_date,
-    payment_deadline, Note, status, id
-  ];
-
-  db.query(query, values, (err, results) => {
+  // Start a transaction to update both invoice and items
+  db.beginTransaction((err) => {
     if (err) {
-      console.error("Error updating invoice:", err);
-      res.status(500).json({ error: "Failed to update invoice" });
-      return;
+      console.error("Error starting transaction:", err);
+      return res.status(500).json({ error: "Failed to start transaction" });
     }
-    if (results.affectedRows === 0) {
-      res.status(404).json({ error: "Invoice not found" });
-      return;
-    }
-    res.json({ message: "Invoice updated successfully" });
+
+    // Update main invoice record
+    const updateInvoiceQuery = `
+      UPDATE invoice SET
+        customer_name = ?, customer_email = ?, p_number = ?, a_p_number = ?, address = ?,
+        st_reg_no = ?, ntn_number = ?, currency = ?, subtotal = ?, tax_rate = ?, 
+        tax_amount = ?, total_amount = ?, bill_date = ?, payment_deadline = ?, 
+        note = ?, status = ?, updated_at = NOW()
+      WHERE id = ?
+    `;
+
+    const invoiceValues = [
+      customer_name, customer_email, p_number, a_p_number, address,
+      st_reg_no, ntn_number, currency, subtotal, tax_rate, tax_amount,
+      total_amount, bill_date, payment_deadline, note, status, id
+    ];
+
+    db.query(updateInvoiceQuery, invoiceValues, (err, results) => {
+      if (err) {
+        console.error("Error updating invoice:", err);
+        return db.rollback(() => {
+          res.status(500).json({ error: "Failed to update invoice" });
+        });
+      }
+      
+      if (results.affectedRows === 0) {
+        return db.rollback(() => {
+          res.status(404).json({ error: "Invoice not found" });
+        });
+      }
+
+      // Delete existing items
+      const deleteItemsQuery = "DELETE FROM invoice_items WHERE invoice_id = ?";
+      
+      db.query(deleteItemsQuery, [id], (err) => {
+        if (err) {
+          console.error("Error deleting existing items:", err);
+          return db.rollback(() => {
+            res.status(500).json({ error: "Failed to delete existing items" });
+          });
+        }
+
+        // Insert new items if provided
+        if (items && Array.isArray(items) && items.length > 0) {
+          const insertItemQuery = `
+            INSERT INTO invoice_items (invoice_id, item_no, description, quantity, rate, amount, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, NOW())
+          `;
+
+          let completedInserts = 0;
+          let insertError = false;
+
+          items.forEach((item, index) => {
+            const itemValues = [
+              id,
+              item.item_no || (index + 1),
+              item.description || '',
+              parseFloat(item.quantity) || 0,
+              parseFloat(item.rate) || 0,
+              parseFloat(item.amount) || 0
+            ];
+
+            db.query(insertItemQuery, itemValues, (err) => {
+              if (err && !insertError) {
+                console.error("Error inserting item:", err);
+                insertError = true;
+                return db.rollback(() => {
+                  res.status(500).json({ error: "Failed to insert invoice items" });
+                });
+              }
+
+              completedInserts++;
+              
+              if (completedInserts === items.length && !insertError) {
+                // All items inserted successfully
+                db.commit((err) => {
+                  if (err) {
+                    console.error("Error committing transaction:", err);
+                    return db.rollback(() => {
+                      res.status(500).json({ error: "Failed to commit transaction" });
+                    });
+                  }
+                  
+                  console.log('Invoice updated successfully with items');
+                  res.json({ 
+                    message: "Invoice updated successfully",
+                    id: id,
+                    itemsUpdated: items.length
+                  });
+                });
+              }
+            });
+          });
+        } else {
+          // No items to insert, just commit the transaction
+          db.commit((err) => {
+            if (err) {
+              console.error("Error committing transaction:", err);
+              return db.rollback(() => {
+                res.status(500).json({ error: "Failed to commit transaction" });
+              });
+            }
+            
+            console.log('Invoice updated successfully without items');
+            res.json({ 
+              message: "Invoice updated successfully",
+              id: id,
+              itemsUpdated: 0
+            });
+          });
+        }
+      });
+    });
   });
 });
 
@@ -1668,11 +2035,11 @@ app.get("/api/transaction-history", (req, res) => {
   const { page = 1, limit = 10 } = req.query;
   const offset = (parseInt(page) - 1) * parseInt(limit);
   
-  // Query to get paid invoices with customer info
+  // Query to get ALL paid invoices (both regular and PO invoices)
   const query = `
     SELECT 
       i.id,
-      i.invoice_number,
+      CONCAT('INV-', i.id) as invoice_number,
       i.customer_name,
       i.total_amount,
       i.currency,
@@ -1680,55 +2047,113 @@ app.get("/api/transaction-history", (req, res) => {
       i.payment_deadline,
       i.created_at,
       'Paid Invoice' as transaction_type,
-      'income' as type
+      'income' as type,
+      'regular' as invoice_type,
+      NULL as po_number
     FROM invoice i 
     WHERE i.status = 'Paid'
-    ORDER BY i.created_at DESC, i.bill_date DESC
+    
+    UNION ALL
+    
+    SELECT 
+      po.id,
+      po.invoice_number,
+      po.customer_name,
+      po.total_amount,
+      po.currency,
+      po.invoice_date as bill_date,
+      po.due_date as payment_deadline,
+      po.created_at,
+      'Paid PO Invoice' as transaction_type,
+      'income' as type,
+      'po_invoice' as invoice_type,
+      po.po_number
+    FROM po_invoices po 
+    WHERE po.status = 'Paid'
+    
+    ORDER BY created_at DESC, bill_date DESC
     LIMIT ? OFFSET ?
   `;
   
-  // Count query for pagination
+  // Count query for pagination (count both regular and PO invoices)
   const countQuery = `
-    SELECT COUNT(*) as total
-    FROM invoice 
-    WHERE status = 'Paid'
+    SELECT 
+      (SELECT COUNT(*) FROM invoice WHERE status = 'Paid') + 
+      (SELECT COUNT(*) FROM po_invoices WHERE status = 'Paid') as total
   `;
   
   // Execute count query first
   db.query(countQuery, (err, countResults) => {
     if (err) {
       console.error("Error counting paid invoices:", err);
-      res.status(500).json({ error: "Failed to fetch transaction count" });
-      return;
+      return res.status(500).json({ 
+        error: "Failed to fetch transaction count",
+        data: [],
+        pagination: {
+          currentPage: 1,
+          totalPages: 0,
+          totalRecords: 0,
+          limit: parseInt(limit),
+          hasNext: false,
+          hasPrev: false
+        }
+      });
     }
     
-    const totalRecords = countResults[0].total;
+    const totalRecords = countResults[0]?.total || 0;
     const totalPages = Math.ceil(totalRecords / parseInt(limit));
+    
+    // Handle empty table case
+    if (totalRecords === 0) {
+      return res.json({
+        data: [],
+        pagination: {
+          currentPage: parseInt(page),
+          totalPages: 0,
+          totalRecords: 0,
+          limit: parseInt(limit),
+          hasNext: false,
+          hasPrev: false
+        }
+      });
+    }
     
     // Execute main query
     db.query(query, [parseInt(limit), offset], (err, results) => {
       if (err) {
         console.error("Error fetching transaction history:", err);
-        res.status(500).json({ error: "Failed to fetch transaction history" });
-        return;
+        return res.status(500).json({ 
+          error: "Failed to fetch transaction history",
+          data: [],
+          pagination: {
+            currentPage: parseInt(page),
+            totalPages: totalPages,
+            totalRecords: totalRecords,
+            limit: parseInt(limit),
+            hasNext: false,
+            hasPrev: false
+          }
+        });
       }
       
       // Format the results for the frontend
-      const formattedResults = results.map(item => ({
-        id: item.id,
-        name: `${item.customer_name} - Invoice #${item.invoice_number || item.id}`,
-        amount: parseFloat(item.total_amount),
+      const formattedResults = (results || []).map(item => ({
+        id: item.id || 0,
+        name: `${item.customer_name || 'Unknown Customer'} - Invoice #${item.invoice_number || `INV-${item.id}`}`,
+        amount: parseFloat(item.total_amount || 0),
         currency: item.currency || 'PKR',
-        type: item.type,
-        time: new Date(item.created_at).toLocaleTimeString('en-US', { 
+        type: item.type || 'income',
+        time: item.created_at ? new Date(item.created_at).toLocaleTimeString('en-US', { 
           hour: '2-digit', 
           minute: '2-digit',
           hour12: true 
-        }),
-        date: item.bill_date,
+        }) : '00:00',
+        date: item.bill_date || new Date().toISOString().split('T')[0],
         initial: item.customer_name ? item.customer_name.substring(0, 2).toUpperCase() : 'IN',
-        transaction_type: item.transaction_type,
-        invoice_id: item.id
+        transaction_type: item.transaction_type || 'Paid Invoice',
+        invoice_id: item.id || 0,
+        invoice_type: item.invoice_type || 'regular',
+        po_number: item.po_number || null
       }));
       
       res.json({
@@ -1752,11 +2177,11 @@ app.get("/api/transaction-stats", (req, res) => {
     // Total paid invoices count
     "SELECT COUNT(*) as total_transactions FROM invoice WHERE status = 'Paid'",
     // Total paid amount
-    "SELECT SUM(total_amount) as total_income FROM invoice WHERE status = 'Paid'",
+    "SELECT COALESCE(SUM(total_amount), 0) as total_income FROM invoice WHERE status = 'Paid'",
     // Today's paid invoices
     "SELECT COUNT(*) as today_transactions FROM invoice WHERE status = 'Paid' AND DATE(created_at) = CURDATE()",
     // This month's paid amount
-    "SELECT SUM(total_amount) as month_income FROM invoice WHERE status = 'Paid' AND MONTH(created_at) = MONTH(CURDATE()) AND YEAR(created_at) = YEAR(CURDATE())"
+    "SELECT COALESCE(SUM(total_amount), 0) as month_income FROM invoice WHERE status = 'Paid' AND MONTH(created_at) = MONTH(CURDATE()) AND YEAR(created_at) = YEAR(CURDATE())"
   ];
 
   const executeQueries = async () => {
@@ -1766,7 +2191,7 @@ app.get("/api/transaction-stats", (req, res) => {
           new Promise((resolve, reject) => {
             db.query(query, (err, result) => {
               if (err) reject(err);
-              else resolve(result[0]);
+              else resolve(result[0] || {});
             });
           })
         )
@@ -1783,11 +2208,434 @@ app.get("/api/transaction-stats", (req, res) => {
       });
     } catch (error) {
       console.error("Error fetching transaction statistics:", error);
-      res.status(500).json({ error: "Failed to fetch transaction statistics" });
+      res.status(500).json({ 
+        error: "Failed to fetch transaction statistics",
+        // Return default values in case of error
+        totalTransactions: 0,
+        totalIncome: 0,
+        todayTransactions: 0,
+        monthIncome: 0,
+        success: false
+      });
     }
   };
 
   executeQueries();
+});
+
+// --- PO Invoice Routes ---
+
+// Get all PO invoice numbers (for ID generation)
+app.get("/api/po-invoices", (req, res) => {
+  const query = "SELECT invoice_number FROM po_invoices ORDER BY created_at DESC";
+  
+  db.query(query, (err, results) => {
+    if (err) {
+      console.error("Error fetching PO invoice numbers:", err);
+      return res.status(500).json({ 
+        error: "Failed to fetch PO invoice numbers",
+        invoices: [] // Return empty array for ID generation
+      });
+    }
+    
+    // Handle empty table gracefully
+    if (!results || results.length === 0) {
+      console.log("No PO invoices found - returning empty array for ID generation");
+      return res.json([]);
+    }
+    
+    // Return just the invoice numbers for ID generation
+    const invoiceNumbers = results.map(row => row.invoice_number).filter(num => num);
+    console.log(`Returning ${invoiceNumbers.length} existing PO invoice numbers for ID generation`);
+    res.json(invoiceNumbers);
+  });
+});
+
+// Get all PO invoices with details  
+app.get("/api/po-invoices/details", (req, res) => {
+  const { 
+    po_id,
+    status, 
+    minAmount, 
+    maxAmount, 
+    dateFrom, 
+    dateTo, 
+    customer,
+    sortBy = 'invoice_date',
+    sortOrder = 'DESC',
+    page = 1,
+    limit = 50
+  } = req.query;
+  
+  let query = `
+    SELECT 
+      pi.*,
+      po.po_number,
+      po.supplier_name,
+      po.total_amount as po_total_amount
+    FROM po_invoices pi
+    LEFT JOIN purchase_orders po ON pi.po_id = po.id
+    WHERE 1=1
+  `;
+  const params = [];
+  
+  // Filter by PO ID if provided (handle both numeric ID and PO number)
+  if (po_id) {
+    const isNumericId = /^\d+$/.test(po_id);
+    if (isNumericId) {
+      query += " AND pi.po_id = ?";
+      params.push(po_id);
+    } else {
+      // PO number format, need to join with purchase_orders to find by po_number
+      query += " AND po.po_number = ?";
+      params.push(po_id);
+    }
+  }
+  
+  // Status filter
+  if (status && status !== 'All') {
+    query += " AND pi.status = ?";
+    params.push(status);
+  }
+  
+  // Amount filters
+  if (minAmount) {
+    query += " AND pi.total_amount >= ?";
+    params.push(parseFloat(minAmount));
+  }
+  
+  if (maxAmount) {
+    query += " AND pi.total_amount <= ?";
+    params.push(parseFloat(maxAmount));
+  }
+  
+  // Date filters
+  if (dateFrom) {
+    query += " AND pi.invoice_date >= ?";
+    params.push(dateFrom);
+  }
+  
+  if (dateTo) {
+    query += " AND pi.invoice_date <= ?";
+    params.push(dateTo);
+  }
+  
+  // Customer filter
+  if (customer) {
+    query += " AND pi.customer_name LIKE ?";
+    params.push(`%${customer}%`);
+  }
+  
+  // Sorting
+  const validSortFields = ['invoice_date', 'invoice_number', 'customer_name', 'total_amount', 'status'];
+  const validSortOrders = ['ASC', 'DESC'];
+  
+  if (validSortFields.includes(sortBy) && validSortOrders.includes(sortOrder.toUpperCase())) {
+    query += ` ORDER BY pi.${sortBy} ${sortOrder.toUpperCase()}`;
+  } else {
+    query += " ORDER BY pi.invoice_date DESC";
+  }
+  
+  // Pagination
+  const pageNum = parseInt(page) || 1;
+  const limitNum = parseInt(limit) || 50;
+  const offset = (pageNum - 1) * limitNum;
+  
+  query += " LIMIT ? OFFSET ?";
+  params.push(limitNum, offset);
+  
+  db.query(query, params, (err, results) => {
+    if (err) {
+      console.error("Error fetching PO invoices:", err);
+      res.status(500).json({ error: "Failed to fetch PO invoices" });
+      return;
+    }
+    
+    res.json(results);
+  });
+});
+
+// Create new PO invoice
+app.post("/api/po-invoices", (req, res) => {
+  console.log('Received PO invoice creation request:', req.body);
+
+  const {
+    po_id,
+    po_number,
+    invoice_number,
+    customer_name,
+    customer_email,
+    customer_phone,
+    customer_address,
+    invoice_date,
+    due_date,
+    subtotal,
+    tax_rate,
+    tax_amount,
+    total_amount,
+    currency = 'PKR',
+    notes = '',
+    status = 'Pending'
+  } = req.body;
+
+  // Validate required fields
+  if (!po_id || !invoice_number || !customer_name) {
+    return res.status(400).json({ 
+      error: "Missing required fields", 
+      required: ["po_id", "invoice_number", "customer_name"] 
+    });
+  }
+
+  const query = `
+    INSERT INTO po_invoices (
+      po_id, po_number, invoice_number, customer_name, customer_email, 
+      customer_phone, customer_address, invoice_date, due_date, 
+      subtotal, tax_rate, tax_amount, total_amount, currency, notes, status
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `;
+
+  const values = [
+    po_id, po_number, invoice_number, customer_name, customer_email || '',
+    customer_phone || '', customer_address || '', invoice_date || new Date().toISOString().split('T')[0],
+    due_date || new Date(Date.now() + 30*24*60*60*1000).toISOString().split('T')[0], // 30 days from now
+    subtotal || 0, tax_rate || 17, tax_amount || 0, total_amount || 0,
+    currency, notes, status
+  ];
+
+  db.query(query, values, (err, result) => {
+    if (err) {
+      console.error("Error creating PO invoice:", err);
+      res.status(500).json({ 
+        error: "Failed to create PO invoice", 
+        details: err.message 
+      });
+      return;
+    }
+
+    console.log('PO Invoice created with ID:', result.insertId);
+    res.status(201).json({
+      id: result.insertId,
+      message: "PO Invoice created successfully",
+      invoice: {
+        id: result.insertId,
+        invoice_number,
+        po_number,
+        customer_name,
+        total_amount,
+        status
+      }
+    });
+  });
+});
+
+// --- Purchase Order Routes ---
+
+// Get purchase order summary for remaining amount calculation
+app.get("/api/purchase-orders/:id/summary", (req, res) => {
+  const { id } = req.params;
+  
+  // Check if ID is numeric (database ID) or PO number format
+  const isNumericId = /^\d+$/.test(id);
+  const whereClause = isNumericId ? "po.id = ?" : "po.po_number = ?";
+  
+  // Get PO details and calculate total invoiced amount
+  const query = `
+    SELECT 
+      po.id,
+      po.po_number,
+      po.supplier_name,
+      po.total_amount as po_total,
+      COALESCE(SUM(pi.total_amount), 0) as total_invoiced,
+      (po.total_amount - COALESCE(SUM(pi.total_amount), 0)) as remaining_amount,
+      COUNT(pi.id) as invoice_count
+    FROM purchase_orders po
+    LEFT JOIN po_invoices pi ON po.id = pi.po_id
+    WHERE ${whereClause}
+    GROUP BY po.id, po.po_number, po.supplier_name, po.total_amount
+  `;
+  
+  db.query(query, [id], (err, results) => {
+    if (err) {
+      console.error("Error fetching PO summary:", err);
+      res.status(500).json({ error: "Failed to fetch PO summary" });
+      return;
+    }
+    
+    if (results.length === 0) {
+      res.status(404).json({ error: "Purchase order not found" });
+      return;
+    }
+    
+    const summary = results[0];
+    // Ensure remaining_amount is not negative
+    summary.remaining_amount = Math.max(0, summary.remaining_amount);
+    
+    res.json(summary);
+  });
+});
+
+// Get all purchase orders with filtering
+app.get("/api/purchase-orders", (req, res) => {
+  const { 
+    status, 
+    supplier, 
+    po_number,
+    minAmount, 
+    maxAmount, 
+    dateFrom, 
+    dateTo,
+    sortBy = 'created_at',
+    sortOrder = 'DESC',
+    page = 1,
+    limit = 50
+  } = req.query;
+  
+  let query = `
+    SELECT 
+      po.*,
+      COALESCE(SUM(pi.total_amount), 0) as total_invoiced,
+      (po.total_amount - COALESCE(SUM(pi.total_amount), 0)) as remaining_amount,
+      COUNT(pi.id) as invoice_count
+    FROM purchase_orders po
+    LEFT JOIN po_invoices pi ON po.id = pi.po_id
+    WHERE 1=1
+  `;
+  const params = [];
+  
+  // Apply filters
+  if (status && status !== 'All') {
+    query += " AND po.status = ?";
+    params.push(status);
+  }
+  
+  if (supplier) {
+    query += " AND po.supplier_name LIKE ?";
+    params.push(`%${supplier}%`);
+  }
+  
+  if (po_number) {
+    query += " AND po.po_number LIKE ?";
+    params.push(`%${po_number}%`);
+  }
+  
+  if (minAmount) {
+    query += " AND po.total_amount >= ?";
+    params.push(parseFloat(minAmount));
+  }
+  
+  if (maxAmount) {
+    query += " AND po.total_amount <= ?";
+    params.push(parseFloat(maxAmount));
+  }
+  
+  if (dateFrom) {
+    query += " AND po.po_date >= ?";
+    params.push(dateFrom);
+  }
+  
+  if (dateTo) {
+    query += " AND po.po_date <= ?";
+    params.push(dateTo);
+  }
+  
+  // Group by PO
+  query += " GROUP BY po.id, po.po_number, po.supplier_name, po.total_amount, po.status, po.po_date, po.created_at, po.updated_at";
+  
+  // Sorting
+  const validSortFields = ['po_date', 'po_number', 'supplier_name', 'total_amount', 'status', 'created_at'];
+  const validSortOrders = ['ASC', 'DESC'];
+  
+  if (validSortFields.includes(sortBy) && validSortOrders.includes(sortOrder.toUpperCase())) {
+    query += ` ORDER BY po.${sortBy} ${sortOrder.toUpperCase()}`;
+  } else {
+    query += " ORDER BY po.created_at DESC";
+  }
+  
+  // Pagination
+  const pageNum = parseInt(page) || 1;
+  const limitNum = parseInt(limit) || 50;
+  const offset = (pageNum - 1) * limitNum;
+  
+  query += " LIMIT ? OFFSET ?";
+  params.push(limitNum, offset);
+  
+  db.query(query, params, (err, results) => {
+    if (err) {
+      console.error("Error fetching purchase orders:", err);
+      return res.status(500).json({ 
+        error: "Failed to fetch purchase orders",
+        data: []
+      });
+    }
+    
+    // Handle empty table case
+    if (!results || results.length === 0) {
+      return res.json([]);
+    }
+    
+    // Calculate remaining amounts and ensure they're not negative
+    const processedResults = results.map(po => ({
+      ...po,
+      remaining_amount: Math.max(0, po.remaining_amount || 0),
+      is_fully_invoiced: (po.remaining_amount <= 0)
+    }));
+    
+    res.json(processedResults);
+  });
+});
+
+// Get single purchase order by ID or PO number
+app.get("/api/purchase-orders/:id", (req, res) => {
+  const { id } = req.params;
+  
+  // Check if ID is numeric (database ID) or PO number format
+  const isNumericId = /^\d+$/.test(id);
+  const whereClause = isNumericId ? "po.id = ?" : "po.po_number = ?";
+  
+  const query = `
+    SELECT 
+      po.*,
+      COALESCE(SUM(pi.total_amount), 0) as total_invoiced,
+      (po.total_amount - COALESCE(SUM(pi.total_amount), 0)) as remaining_amount,
+      COUNT(pi.id) as invoice_count
+    FROM purchase_orders po
+    LEFT JOIN po_invoices pi ON po.id = pi.po_id
+    WHERE ${whereClause}
+    GROUP BY po.id
+  `;
+  
+  db.query(query, [id], (err, results) => {
+    if (err) {
+      console.error("Error fetching purchase order:", err);
+      res.status(500).json({ error: "Failed to fetch purchase order" });
+      return;
+    }
+    
+    if (results.length === 0) {
+      res.status(404).json({ error: "Purchase order not found" });
+      return;
+    }
+    
+    const po = results[0];
+    // Ensure remaining_amount is not negative
+    po.remaining_amount = Math.max(0, po.remaining_amount || 0);
+    po.is_fully_invoiced = (po.remaining_amount <= 0);
+    
+    // Now fetch the items for this PO
+    const itemsQuery = "SELECT * FROM purchase_order_items WHERE purchase_order_id = ? ORDER BY item_no";
+    db.query(itemsQuery, [po.id], (itemsErr, itemsResults) => {
+      if (itemsErr) {
+        console.error("Error fetching PO items:", itemsErr);
+        console.error("Note: If purchase_order_items table doesn't exist, please create it");
+        // Still return PO even if items fetch fails
+        po.items = [];
+      } else {
+        po.items = itemsResults || [];
+      }
+      
+      res.json(po);
+    });
+  });
 });
 
 // --- Categories Routes ---
@@ -1856,7 +2704,7 @@ app.get("/api/categories", (req, res) => {
       return;
     }
     
-    const totalRecords = countResults[0].total;
+    const totalRecords = countResults[0] ? countResults[0].total : 0;
     const totalPages = Math.ceil(totalRecords / parseInt(limit));
     
     // Execute main query
@@ -1888,7 +2736,7 @@ app.get("/api/categories/stats", (req, res) => {
     "SELECT COUNT(*) as total FROM categories",
     "SELECT COUNT(*) as active FROM categories WHERE status = 'Active'",
     "SELECT COUNT(*) as expense_categories FROM categories WHERE type = 'Expense'",
-    "SELECT SUM(COALESCE(e.expense_count, 0)) as total_expenses FROM categories c LEFT JOIN (SELECT category_id, COUNT(*) as expense_count FROM expenses GROUP BY category_id) e ON c.id = e.category_id"
+    "SELECT COALESCE(SUM(COALESCE(e.expense_count, 0)), 0) as total_expenses FROM categories c LEFT JOIN (SELECT category_id, COUNT(*) as expense_count FROM expenses GROUP BY category_id) e ON c.id = e.category_id"
   ];
 
   const executeQueries = async () => {
@@ -1898,7 +2746,7 @@ app.get("/api/categories/stats", (req, res) => {
           new Promise((resolve, reject) => {
             db.query(query, (err, result) => {
               if (err) reject(err);
-              else resolve(result[0]);
+              else resolve(result[0] || {});
             });
           })
         )
@@ -1915,7 +2763,15 @@ app.get("/api/categories/stats", (req, res) => {
       });
     } catch (error) {
       console.error("Error fetching category statistics:", error);
-      res.status(500).json({ error: "Failed to fetch category statistics" });
+      res.status(500).json({ 
+        error: "Failed to fetch category statistics",
+        // Return default values in case of error
+        totalCategories: 0,
+        activeCategories: 0,
+        expenseCategories: 0,
+        totalExpenses: 0,
+        success: false
+      });
     }
   };
 
@@ -1928,9 +2784,7 @@ app.post("/api/categories", (req, res) => {
     name,
     description,
     type = 'Expense',
-    status = 'Active',
-    color = '#3B82F6',
-    icon = 'FolderOpen'
+    status = 'Active'
   } = req.body;
 
   if (!name) {
@@ -1938,11 +2792,11 @@ app.post("/api/categories", (req, res) => {
   }
 
   const query = `
-    INSERT INTO categories (name, description, type, status, color, icon, created_date)
-    VALUES (?, ?, ?, ?, ?, ?, CURDATE())
+    INSERT INTO categories (name, description, type, status, created_date)
+    VALUES (?, ?, ?, ?, CURDATE())
   `;
 
-  db.query(query, [name, description, type, status, color, icon], (err, result) => {
+  db.query(query, [name, description, type, status], (err, result) => {
     if (err) {
       console.error("Error creating category:", err);
       if (err.code === 'ER_DUP_ENTRY') {
@@ -1967,9 +2821,7 @@ app.put("/api/categories/:id", (req, res) => {
     name,
     description,
     type,
-    status,
-    color,
-    icon
+    status
   } = req.body;
 
   if (!name) {
@@ -1978,11 +2830,11 @@ app.put("/api/categories/:id", (req, res) => {
 
   const query = `
     UPDATE categories 
-    SET name = ?, description = ?, type = ?, status = ?, color = ?, icon = ?
+    SET name = ?, description = ?, type = ?, status = ?
     WHERE id = ?
   `;
 
-  db.query(query, [name, description, type, status, color, icon, id], (err, result) => {
+  db.query(query, [name, description, type, status, id], (err, result) => {
     if (err) {
       console.error("Error updating category:", err);
       if (err.code === 'ER_DUP_ENTRY') {
@@ -2655,10 +3507,10 @@ app.post("/api/po-invoices", (req, res) => {
     due_date,
     po_id,
     po_number,
-    customer_name,
-    customer_email,
-    customer_phone,
-    customer_address,
+    supplier_name,
+    supplier_email,
+    supplier_phone,
+    supplier_address,
     subtotal,
     tax_rate,
     tax_amount,
@@ -2669,9 +3521,15 @@ app.post("/api/po-invoices", (req, res) => {
     items = []
   } = req.body;
 
+  // Map supplier fields to customer fields for database compatibility
+  const customer_name = supplier_name;
+  const customer_email = supplier_email;
+  const customer_phone = supplier_phone;
+  const customer_address = supplier_address;
+
   // Validate required fields
-  if (!invoice_number || !invoice_date || !po_number || !customer_name) {
-    return res.status(400).json({ message: "Missing required fields: invoice_number, invoice_date, po_number, customer_name" });
+  if (!invoice_number || !invoice_date || !po_number || !supplier_name) {
+    return res.status(400).json({ message: "Missing required fields: invoice_number, invoice_date, po_number, supplier_name" });
   }
 
   // Start transaction for invoice and items
@@ -2698,8 +3556,23 @@ app.post("/api/po-invoices", (req, res) => {
     db.query(query, values, (err, result) => {
       if (err) {
         console.error("Error creating PO invoice:", err.message);
+        
+        // Provide specific error message for duplicate invoice numbers
+        if (err.code === 'ER_DUP_ENTRY' && err.sqlMessage.includes('invoice_number')) {
+          return db.rollback(() => {
+            res.status(409).json({ 
+              message: `Invoice number ${invoice_number} already exists. Please try again with a different number.`,
+              error: "DUPLICATE_INVOICE_NUMBER",
+              suggestion: "The system will generate a new unique number on refresh"
+            });
+          });
+        }
+        
         return db.rollback(() => {
-          res.status(500).json({ message: "Failed to create PO invoice", error: err.message });
+          res.status(500).json({ 
+            message: "Failed to create PO invoice", 
+            error: err.message 
+          });
         });
       }
       
@@ -2837,13 +3710,48 @@ app.get("/api/po-invoices/:id", (req, res) => {
         });
       }
       
-      // Combine invoice with items
-      const invoiceWithItems = {
-        ...invoice,
-        items: itemsResults || []
-      };
-      
-      res.json(invoiceWithItems);
+      // If no items found in po_invoice_items, try to get items from original PO
+      if (!itemsResults || itemsResults.length === 0) {
+        console.log(`No items found for PO invoice ${id}, checking original PO: ${invoice.po_number}`);
+        
+        const poItemsQuery = `
+          SELECT 
+            1 as item_no,
+            COALESCE(notes, 'Items as per purchase order agreement') as description,
+            1 as quantity,
+            total_amount as unit_price,
+            total_amount as amount,
+            CONCAT('Supplier: ', supplier_name, ' - As per PO specifications') as specifications
+          FROM purchase_orders 
+          WHERE po_number = ?
+        `;
+        
+        db.query(poItemsQuery, [invoice.po_number], (err2, poItemsResults) => {
+          if (err2) {
+            console.error("Error fetching PO items:", err2);
+            return res.json({
+              ...invoice,
+              items: []
+            });
+          }
+          
+          // Return invoice with PO items as fallback
+          const invoiceWithItems = {
+            ...invoice,
+            items: poItemsResults || []
+          };
+          
+          res.json(invoiceWithItems);
+        });
+      } else {
+        // Combine invoice with items
+        const invoiceWithItems = {
+          ...invoice,
+          items: itemsResults || []
+        };
+        
+        res.json(invoiceWithItems);
+      }
     });
   });
 });
@@ -3005,11 +3913,13 @@ app.get("/api/po-summaries", (req, res) => {
       console.error("Error fetching PO summaries:", err);
       return res.status(500).json({ 
         message: "Failed to fetch PO summaries", 
-        error: err.message 
+        error: err.message,
+        data: []
       });
     }
     
-    res.json(results);
+    // Return empty array if no PO summaries exist
+    res.json(results || []);
   });
 });
 
@@ -3199,6 +4109,148 @@ app.delete("/api/po-invoices/:id", (req, res) => {
       });
     });
   });
+});
+
+// Get all invoice numbers for ID generation
+app.get("/api/invoice-numbers", (req, res) => {
+  const regularInvoicesQuery = "SELECT invoice_number FROM invoice";
+  const poInvoicesQuery = "SELECT invoice_number FROM po_invoices";
+  
+  Promise.all([
+    new Promise((resolve, reject) => {
+      db.query(regularInvoicesQuery, (err, results) => {
+        if (err) reject(err);
+        else resolve(results);
+      });
+    }),
+    new Promise((resolve, reject) => {
+      db.query(poInvoicesQuery, (err, results) => {
+        if (err) reject(err);
+        else resolve(results);
+      });
+    })
+  ])
+  .then(([regularInvoices, poInvoices]) => {
+    const allInvoiceNumbers = [
+      ...regularInvoices,
+      ...poInvoices
+    ];
+    res.json(allInvoiceNumbers);
+  })
+  .catch((error) => {
+    console.error("Error fetching invoice numbers:", error);
+    res.status(500).json({ message: "Failed to fetch invoice numbers", error: error.message });
+  });
+});
+
+// --- Settings Routes ---
+
+// Get user settings
+app.get("/api/settings/:userId", (req, res) => {
+  const userId = req.params.userId || 1; // Default to user 1
+  
+  // Get user basic info and settings
+  const getUserQuery = `
+    SELECT u.id, u.firstName, u.lastName, u.email, 
+           us.phone, us.company, us.address, us.two_factor_enabled, us.email_notifications
+    FROM users u
+    LEFT JOIN user_settings us ON u.id = us.user_id
+    WHERE u.id = ?
+  `;
+  
+  db.query(getUserQuery, [userId], (err, results) => {
+    if (err) {
+      console.error("Error fetching user settings:", err);
+      return res.status(500).json({ success: false, message: "Error fetching settings" });
+    }
+    
+    const user = results[0];
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+    
+    const settings = {
+      personal: {
+        firstName: user.firstName || "",
+        lastName: user.lastName || "",
+        email: user.email || "",
+        phone: user.phone || "",
+        company: user.company || "",
+        address: user.address || ""
+      },
+      security: {
+        twoFactorEnabled: user.two_factor_enabled === 1,
+        loginNotifications: user.email_notifications === 1
+      }
+    };
+    
+    res.json({ success: true, data: settings });
+  });
+});
+
+// Update user settings
+app.post("/api/settings/:userId", (req, res) => {
+  const userId = req.params.userId || 1;
+  const { personal, security, password } = req.body;
+  
+  // Update user basic info
+  if (personal) {
+    const updateUserQuery = `
+      UPDATE users 
+      SET firstName = ?, lastName = ?, email = ?
+      WHERE id = ?
+    `;
+    
+    db.query(updateUserQuery, [personal.firstName, personal.lastName, personal.email, userId], (err) => {
+      if (err) {
+        console.error("Error updating user:", err);
+        return res.status(500).json({ success: false, message: "Error updating user info" });
+      }
+    });
+  }
+  
+  // Update or insert user settings
+  if (personal || security) {
+    const upsertSettingsQuery = `
+      INSERT INTO user_settings (user_id, phone, company, address, two_factor_enabled, email_notifications)
+      VALUES (?, ?, ?, ?, ?, ?)
+      ON DUPLICATE KEY UPDATE 
+      phone = VALUES(phone),
+      company = VALUES(company), 
+      address = VALUES(address),
+      two_factor_enabled = VALUES(two_factor_enabled),
+      email_notifications = VALUES(email_notifications)
+    `;
+    
+    const settingsValues = [
+      userId,
+      personal?.phone || '',
+      personal?.company || '',
+      personal?.address || '',
+      security?.twoFactorEnabled ? 1 : 0,
+      security?.loginNotifications ? 1 : 0
+    ];
+    
+    db.query(upsertSettingsQuery, settingsValues, (err) => {
+      if (err) {
+        console.error("Error updating settings:", err);
+        return res.status(500).json({ success: false, message: "Error updating settings" });
+      }
+    });
+  }
+  
+  // Update password if provided
+  if (password && password.newPassword) {
+    const updatePasswordQuery = "UPDATE users SET password = ? WHERE id = ?";
+    db.query(updatePasswordQuery, [password.newPassword, userId], (err) => {
+      if (err) {
+        console.error("Error updating password:", err);
+        return res.status(500).json({ success: false, message: "Error updating password" });
+      }
+    });
+  }
+  
+  res.json({ success: true, message: "Settings updated successfully" });
 });
 
 // --- Start Server ---

@@ -8,9 +8,10 @@ const StatsCard = ({
   change, 
   changeType = 'neutral',
   icon,
-  color = 'blue'
+  color = 'blue',
+  subtitle
 }) => {
-  // Compact color configurations
+  // Enhanced color configurations
   const colorConfig = {
     blue: {
       bg: 'bg-blue-50',
@@ -31,6 +32,11 @@ const StatsCard = ({
       bg: 'bg-purple-50',
       text: 'text-purple-600',
       accent: 'bg-purple-100',
+    },
+    yellow: {
+      bg: 'bg-yellow-50',
+      text: 'text-yellow-600',
+      accent: 'bg-yellow-100',
     }
   };
 
@@ -46,6 +52,14 @@ const StatsCard = ({
     neutral: {
       icon: Minus,
       color: 'text-gray-400',
+    },
+    warning: {
+      icon: ArrowUp,
+      color: 'text-yellow-500',
+    },
+    good: {
+      icon: ArrowDown,
+      color: 'text-green-500',
     }
   };
 
@@ -70,9 +84,9 @@ const StatsCard = ({
       </div>
       
       {/* Main Content */}
-      <div className="flex items-end gap-1 mb-1">
+      <div className="flex items-baseline gap-2 mb-1">
         <span className="text-lg font-semibold text-gray-900">
-          {formatAmount(amount)}
+          {currency && currency !== '' && `${currency} `}{formatAmount(amount)}
         </span>
         {change && (
           <span className={`text-xs flex items-center ${changeConfig[changeType].color}`}>
@@ -82,10 +96,16 @@ const StatsCard = ({
         )}
       </div>
       
-      {/* Mini Trend Indicator */}
+      {/* Subtitle or Mini Trend Indicator */}
       <div className="flex items-center">
-        <Activity className="w-3 h-3 text-gray-400 mr-1" />
-        <span className="text-xs text-gray-500">Monthly trend</span>
+        {subtitle ? (
+          <span className="text-xs text-gray-500">{subtitle}</span>
+        ) : (
+          <>
+            <Activity className="w-3 h-3 text-gray-400 mr-1" />
+            <span className="text-xs text-gray-500">Monthly trend</span>
+          </>
+        )}
       </div>
     </div>
   );
