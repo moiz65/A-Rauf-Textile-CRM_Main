@@ -1569,9 +1569,10 @@ const InvoiceManagement = () => {
 
   const handleEditInvoice = async (invoice) => {
     if (invoice.invoice_type === 'po_invoice') {
-      // For PO invoices, show a message that they should be edited from the PO page
-      showNotification("Info", "PO invoices should be edited from the Purchase Order page");
-      navigate(`/purchase-order/${invoice.po_number}`);
+      // For PO invoices we want to open the Purchase Order in edit mode.
+      // Pass the PO number through location state so the PurchaseOrder page
+      // can forward it to the PO table which will open the Edit modal.
+      navigate('/purchase-order', { state: { editPOId: invoice.po_number } });
     } else {
       try {
         // Fetch complete invoice data from API

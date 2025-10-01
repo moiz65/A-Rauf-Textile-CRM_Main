@@ -23,7 +23,7 @@ import { generatePOId } from '../utils/idGenerator';
 
 const ITEMS_PER_PAGE = 10;
 
-const PurchaseOrderTable = ({ onViewDetails }) => {
+const PurchaseOrderTable = ({ onViewDetails, openEditPOId = null }) => {
   const [purchaseOrders, setPurchaseOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -117,6 +117,49 @@ const PurchaseOrderTable = ({ onViewDetails }) => {
   useEffect(() => {
     fetchPurchaseOrders();
   }, []);
+
+  // If a parent requests a PO to be opened in edit mode (via openEditPOId),
+  // try to find that PO after the list is loaded and open the edit modal.
+  useEffect(() => {
+    if (!openEditPOId) return;
+    // Ensure we have purchaseOrders loaded
+    if (purchaseOrders.length === 0) return;
+
+    const matching = purchaseOrders.find(po => {
+      // po.id is the displayed PO id (po_number) and originalData.po_number may exist
+      const poNumber = (po.id || '').toString();
+      const originalNumber = (po.originalData?.po_number || '').toString();
+      return poNumber === openEditPOId.toString() || originalNumber === openEditPOId.toString();
+    });
+
+    if (matching) {
+      // Open edit for the matched PO
+      handleEdit(matching);
+    } else {
+      // If not found in current list, attempt to fetch the PO directly and open edit
+      (async () => {
+        try {
+          const resp = await fetch(`http://localhost:5000/api/purchase-orders/${openEditPOId}`);
+          if (!resp.ok) return;
+          const po = await resp.json();
+          // Create a transformed object like in fetchPurchaseOrders
+          const transformed = {
+            id: po.po_number || po.id,
+            date: po.po_date,
+            supplier: po.supplier_name,
+            totalAmount: po.total_amount,
+            currency: po.currency || 'PKR',
+            status: po.status,
+            items: po.items_count || 0,
+            originalData: po
+          };
+          handleEdit(transformed);
+        } catch (err) {
+          console.error('Failed to auto-open PO edit for', openEditPOId, err);
+        }
+      })();
+    }
+  }, [openEditPOId, purchaseOrders]);
 
   // Calculate counts for each status
   const getStatusCounts = () => {
