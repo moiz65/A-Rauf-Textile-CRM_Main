@@ -9,9 +9,10 @@ const db = mysql.createConnection({
 
 db.connect((err) => {
   if (err) {
+    // Use logger in index.js; keep minimal here
     console.error("❌ Database connection failed:", err.message);
   } else {
-    console.log("✅ Connected to MySQL Database: arauf_crm");
+    console.debug("✅ Connected to MySQL Database: arauf_crm");
   }
 });
 

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useAuth } from '../context/AuthContext';
 import {
   Lock, Mail, User, Building2, Phone, Eye, EyeOff, CheckCircle, Pencil, RefreshCcw, X, Shield, Bell, Globe, Clock
 } from 'lucide-react';
@@ -35,13 +36,14 @@ const SettingsPage = () => {
   const [activeTab, setActiveTab] = useState('profile');
   const [isUploading, setIsUploading] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const auth = useAuth();
 
   // Load user data from database
   useEffect(() => {
     const fetchUserData = async () => {
       try {
-        // Get the logged-in user's ID from localStorage
-        const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
+        // Get the logged-in user's ID from Auth context
+        const currentUser = auth.user || {};
         const userId = currentUser.id || 1;
         
         const response = await fetch(`http://localhost:5000/api/settings/${userId}`);
@@ -74,7 +76,7 @@ const SettingsPage = () => {
     };
 
     fetchUserData();
-  }, []);
+  }, [auth.user]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;

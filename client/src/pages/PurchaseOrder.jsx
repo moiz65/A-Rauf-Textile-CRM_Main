@@ -1,5 +1,6 @@
+/* PurchaseOrder.jsx */
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
 import Header from '../components/Header';
 import PurchaseOrderTable from '../components/PurchaseOrderTable';
@@ -8,6 +9,9 @@ import PurchaseOrderDetails from '../components/PurchaseOrderDetails';
 const PurchaseOrder = () => {
   const { poId } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
+  // If another page (InvoiceTable) requested opening PO edit, it will pass state.editPOId
+  const editPOIdFromState = location?.state?.editPOId || null;
   const [activeView, setActiveView] = useState('list'); // 'list' or 'details'
   const [selectedPOId, setSelectedPOId] = useState(null);
   const [summaryData, setSummaryData] = useState([]);
@@ -227,7 +231,7 @@ const PurchaseOrder = () => {
             </div>
 
             {/* Purchase Order Table */}
-            <PurchaseOrderTable onViewDetails={handleViewPODetails} />
+            <PurchaseOrderTable onViewDetails={handleViewPODetails} openEditPOId={editPOIdFromState} />
           </>
         ) : (
           <PurchaseOrderDetails 

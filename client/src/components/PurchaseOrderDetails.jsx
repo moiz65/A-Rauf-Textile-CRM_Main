@@ -18,7 +18,7 @@ const PurchaseOrderDetails = ({ poId, onBack }) => {
     const fetchPODetails = async () => {
       try {
         setLoading(true);
-        console.log('Fetching PO details for ID:', poId);
+  console.debug('Fetching PO details for ID:', poId);
         
         const response = await fetch(`http://localhost:5000/api/purchase-orders/${poId}`);
         if (!response.ok) {
@@ -26,7 +26,7 @@ const PurchaseOrderDetails = ({ poId, onBack }) => {
         }
         
         const data = await response.json();
-        console.log('PO Details API Response:', data);
+  console.debug('PO Details API Response:', data);
         
         // Transform API data to match component format
         const transformedPO = {
@@ -140,6 +140,14 @@ const PurchaseOrderDetails = ({ poId, onBack }) => {
     status: 'Not Invoiced'
   });
 
+  // Currency formatter helper
+  const formatCurrency = (amount, currency) => {
+    const curr = currency || (purchaseOrder && purchaseOrder.currency) || 'PKR';
+    const num = Number(amount || 0);
+    // Use toLocaleString for thousands separators
+    return `${curr} ${num.toLocaleString()}`;
+  };
+
   const fetchPOSummary = async () => {
     if (!poId) return;
     
@@ -159,7 +167,7 @@ const PurchaseOrderDetails = ({ poId, onBack }) => {
                   summary.total_invoiced > 0 ? 'Partially Invoiced' : 'Not Invoiced'
         });
         
-        console.log('PO Summary updated:', {
+        console.debug('PO Summary updated:', {
           remaining: summary.remaining_amount,
           total_invoiced: summary.total_invoiced,
           po_total: summary.po_total
@@ -474,7 +482,6 @@ const PurchaseOrderDetails = ({ poId, onBack }) => {
               <p><strong>Email:</strong> ${purchaseOrder.supplier.email}</p>
               <p><strong>Phone:</strong> ${purchaseOrder.supplier.phone}</p>
               <p><strong>Address:</strong> ${purchaseOrder.supplier.address}</p>
-              <p><strong>Tax ID:</strong> ${purchaseOrder.supplier.taxId} | <strong>NTN:</strong> ${purchaseOrder.supplier.ntn}</p>
             </div>
           </div>
           
@@ -497,8 +504,8 @@ const PurchaseOrderDetails = ({ poId, onBack }) => {
                       <td>${item.description || 'N/A'}</td>
                       <td class="text-right">${item.quantity || 0}</td>
                       <td class="text-right">${item.unit || 'pcs'}</td>
-                      <td class="text-right">${purchaseOrder.currency} ${(item.unitPrice || item.unit_price || 0).toLocaleString()}</td>
-                      <td class="text-right">${purchaseOrder.currency} ${(item.total || item.amount || 0).toLocaleString()}</td>
+                      <td class="text-right">${formatCurrency(item.unitPrice || item.unit_price || 0, purchaseOrder.currency)}</td>
+                      <td class="text-right">${formatCurrency(item.total || item.amount || 0, purchaseOrder.currency)}</td>
                     </tr>
                   `).join('') :
                   '<tr><td colspan="5" style="text-align: center; padding: 20px; color: #666;">No items found</td></tr>'
@@ -511,15 +518,15 @@ const PurchaseOrderDetails = ({ poId, onBack }) => {
             <div class="summary-table">
               <div class="summary-row">
                 <span>Subtotal</span>
-                <span>${purchaseOrder.currency} ${purchaseOrder.subtotal.toLocaleString()}</span>
+                <span>${formatCurrency(purchaseOrder.subtotal, purchaseOrder.currency)}</span>
               </div>
               <div class="summary-row">
                 <span>Tax (${purchaseOrder.taxRate}%)</span>
-                <span>${purchaseOrder.currency} ${purchaseOrder.taxAmount.toLocaleString()}</span>
+                <span>${formatCurrency(purchaseOrder.taxAmount, purchaseOrder.currency)}</span>
               </div>
               <div class="summary-row total">
                 <span>Total Amount</span>
-                <span>${purchaseOrder.currency} ${purchaseOrder.totalAmount.toLocaleString()}</span>
+                <span>${formatCurrency(purchaseOrder.totalAmount, purchaseOrder.currency)}</span>
               </div>
             </div>
           </div>
@@ -568,7 +575,7 @@ const PurchaseOrderDetails = ({ poId, onBack }) => {
       const response = await fetch(`http://localhost:5000/api/po-invoices/details?po_id=${searchId}`);
       if (response.ok) {
         const data = await response.json();
-        console.log(`Fetched ${data.length} existing invoices for PO ${searchId}`);
+  console.debug(`Fetched ${data.length} existing invoices for PO ${searchId}`);
         return data;
       } else {
         console.error('Failed to fetch PO invoices for current PO, using empty array for ID generation');
@@ -586,13 +593,13 @@ const PurchaseOrderDetails = ({ poId, onBack }) => {
       const response = await fetch('http://localhost:5000/api/po-invoices');
       if (response.ok) {
         const invoiceNumbers = await response.json();
-        console.log('Fetched PO invoice numbers for ID generation:', invoiceNumbers.length, 'existing invoice numbers');
+  console.debug('Fetched PO invoice numbers for ID generation:', invoiceNumbers.length, 'existing invoice numbers');
         
         // Server returns array of strings, convert to format expected by ID generator
         // ID generator expects array of objects with invoice_number property
         const formattedData = invoiceNumbers.map(number => ({ invoice_number: number }));
         
-        console.log('Formatted for ID Generator:', formattedData.length, 'invoice objects');
+  console.debug('Formatted for ID Generator:', formattedData.length, 'invoice objects');
         
         return formattedData;
       } else {
@@ -658,9 +665,9 @@ const PurchaseOrderDetails = ({ poId, onBack }) => {
           // Generate incremental ID (PI25-001, PI25-001-1, PI25-001-2, etc.)
           const newInvoiceNumber = generateIncrementalPOInvoiceId(existingPOInvoices, allPOInvoices);
           
-          console.log(`Generated PO invoice number for PO ${poId}:`, newInvoiceNumber);
-          console.log(`- Existing invoices for this PO: ${existingPOInvoices.length}`);
-          console.log(`- Total PO invoices in system: ${allPOInvoices.length}`);
+          console.debug(`Generated PO invoice number for PO ${poId}:`, newInvoiceNumber);
+          console.debug(`- Existing invoices for this PO: ${existingPOInvoices.length}`);
+          console.debug(`- Total PO invoices in system: ${allPOInvoices.length}`);
           
           setInvoiceData(prev => ({
             ...prev,
@@ -670,7 +677,7 @@ const PurchaseOrderDetails = ({ poId, onBack }) => {
           console.error('Error generating PO invoice number:', error);
           // Fallback: generate with empty arrays
           const fallbackNumber = generateIncrementalPOInvoiceId([], []);
-          console.log('Using fallback PO invoice number:', fallbackNumber);
+          console.debug('Using fallback PO invoice number:', fallbackNumber);
           setInvoiceData(prev => ({
             ...prev,
             invoiceNumber: fallbackNumber
@@ -751,7 +758,7 @@ const PurchaseOrderDetails = ({ poId, onBack }) => {
           items: invoiceData.items.filter(item => item.description && item.quantity > 0)
         };
 
-        console.log('Creating invoice:', invoicePayload);
+  console.debug('Creating invoice:', invoicePayload);
         
         // Save to backend (you'll need to create this endpoint)
         const response = await fetch('http://localhost:5000/api/po-invoices', {
@@ -1242,12 +1249,9 @@ const PurchaseOrderDetails = ({ poId, onBack }) => {
                 <p className="text-sm text-gray-600 mb-1"><strong>Company:</strong> {purchaseOrder.supplier.company}</p>
                 <p className="text-sm text-gray-600 mb-1"><strong>Email:</strong> {purchaseOrder.supplier.email}</p>
                 <p className="text-sm text-gray-600 mb-1"><strong>Phone:</strong> {purchaseOrder.supplier.phone}</p>
+                <p className="text-sm text-gray-600"><strong>Address:</strong> {purchaseOrder.supplier.address}</p>
               </div>
-              <div>
-                <p className="text-sm text-gray-600 mb-1"><strong>Address:</strong> {purchaseOrder.supplier.address}</p>
-                <p className="text-sm text-gray-600 mb-1"><strong>Tax ID:</strong> {purchaseOrder.supplier.taxId}</p>
-                <p className="text-sm text-gray-600"><strong>NTN:</strong> {purchaseOrder.supplier.ntn}</p>
-              </div>
+
             </div>
           </div>
         </div>

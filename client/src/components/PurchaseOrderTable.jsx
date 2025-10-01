@@ -23,7 +23,7 @@ import { generatePOId } from '../utils/idGenerator';
 
 const ITEMS_PER_PAGE = 10;
 
-const PurchaseOrderTable = ({ onViewDetails }) => {
+const PurchaseOrderTable = ({ onViewDetails, openEditPOId = null }) => {
   const [purchaseOrders, setPurchaseOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -50,6 +50,7 @@ const PurchaseOrderTable = ({ onViewDetails }) => {
   const [invoiceHistory, setInvoiceHistory] = useState([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
   const dropdownRef = useRef(null);
+  const filterPanelRef = useRef(null);
 
   const statusTabs = ['All', 'Draft', 'Pending', 'Approved', 'Completed', 'Cancelled'];
 
@@ -57,7 +58,7 @@ const PurchaseOrderTable = ({ onViewDetails }) => {
   const fetchPurchaseOrders = async () => {
     try {
       setLoading(true);
-      console.log('Fetching purchase orders from API...');
+  console.debug('Fetching purchase orders from API...');
       
       const response = await fetch('http://localhost:5000/api/purchase-orders');
       if (!response.ok) {
@@ -65,7 +66,7 @@ const PurchaseOrderTable = ({ onViewDetails }) => {
       }
       
       const data = await response.json();
-      console.log('API Response:', data);
+  console.debug('API Response:', data);
       
       // Transform API data to match frontend format
       const transformedData = data.map(po => ({
@@ -82,7 +83,7 @@ const PurchaseOrderTable = ({ onViewDetails }) => {
       
       setPurchaseOrders(transformedData);
       setError(null);
-      console.log('Transformed data:', transformedData);
+  console.debug('Transformed data:', transformedData);
       
       // Fetch PO summaries for invoice tracking
       await fetchPOSummaries();
@@ -117,6 +118,49 @@ const PurchaseOrderTable = ({ onViewDetails }) => {
   useEffect(() => {
     fetchPurchaseOrders();
   }, []);
+
+  // If a parent requests a PO to be opened in edit mode (via openEditPOId),
+  // try to find that PO after the list is loaded and open the edit modal.
+  useEffect(() => {
+    if (!openEditPOId) return;
+    // Ensure we have purchaseOrders loaded
+    if (purchaseOrders.length === 0) return;
+
+    const matching = purchaseOrders.find(po => {
+      // po.id is the displayed PO id (po_number) and originalData.po_number may exist
+      const poNumber = (po.id || '').toString();
+      const originalNumber = (po.originalData?.po_number || '').toString();
+      return poNumber === openEditPOId.toString() || originalNumber === openEditPOId.toString();
+    });
+
+    if (matching) {
+      // Open edit for the matched PO
+      handleEdit(matching);
+    } else {
+      // If not found in current list, attempt to fetch the PO directly and open edit
+      (async () => {
+        try {
+          const resp = await fetch(`http://localhost:5000/api/purchase-orders/${openEditPOId}`);
+          if (!resp.ok) return;
+          const po = await resp.json();
+          // Create a transformed object like in fetchPurchaseOrders
+          const transformed = {
+            id: po.po_number || po.id,
+            date: po.po_date,
+            supplier: po.supplier_name,
+            totalAmount: po.total_amount,
+            currency: po.currency || 'PKR',
+            status: po.status,
+            items: po.items_count || 0,
+            originalData: po
+          };
+          handleEdit(transformed);
+        } catch (err) {
+          console.error('Failed to auto-open PO edit for', openEditPOId, err);
+        }
+      })();
+    }
+  }, [openEditPOId, purchaseOrders]);
 
   // Calculate counts for each status
   const getStatusCounts = () => {
@@ -261,17 +305,33 @@ const PurchaseOrderTable = ({ onViewDetails }) => {
     setActiveDropdown(null);
   };
 
-  const handleEdit = (po) => {
-    // Use originalData for editing to ensure all fields are populated
-    const poToEdit = po.originalData ? {
-      ...po.originalData,
-      // Ensure the transformed fields are also available
-      id: po.id,
-      totalAmount: po.totalAmount
-    } : po;
-    
-    setEditingPO(poToEdit);
-    setShowEditModal(true);
+  const handleEdit = async (po) => {
+    try {
+      // Fetch complete PO data including items from API
+  console.debug('handleEdit: Editing PO:', po);
+      const response = await fetch(`http://localhost:5000/api/purchase-orders/${po.originalData?.id || po.id}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch PO details');
+      }
+      
+      const completePoData = await response.json();
+  console.debug('handleEdit: Complete PO data from server:', completePoData);
+      
+      // Use originalData for editing to ensure all fields are populated
+      const poToEdit = {
+        ...completePoData,
+        // Ensure the transformed fields are also available
+        id: po.id,
+        totalAmount: po.totalAmount
+      };
+      
+  console.debug('handleEdit: Setting editingPO to:', poToEdit);
+      setEditingPO(poToEdit);
+      setShowEditModal(true);
+    } catch (error) {
+      console.error('Error fetching PO details for editing:', error);
+      showNotification('Error', 'Failed to load PO details for editing', 'error');
+    }
     setActiveDropdown(null);
   };
 
@@ -333,9 +393,19 @@ const PurchaseOrderTable = ({ onViewDetails }) => {
           throw new Error(`Failed to restore PO: ${response.statusText}`);
         }
 
+        // Get the updated PO data with all fields populated
+        const updatedData = await response.json();
+        
         showNotification('PO Restored', `Purchase Order ${po.id} has been restored to ${restoreStatus}`);
+        
         // Refresh the list to reflect changes
         fetchPurchaseOrders();
+        
+        // Ensure the PO is properly updated in the system so related invoices appear
+        // We need to ensure the PO invoices are visible in the invoice lists
+        await fetch(`http://localhost:5000/api/po-summaries`, {
+          method: 'GET'
+        });
         
       } catch (error) {
         console.error('Error restoring PO:', error);
@@ -460,7 +530,7 @@ const PurchaseOrderTable = ({ onViewDetails }) => {
   };
 
   const handleSavePO = async (poData) => {
-    console.log('Saving PO:', poData);
+  console.debug('Saving PO:', poData);
     
     try {
       const isEditing = editingPO && editingPO.id;
@@ -488,7 +558,7 @@ const PurchaseOrderTable = ({ onViewDetails }) => {
         items: poData.items || []
       };
 
-      console.log('Sending to backend:', submitData);
+  console.debug('Sending to backend:', submitData);
       
       const response = await fetch(url, {
         method: method,
@@ -504,7 +574,7 @@ const PurchaseOrderTable = ({ onViewDetails }) => {
       }
 
       const result = await response.json();
-      console.log('Backend response:', result);
+  console.debug('Backend response:', result);
 
       if (isEditing) {
         // Update existing PO in local state
@@ -553,6 +623,8 @@ const PurchaseOrderTable = ({ onViewDetails }) => {
   // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
+      // Ignore clicks inside the filter panel so inputs keep focus
+      if (filterPanelRef.current && filterPanelRef.current.contains(event.target)) return;
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
         setActiveDropdown(null);
       }
@@ -706,49 +778,106 @@ const PurchaseOrderTable = ({ onViewDetails }) => {
     const [taxRate, setTaxRate] = useState(0);
 
     useEffect(() => {
-      if (editingPO) {
-        setFormData(editingPO);
-        setTaxRate(editingPO.tax_rate || 0);
-        
-        // If editing and has items, use them; otherwise use default single item
-        if (editingPO.items && editingPO.items.length > 0) {
-          setPOItems(editingPO.items);
-        } else {
-          // Create single item from existing PO data
-          setPOItems([{
-            item_no: 1,
-            description: 'Purchase Item',
-            quantity: editingPO.items || 1,
-            unit_price: editingPO.totalAmount || 0,
-            amount: editingPO.totalAmount || 0
-          }]);
+      let cancelled = false;
+
+      const ensureItems = (items) => {
+        if (!Array.isArray(items) || items.length === 0) return null;
+        // Normalize items to include expected fields
+        return items.map((it, idx) => ({
+          item_no: it.item_no || it.id || idx + 1,
+          description: it.description || it.desc || it.description_text || '',
+          quantity: it.quantity != null ? it.quantity : (it.qty || 1),
+          unit_price: it.unit_price != null ? it.unit_price : (it.unitPrice || it.rate || 0),
+          amount: it.amount != null ? it.amount : (it.total || ( (it.quantity || 1) * (it.unit_price || it.unitPrice || it.rate || 0) )),
+          specifications: it.specifications || it.specs || ''
+        }));
+      };
+
+      const fetchItemsFromServer = async (poId) => {
+        try {
+          // Try to fetch PO by numeric id first, then by po_number
+          const url = `http://localhost:5000/api/purchase-orders/${poId}`;
+          console.debug('EditPOModal: Fetching PO details from:', url);
+          const res = await fetch(url);
+          if (!res.ok) {
+            console.warn('EditPOModal: Failed to fetch PO details, status:', res.status);
+            return null;
+          }
+          const data = await res.json();
+          console.debug('EditPOModal: Received PO data:', data);
+          console.debug('EditPOModal: PO items array:', data.items);
+          return ensureItems(data.items || []);
+        } catch (err) {
+          console.error('Failed to fetch PO items for edit modal:', err);
+          return null;
         }
-      } else {
-        // Reset for new PO with proper default values
-        const today = new Date().toISOString().split('T')[0];
-        const newPOId = generateNewPOId();
-        
-        setFormData({
-          id: newPOId,
-          po_number: newPOId,
-          po_date: today,
-          supplier_name: '',
-          supplier_email: '',
-          supplier_phone: '',
-          supplier_address: '',
-          subtotal: 0,
-          tax_rate: 0,
-          tax_amount: 0,
-          total_amount: 0,
-          currency: 'PKR',
-          status: 'Draft',
-          notes: ''
-        });
-        setTaxRate(0);
-        setPOItems([
-          { item_no: 1, description: '', quantity: 1, unit_price: 0, amount: 0 }
-        ]);
-      }
+      };
+
+      (async () => {
+        if (editingPO) {
+          console.debug('EditPOModal: Setting up for editing PO:', editingPO);
+          setFormData(editingPO);
+          setTaxRate(editingPO.tax_rate || 0);
+
+          // Prefer items already present on editingPO
+          console.debug('EditPOModal: editingPO.items:', editingPO.items);
+          const normalized = ensureItems(editingPO.items);
+          console.debug('EditPOModal: Normalized items from editingPO:', normalized);
+          if (normalized && normalized.length > 0) {
+            console.debug('EditPOModal: Using items from editingPO');
+            setPOItems(normalized);
+            return;
+          }
+
+          // Otherwise attempt to fetch detailed PO data (including items)
+          console.debug('EditPOModal: No items in editingPO, fetching from server...');
+          const fetched = await fetchItemsFromServer(editingPO.id || editingPO.databaseId || editingPO.po_number);
+          if (!cancelled) {
+            console.debug('EditPOModal: Fetched items from server:', fetched);
+            if (fetched && fetched.length > 0) {
+              console.debug('EditPOModal: Setting fetched items');
+              setPOItems(fetched);
+            } else {
+              console.debug('EditPOModal: No items found, using default empty item');
+              // fallback default
+              setPOItems([{
+                item_no: 1,
+                description: '',
+                quantity: 1,
+                unit_price: 0,
+                amount: 0
+              }]);
+            }
+          }
+        } else {
+          // Reset for new PO with proper default values
+          const today = new Date().toISOString().split('T')[0];
+          const newPOId = generateNewPOId();
+
+          setFormData({
+            id: newPOId,
+            po_number: newPOId,
+            po_date: today,
+            supplier_name: '',
+            supplier_email: '',
+            supplier_phone: '',
+            supplier_address: '',
+            subtotal: 0,
+            tax_rate: 0,
+            tax_amount: 0,
+            total_amount: 0,
+            currency: 'PKR',
+            status: 'Draft',
+            notes: ''
+          });
+          setTaxRate(0);
+          setPOItems([
+            { item_no: 1, description: '', quantity: 1, unit_price: 0, amount: 0 }
+          ]);
+        }
+      })();
+
+      return () => { cancelled = true; };
     }, [editingPO]);
 
     const handleChange = (e) => {
@@ -873,7 +1002,7 @@ const PurchaseOrderTable = ({ onViewDetails }) => {
         }))
       };
       
-      console.log('Submitting PO data:', poData);
+  console.debug('Submitting PO data:', poData);
       handleSavePO(poData);
     };
 
@@ -1231,7 +1360,7 @@ const PurchaseOrderTable = ({ onViewDetails }) => {
 
       {/* Filter Panel */}
       {showFilters && (
-        <div className="bg-gray-50 p-4 rounded-lg mb-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+        <div ref={filterPanelRef} className="bg-gray-50 p-4 rounded-lg mb-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
           <div>
             <label className="block text-xs font-medium text-gray-700 mb-1">Supplier</label>
             <input
@@ -1240,6 +1369,7 @@ const PurchaseOrderTable = ({ onViewDetails }) => {
               className="w-full p-2 border rounded-md text-xs"
               value={filters.supplier}
               onChange={handleFilterChange}
+              onMouseDown={(e) => e.stopPropagation()}
               placeholder="Filter by supplier"
             />
           </div>
@@ -1250,6 +1380,7 @@ const PurchaseOrderTable = ({ onViewDetails }) => {
               name="minAmount"
               value={filters.minAmount}
               onChange={handleFilterChange}
+              onMouseDown={(e) => e.stopPropagation()}
               className="w-full p-2 border rounded-md text-xs"
               placeholder="Minimum amount"
             />
@@ -1261,6 +1392,7 @@ const PurchaseOrderTable = ({ onViewDetails }) => {
               name="maxAmount"
               value={filters.maxAmount}
               onChange={handleFilterChange}
+              onMouseDown={(e) => e.stopPropagation()}
               className="w-full p-2 border rounded-md text-xs"
               placeholder="Maximum amount"
             />
@@ -1272,6 +1404,7 @@ const PurchaseOrderTable = ({ onViewDetails }) => {
               name="dateFrom"
               value={filters.dateFrom}
               onChange={handleFilterChange}
+              onMouseDown={(e) => e.stopPropagation()}
               className="w-full p-2 border rounded-md text-xs"
             />
           </div>
@@ -1282,6 +1415,7 @@ const PurchaseOrderTable = ({ onViewDetails }) => {
               name="dateTo"
               value={filters.dateTo}
               onChange={handleFilterChange}
+              onMouseDown={(e) => e.stopPropagation()}
               className="w-full p-2 border rounded-md text-xs"
             />
           </div>
@@ -1502,13 +1636,13 @@ const PurchaseOrderTable = ({ onViewDetails }) => {
 
                               {/* Cancel/Delete actions based on status */}
                               {po.status !== 'Cancelled' ? (
-                                // For active POs - show Cancel option
+                                // For active POs - show Permanent Delete option (cancel removed)
                                 <button
-                                  onClick={() => handleCancel(po)}
-                                  className="flex items-center px-4 py-2 text-sm text-orange-700 hover:bg-orange-50 w-full text-left"
+                                  onClick={() => handlePermanentDelete(po)}
+                                  className="flex items-center px-4 py-2 text-sm text-red-700 hover:bg-red-50 w-full text-left"
                                 >
-                                  <XCircle className="w-4 h-4 mr-2" />
-                                  Cancel
+                                  <Trash2 className="w-4 h-4 mr-2" />
+                                  Permanent Delete
                                 </button>
                               ) : (
                                 // For cancelled POs - show Restore and Permanent Delete

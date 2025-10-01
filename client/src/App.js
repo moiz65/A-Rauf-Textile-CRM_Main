@@ -11,6 +11,8 @@ import Expense from './pages/Expense';
 import ReportData from './pages/ReportData';
 import InvoiceDetails from './components/InvoiceDetails';
 import PurchaseOrder from './pages/PurchaseOrder';  
+import ProtectedRoute from './components/ProtectedRoute';
+import { AuthProvider } from './context/AuthContext';
 
 
 // // Import Poppins font weights
@@ -22,26 +24,30 @@ import PurchaseOrder from './pages/PurchaseOrder';
 function App() {
   return (
     <div className="App font-sans min-h-screen bg-gray-50">
-      <Router>
-        <Routes>
-          <Route path="/login" element={<Login />} />
-          <Route path="/signup" element={<Signup />} />
-          <Route path="/" element={<Login />} /> {/* Default to login */}
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/invoices" element={<Invoices />} />
-          <Route path="/report" element={<Report />} />
-          <Route path="/customers" element={<Customers />} />
-          <Route path="/settings" element={<Settings />} />
-          <Route path="/invoiceform" element={<InvoiceForm />} />
-          <Route path="/expense" element={<Expense />} />
-          <Route path="/reportdata" element={<ReportData />} />
-          <Route path="/invoice/:id" element={<InvoiceDetails />} />
-          <Route path="/invoice/:type/:id" element={<InvoiceDetails />} />
-          <Route path="/purchase-order" element={<PurchaseOrder />} />
-          <Route path="/purchase-order/:poId" element={<PurchaseOrder />} />
-          {/* Add more routes as needed */}
-        </Routes>
-      </Router>
+      <AuthProvider>
+        <Router>
+          <Routes>
+            <Route path="/login" element={<Login />} />
+            <Route path="/signup" element={<Signup />} />
+            <Route path="/" element={<Login />} /> {/* Default to login */}
+
+            {/* Protected routes */}
+            <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+            <Route path="/invoices" element={<ProtectedRoute><Invoices /></ProtectedRoute>} />
+            <Route path="/report" element={<ProtectedRoute><Report /></ProtectedRoute>} />
+            <Route path="/customers" element={<ProtectedRoute><Customers /></ProtectedRoute>} />
+            <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+            <Route path="/invoiceform" element={<ProtectedRoute><InvoiceForm /></ProtectedRoute>} />
+            <Route path="/expense" element={<ProtectedRoute><Expense /></ProtectedRoute>} />
+            <Route path="/reportdata" element={<ProtectedRoute><ReportData /></ProtectedRoute>} />
+            <Route path="/invoice/:id" element={<ProtectedRoute><InvoiceDetails /></ProtectedRoute>} />
+            <Route path="/invoice/:type/:id" element={<ProtectedRoute><InvoiceDetails /></ProtectedRoute>} />
+            <Route path="/purchase-order" element={<ProtectedRoute><PurchaseOrder /></ProtectedRoute>} />
+            <Route path="/purchase-order/:poId" element={<ProtectedRoute><PurchaseOrder /></ProtectedRoute>} />
+            {/* Add more routes as needed */}
+          </Routes>
+        </Router>
+      </AuthProvider>
     </div>
   );
 }

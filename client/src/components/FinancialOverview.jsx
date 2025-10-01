@@ -42,7 +42,7 @@ const FinancialOverview = ({ dashboardData }) => {
         poResponse.ok ? poResponse.json() : { value: [] }
       ]);
 
-      console.log('Raw API responses:', { invoicesData, expensesData, poData });
+  console.debug('Raw API responses:', { invoicesData, expensesData, poData });
 
       const invoices = invoicesData.data || [];
       const expenses = expensesData.value || expensesData.data || []; // Handle both formats
@@ -56,7 +56,7 @@ const FinancialOverview = ({ dashboardData }) => {
       const pendingExpenses = expenses.filter(exp => exp.status === 'Pending');
       const activePOs = purchaseOrders.filter(po => po.status === 'Pending' || po.status === 'Approved' || po.status === 'In Progress');
       
-      console.log('Debug Financial Data:', {
+  console.debug('Debug Financial Data:', {
         totalExpenses: expenses.length,
         paidExpenses: paidExpenses.length,
         pendingExpenses: pendingExpenses.length,
@@ -69,7 +69,7 @@ const FinancialOverview = ({ dashboardData }) => {
       const totalRevenue = paidInvoices.reduce((sum, inv) => sum + (parseFloat(inv.total_amount) || 0), 0);
       const pendingReceivables = pendingInvoices.reduce((sum, inv) => sum + (parseFloat(inv.total_amount) || 0), 0);
       
-      console.log('Amount calculations:', {
+  console.debug('Amount calculations:', {
         paidExpensesAmounts: paidExpenses.map(exp => parseFloat(exp.amount)),
         pendingExpensesAmounts: pendingExpenses.map(exp => parseFloat(exp.amount))
       });
@@ -78,7 +78,7 @@ const FinancialOverview = ({ dashboardData }) => {
       const pendingExpenseAmount = pendingExpenses.reduce((sum, exp) => sum + (parseFloat(exp.amount) || 0), 0);
       const totalCommitments = activePOs.reduce((sum, po) => sum + (parseFloat(po.total_amount) || 0), 0);
 
-      console.log('Final calculations:', {
+  console.debug('Final calculations:', {
         overdueAmount,
         totalExpenses,
         pendingExpenseAmount,

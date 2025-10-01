@@ -1,3 +1,5 @@
+/* Invoicetable.js */
+
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { 
   Search, Filter, Ellipsis, Edit, Trash2, Plus, Loader, Eye, ChevronDown, X
@@ -174,7 +176,7 @@ const InvoiceForm = ({ onSubmit, onCancel, initialData = null }) => {
   // Initialize form with existing data if editing
   useEffect(() => {
     if (initialData) {
-      console.log('Initializing form with invoice data:', initialData);
+  // initialize form with invoice data
       
       // Set form data
       setFormData({
@@ -210,7 +212,7 @@ const InvoiceForm = ({ onSubmit, onCancel, initialData = null }) => {
           amount: parseFloat(item.amount || 0)
         }));
         setInvoiceItems(mappedItems);
-        console.log('Set multiple invoice items:', mappedItems);
+  // set multiple invoice items
       } else if (initialData.item_name || initialData.quantity || initialData.rate) {
         // Single item structure (legacy)
         const singleItem = [{
@@ -221,7 +223,7 @@ const InvoiceForm = ({ onSubmit, onCancel, initialData = null }) => {
           amount: parseFloat(initialData.item_amount || initialData.subtotal || 0)
         }];
         setInvoiceItems(singleItem);
-        console.log('Set single invoice item:', singleItem);
+  // set single invoice item
       } else {
         // No item data, use default empty item
         setInvoiceItems([{
@@ -231,14 +233,14 @@ const InvoiceForm = ({ onSubmit, onCancel, initialData = null }) => {
           rate: "",
           amount: 0
         }]);
-        console.log('No item data found, using default empty item');
+  // no item data found, using default
       }
     }
   }, [initialData]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    console.log('InvoiceTable form change:', name, value); // Debug log
+  // form change
     setFormData((prev) => ({
       ...prev,
       [name]: value,
@@ -1118,9 +1120,7 @@ const InvoiceManagement = () => {
     dateTo: '',
     account: '',
     status: '',
-    currency: '',
-    is_sent: '',
-    invoice_number: ''
+    currency: 'All'
   });
   const [showFilters, setShowFilters] = useState(false);
   const [activeDropdown, setActiveDropdown] = useState(null);
@@ -1130,6 +1130,7 @@ const InvoiceManagement = () => {
   const [notification, setNotification] = useState(null);
   const [loading, setLoading] = useState(true);
   const dropdownRefs = useRef([]);
+  const filterPanelRef = useRef(null);
 
   // State for tab counts
   const [tabCounts, setTabCounts] = useState({
@@ -1143,7 +1144,7 @@ const InvoiceManagement = () => {
   // Fetch counts for all tabs separately to ensure accuracy
   const fetchTabCounts = useCallback(async () => {
     try {
-      console.log('Fetching fresh tab counts...');
+  console.debug('Fetching fresh tab counts...');
       
       const [allResponse, poResponse] = await Promise.all([
         // Get all regular invoices (excluding PO invoices)
@@ -1160,7 +1161,7 @@ const InvoiceManagement = () => {
       const allInvoices = allData.data || allData || [];
       const poInvoices = poData.data || poData || [];
       
-      console.log('Raw data - All invoices:', allInvoices.length, 'PO invoices:', poInvoices.length);
+  console.debug('Raw data - All invoices:', allInvoices.length, 'PO invoices:', poInvoices.length);
       
       const counts = {
         'All': allInvoices.length,
@@ -1170,7 +1171,7 @@ const InvoiceManagement = () => {
         'PO Invoices': poInvoices.length
       };
       
-      console.log('Updated tab counts:', counts);
+  console.debug('Updated tab counts:', counts);
       setTabCounts(counts);
       
     } catch (error) {
@@ -1266,10 +1267,10 @@ const InvoiceManagement = () => {
       queryParams.append('limit', '100'); // Get more records for client-side pagination
       
       const url = `${API_BASE_URL}/invoices?${queryParams.toString()}`;
-      console.log('Fetching invoices with URL:', url);
-      console.log('Current filters:', currentFilters);
-      console.log('Search term:', searchTerm);
-      console.log('Active tab:', activeTab);
+  console.debug('Fetching invoices with URL:', url);
+  console.debug('Current filters:', currentFilters);
+  console.debug('Search term:', searchTerm);
+  console.debug('Active tab:', activeTab);
       
       const response = await fetch(url);
       if (!response.ok) {
@@ -1277,8 +1278,8 @@ const InvoiceManagement = () => {
       }
       
       const result = await response.json();
-      console.log('API Response count:', result.data ? result.data.length : 'No data');
-      console.log('API Response data:', result.data);
+  console.debug('API Response count:', result.data ? result.data.length : 'No data');
+  console.debug('API Response data:', result.data);
       
       // Handle new API response structure
       const invoicesArray = result.data || result; // Support both new and old response formats
@@ -1302,22 +1303,21 @@ const InvoiceManagement = () => {
     return fetchInvoicesRef.current(customFilters);
   }, [fetchTabCounts]);
 
-  // Debounced effect for filters to prevent too frequent API calls
-  useEffect(() => {
-    const timeoutId = setTimeout(() => {
-      console.log('Debounced effect triggered with filters:', filters);
-      fetchInvoices();
-    }, 300); // 300ms debounce
-
-    return () => clearTimeout(timeoutId);
-  }, [filters, searchTerm, activeTab]);
+  // REMOVED: Debounced auto-filtering that caused focus loss
+  // Now filtering only happens when user clicks "Search" button
 
   // Load invoices and tab counts on component mount
   useEffect(() => {
-    console.log('Component mounted, loading initial invoices and tab counts');
+    console.debug('Component mounted - loading initial data');
     fetchInvoices({});
     fetchTabCounts();
   }, [fetchTabCounts]);
+
+  // Refetch when activeTab changes (tab navigation)
+  useEffect(() => {
+    console.debug('Active tab changed:', activeTab);
+    fetchInvoices();
+  }, [activeTab]);
 
   // Show notification
   const showNotification = (title, description, duration = 3000) => {
@@ -1325,7 +1325,7 @@ const InvoiceManagement = () => {
     setTimeout(() => setNotification(null), duration);
   };
 
-  // Handle filter changes with debounce to prevent losing focus
+  // Handle filter changes - NO auto-search, just update state
   const handleFilterChange = useCallback((e) => {
     const { name, value } = e.target;
     setFilters(prev => ({
@@ -1351,16 +1351,29 @@ const InvoiceManagement = () => {
     setActiveTab('All');
   };
 
-  // Apply filters (for manual trigger)
+  // Reset filters and trigger search
+  const resetFilters = useCallback(() => {
+    clearFilters();
+    setCurrentPage(1);
+    showNotification("Filters reset", "All filters have been cleared");
+    // Fetch with empty filters after a short delay
+    setTimeout(() => {
+      fetchInvoices({});
+    }, 100);
+  }, [fetchInvoices]);
+
+  // Apply filters - triggered by Search button click
   const applyFilters = useCallback(() => {
-    console.log('Apply filters clicked with:', filters);
+    console.debug('Search button clicked - applying filters');
     setCurrentPage(1); // Reset to first page
     fetchInvoices();
-  }, [fetchInvoices, filters]);
+  }, [fetchInvoices]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
+      // Ignore clicks inside the filter panel so inputs keep focus
+      if (filterPanelRef.current && filterPanelRef.current.contains(event.target)) return;
       if (dropdownRefs.current.every(ref => !ref?.contains(event.target))) {
         setActiveDropdown(null);
       }
@@ -1509,28 +1522,7 @@ const InvoiceManagement = () => {
     }
   };
 
-  const resetFilters = useCallback(() => {
-    console.log('Resetting all filters');
-    setFilters({
-      minAmount: '',
-      maxAmount: '',
-      dateFrom: '',
-      dateTo: '',
-      account: '',
-      status: '',
-      currency: '',
-      is_sent: '',
-      invoice_number: ''
-    });
-    setSearchTerm('');
-    setActiveTab('All');
-    setCurrentPage(1);
-    showNotification("Filters reset", "All filters have been cleared");
-    // Force immediate refresh after reset
-    setTimeout(() => {
-      fetchInvoices({});
-    }, 100);
-  }, [fetchInvoices]);
+  // duplicate resetFilters removed (kept single implementation above)
 
   // UI helpers
   const getStatusClass = (status) => {
@@ -1569,9 +1561,10 @@ const InvoiceManagement = () => {
 
   const handleEditInvoice = async (invoice) => {
     if (invoice.invoice_type === 'po_invoice') {
-      // For PO invoices, show a message that they should be edited from the PO page
-      showNotification("Info", "PO invoices should be edited from the Purchase Order page");
-      navigate(`/purchase-order/${invoice.po_number}`);
+      // For PO invoices we want to open the Purchase Order in edit mode.
+      // Pass the PO number through location state so the PurchaseOrder page
+      // can forward it to the PO table which will open the Edit modal.
+      navigate('/purchase-order', { state: { editPOId: invoice.po_number } });
     } else {
       try {
         // Fetch complete invoice data from API
@@ -1582,7 +1575,7 @@ const InvoiceManagement = () => {
         }
         
         const completeInvoiceData = await response.json();
-        console.log('Complete invoice data for editing:', completeInvoiceData);
+  console.debug('Complete invoice data for editing:', completeInvoiceData);
         
         setEditingInvoice(completeInvoiceData);
         setShowInvoiceForm(true);
@@ -1788,7 +1781,7 @@ const InvoiceManagement = () => {
                 className="pl-10 pr-3 py-2 border rounded-md text-sm w-full focus:outline-none focus:ring-2 focus:ring-blue-500"
                 value={searchTerm}
                 onChange={(e) => {
-                  console.log('Search term changed to:', e.target.value);
+                  // search term changed
                   setSearchTerm(e.target.value);
                   setCurrentPage(1);
                 }}
@@ -1835,16 +1828,15 @@ const InvoiceManagement = () => {
 
         {/* Filter Panel */}
         {showFilters && (
-          <div className="bg-gray-50 p-4 rounded-lg mb-4 space-y-4">
+          <div ref={filterPanelRef} className="bg-gray-50 p-4 rounded-lg mb-4 space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
               <div>
                 <label className="block text-xs font-medium text-gray-700 mb-1">Min Amount</label>
                 <input
-                  key="minAmount-filter"
                   type="number"
                   name="minAmount"
                   placeholder="Min amount"
-                  className="w-full p-2 border rounded-md text-xs focus:ring-2 focus:ring-blue-300 focus:border-blue-300"
+                  className="w-full p-2 border rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   value={filters.minAmount}
                   onChange={handleFilterChange}
                 />
@@ -1852,11 +1844,10 @@ const InvoiceManagement = () => {
               <div>
                 <label className="block text-xs font-medium text-gray-700 mb-1">Max Amount</label>
                 <input
-                  key="maxAmount-filter"
                   type="number"
                   name="maxAmount"
                   placeholder="Max amount"
-                  className="w-full p-2 border rounded-md text-xs focus:ring-2 focus:ring-blue-300 focus:border-blue-300"
+                  className="w-full p-2 border rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   value={filters.maxAmount}
                   onChange={handleFilterChange}
                 />
@@ -1864,10 +1855,9 @@ const InvoiceManagement = () => {
               <div>
                 <label className="block text-xs font-medium text-gray-700 mb-1">From Date</label>
                 <input
-                  key="dateFrom-filter"
                   type="date"
                   name="dateFrom"
-                  className="w-full p-2 border rounded-md text-xs focus:ring-2 focus:ring-blue-300 focus:border-blue-300"
+                  className="w-full p-2 border rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   value={filters.dateFrom}
                   onChange={handleFilterChange}
                 />
@@ -1875,10 +1865,9 @@ const InvoiceManagement = () => {
               <div>
                 <label className="block text-xs font-medium text-gray-700 mb-1">To Date</label>
                 <input
-                  key="dateTo-filter"
                   type="date"
                   name="dateTo"
-                  className="w-full p-2 border rounded-md text-xs focus:ring-2 focus:ring-blue-300 focus:border-blue-300"
+                  className="w-full p-2 border rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   value={filters.dateTo}
                   onChange={handleFilterChange}
                 />
@@ -1886,21 +1875,19 @@ const InvoiceManagement = () => {
               <div>
                 <label className="block text-xs font-medium text-gray-700 mb-1">Customer Name</label>
                 <input
-                  key="account-filter"
                   type="text"
                   name="account"
-                  className="w-full p-2 border rounded-md text-xs focus:ring-2 focus:ring-blue-300 focus:border-blue-300"
+                  className="w-full p-2 border rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   value={filters.account}
                   onChange={handleFilterChange}
-                  placeholder="Filter by customer"
+                  placeholder="Type customer name..."
                 />
               </div>
               <div>
                 <label className="block text-xs font-medium text-gray-700 mb-1">Status</label>
                 <select
-                  key="status-filter"
                   name="status"
-                  className="w-full p-2 border rounded-md text-xs focus:ring-2 focus:ring-blue-300 focus:border-blue-300"
+                  className="w-full p-2 border rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   value={filters.status}
                   onChange={handleFilterChange}
                 >
@@ -1914,66 +1901,43 @@ const InvoiceManagement = () => {
                   <option value="Overdue">Overdue</option>
                 </select>
               </div>
-            </div>
-            
-            {/* Advanced Filters Row */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 pt-4 border-t border-gray-200">
               <div>
                 <label className="block text-xs font-medium text-gray-700 mb-1">Currency</label>
                 <select
-                  key="currency-filter"
                   name="currency"
-                  className="w-full p-2 border rounded-md text-xs focus:ring-2 focus:ring-blue-300 focus:border-blue-300"
-                  value={filters.currency || ''}
+                  className="w-full p-2 border rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  value={filters.currency}
                   onChange={handleFilterChange}
                 >
-                  <option value="">All Currencies</option>
+                  <option value="All">All</option>
                   <option value="PKR">PKR</option>
                   <option value="USD">USD</option>
                   <option value="EUR">EUR</option>
                   <option value="GBP">GBP</option>
                 </select>
               </div>
-              
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Sent Status</label>
-                <select
-                  key="is_sent-filter"
-                  name="is_sent"
-                  className="w-full p-2 border rounded-md text-xs focus:ring-2 focus:ring-blue-300 focus:border-blue-300"
-                  value={filters.is_sent || ''}
-                  onChange={handleFilterChange}
-                >
-                  <option value="">All</option>
-                  <option value="true">Sent</option>
-                  <option value="false">Not Sent</option>
-                </select>
-              </div>
-              
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Invoice Number</label>
-                <input
-                  key="invoice_number-filter"
-                  type="text"
-                  name="invoice_number"
-                  className="w-full p-2 border rounded-md text-xs focus:ring-2 focus:ring-blue-300 focus:border-blue-300"
-                  value={filters.invoice_number || ''}
-                  onChange={handleFilterChange}
-                  placeholder="Search by invoice #"
-                />
-              </div>
-              
-              <div className="flex items-end">
-                <button
-                  onClick={applyFilters}
-                  className="w-full px-3 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-xs font-medium transition-colors"
-                >
-                  Apply Filters
-                </button>
-              </div>
             </div>
             
+            {/* Action Buttons */}
             <div className="flex justify-between items-center pt-4 border-t border-gray-200">
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={applyFilters}
+                  className="px-6 py-2.5 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm font-medium transition-colors shadow-sm flex items-center gap-2"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
+                  Search
+                </button>
+                <button
+                  onClick={resetFilters}
+                  className="px-4 py-2.5 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 text-sm font-medium transition-colors"
+                >
+                  Reset
+                </button>
+              </div>
+              
               <div className="flex items-center gap-2">
                 <label className="text-xs font-medium text-gray-700">Items per page:</label>
                 <select
@@ -1982,19 +1946,13 @@ const InvoiceManagement = () => {
                     setItemsPerPage(Number(e.target.value));
                     setCurrentPage(1);
                   }}
-                  className="p-1 border rounded text-xs"
+                  className="p-2 border rounded text-sm focus:ring-2 focus:ring-blue-500"
                 >
-                  {[4, 10, 20, 50].map(option => (
+                  {[10, 20, 50, 100].map(option => (
                     <option key={option} value={option}>{option}</option>
                   ))}
                 </select>
               </div>
-              <button
-                onClick={resetFilters}
-                className="px-3 py-1.5 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 text-xs"
-              >
-                Reset Filters
-              </button>
             </div>
           </div>
         )}
@@ -2014,7 +1972,7 @@ const InvoiceManagement = () => {
                         : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                     }`}
                     onClick={() => {
-                      console.log('Tab clicked:', status);
+                      // tab clicked
                       setActiveTab(status);
                       setCurrentPage(1);
                       // Clear status filter when clicking tabs to avoid conflicts
