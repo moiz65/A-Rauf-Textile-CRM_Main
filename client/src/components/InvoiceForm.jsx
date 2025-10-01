@@ -628,9 +628,6 @@ const InvoiceForm = ({ initialData, onSubmit, onCancel }) => {
                   onChange={handleCurrencyChange}
                 >
                   <option value="PKR">PKR</option>
-                  <option value="USD">USD</option>
-                  <option value="EUR">EUR</option>
-                  <option value="GBP">GBP</option>
                 </select>
               </div>
 

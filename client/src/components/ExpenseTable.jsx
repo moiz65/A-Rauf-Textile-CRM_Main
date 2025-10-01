@@ -943,16 +943,16 @@ const ExpenseTable = () => {
                     <td className="px-4 py-4 text-sm font-medium text-gray-900 whitespace-nowrap">
                       PKR {expense.amount.toLocaleString()}
                     </td>
-                    <td className="px-4 py-4 text-sm whitespace-nowrap">
-                      <span className={`px-2 py-1 inline-flex text-xs font-semibold rounded-full ${getCategoryClass(expense.category)}`}>
+                    <td className="px-4 py-4 text-sm whitespace-nowrap text-center">
+                      <span className={`px-2 py-1 inline-flex items-center justify-center text-xs font-semibold rounded-full ${getCategoryClass(expense.category)}`}>
                         {expense.category}
                       </span>
                     </td>
                     <td className="px-4 py-4 text-sm text-gray-500 whitespace-nowrap hidden md:table-cell">
                       {expense.paymentMethod}
                     </td>
-                    <td className="px-4 py-4 text-sm whitespace-nowrap">
-                      <span className={`px-2 py-1 inline-flex text-xs font-semibold rounded-full ${getStatusClass(expense.status)}`}>
+                    <td className="px-4 py-4 text-sm whitespace-nowrap text-center">
+                      <span className={`px-2 py-1 inline-flex items-center justify-center text-xs font-semibold rounded-full ${getStatusClass(expense.status)}`}>
                         {expense.status}
                       </span>
                     </td>

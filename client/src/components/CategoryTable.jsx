@@ -617,13 +617,13 @@ const CategoryTable = () => {
                     <td className="px-4 py-4 text-sm text-gray-500 whitespace-nowrap max-w-xs">
                       <div className="truncate">{category.description}</div>
                     </td>
-                    <td className="px-4 py-4 text-sm whitespace-nowrap">
-                      <span className={`px-2 py-1 inline-flex text-xs font-semibold rounded-full ${getTypeClass(category.type)}`}>
+                    <td className="px-4 py-4 text-sm whitespace-nowrap text-center">
+                      <span className={`px-2 py-1 inline-flex items-center justify-center text-xs font-semibold rounded-full ${getTypeClass(category.type)}`}>
                         {category.type}
                       </span>
                     </td>
-                    <td className="px-4 py-4 text-sm whitespace-nowrap">
-                      <span className={`px-2 py-1 inline-flex text-xs font-semibold rounded-full ${getStatusClass(category.status)}`}>
+                    <td className="px-4 py-4 text-sm whitespace-nowrap text-center">
+                      <span className={`px-2 py-1 inline-flex items-center justify-center text-xs font-semibold rounded-full ${getStatusClass(category.status)}`}>
                         {category.status}
                       </span>
                     </td>

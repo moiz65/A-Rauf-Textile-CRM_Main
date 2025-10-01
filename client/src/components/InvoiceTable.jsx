@@ -701,9 +701,6 @@ const InvoiceForm = ({ onSubmit, onCancel, initialData = null }) => {
                   onChange={handleCurrencyChange}
                 >
                   <option value="PKR">PKR</option>
-                  <option value="USD">USD</option>
-                  <option value="EUR">EUR</option>
-                  <option value="GBP">GBP</option>
                 </select>
               </div>
 
@@ -929,8 +926,8 @@ const InvoiceViewTemplate = ({ invoiceId, onClose, onEdit }) => {
             <p className="text-sm text-gray-500">Created on {formatDate(invoice.bill_date)}</p>
           </div>
           
-          <div className="flex items-center gap-2">
-            <span className={`px-3 py-1 inline-flex text-sm font-semibold rounded-full ${getStatusClass(invoice.status)}`}>
+            <div className="flex items-center gap-2">
+            <span className={`px-3 py-1 inline-flex items-center justify-center text-sm font-semibold rounded-full ${getStatusClass(invoice.status)}`}>
               {invoice.status}
             </span>
             
@@ -1120,7 +1117,7 @@ const InvoiceManagement = () => {
     dateTo: '',
     account: '',
     status: '',
-    currency: 'All'
+    currency: 'PKR'
   });
   const [showFilters, setShowFilters] = useState(false);
   const [activeDropdown, setActiveDropdown] = useState(null);
@@ -1909,11 +1906,7 @@ const InvoiceManagement = () => {
                   value={filters.currency}
                   onChange={handleFilterChange}
                 >
-                  <option value="All">All</option>
                   <option value="PKR">PKR</option>
-                  <option value="USD">USD</option>
-                  <option value="EUR">EUR</option>
-                  <option value="GBP">GBP</option>
                 </select>
               </div>
             </div>
@@ -2078,8 +2071,8 @@ const InvoiceManagement = () => {
                     <td className="px-4 py-4 text-sm font-medium text-gray-900 whitespace-nowrap text-right">
                       {invoice.currency} {invoice.total_amount?.toLocaleString()}
                     </td>
-                    <td className="px-4 py-4 text-sm whitespace-nowrap">
-                      <span className={`px-2 py-1 inline-flex text-xs font-semibold rounded-full ${getStatusClass(invoice.status)}`}>
+                    <td className="px-4 py-4 text-sm whitespace-nowrap text-center">
+                      <span className={`px-2 py-1 inline-flex items-center justify-center text-xs font-semibold rounded-full ${getStatusClass(invoice.status)}`}>
                         {invoice.status || 'Pending'}
                       </span>
                     </td>

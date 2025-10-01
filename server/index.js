@@ -1644,7 +1644,7 @@ app.get("/api/invoices/filters/options", (req, res) => {
       res.status(500).json({ 
         error: "Failed to fetch filter options",
         statuses: ['Draft', 'Pending', 'Sent', 'Paid', 'Overdue', 'Cancelled'],
-        currencies: ['PKR', 'USD'],
+        currencies: ['PKR'],
         statistics: {
           total_invoices: 0,
           paid_count: 0,

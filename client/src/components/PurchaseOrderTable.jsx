@@ -672,9 +672,9 @@ const PurchaseOrderTable = ({ onViewDetails, openEditPOId = null }) => {
                   {summary ? formatCurrency(summary.remaining_amount) : formatCurrency(selectedPOHistory?.totalAmount || 0)}
                 </div>
               </div>
-              <div>
+                <div>
                 <div className="text-sm text-gray-600">Status</div>
-                <div className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                <div className={`inline-flex items-center justify-center px-2 py-1 text-xs font-semibold rounded-full ${
                   invoiceStatus?.color === 'green' ? 'bg-green-100 text-green-800' :
                   invoiceStatus?.color === 'blue' ? 'bg-blue-100 text-blue-800' :
                   'bg-gray-100 text-gray-800'
@@ -735,8 +735,8 @@ const PurchaseOrderTable = ({ onViewDetails, openEditPOId = null }) => {
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                         {formatCurrency(invoice.total_amount)}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                      <td className="px-6 py-4 whitespace-nowrap text-center">
+                        <span className={`px-2 py-1 inline-flex items-center justify-center text-xs leading-5 font-semibold rounded-full ${
                           invoice.status === 'Paid' ? 'bg-green-100 text-green-800' :
                           invoice.status === 'Sent' ? 'bg-blue-100 text-blue-800' :
                           invoice.status === 'Overdue' ? 'bg-red-100 text-red-800' :
@@ -1558,8 +1558,8 @@ const PurchaseOrderTable = ({ onViewDetails, openEditPOId = null }) => {
                     <td className="px-4 py-4 text-sm font-medium text-gray-900 whitespace-nowrap">
                       {po.currency} {formatCurrency(po.totalAmount)}
                     </td>
-                    <td className="px-4 py-4 text-sm whitespace-nowrap">
-                      <span className={`px-2 py-1 inline-flex text-xs font-semibold rounded-full ${getStatusClass(po.status)}`}>
+                    <td className="px-4 py-4 text-sm whitespace-nowrap text-center">
+                      <span className={`px-2 py-1 inline-flex items-center justify-center text-xs font-semibold rounded-full ${getStatusClass(po.status)}`}>
                         {po.status}
                       </span>
                     </td>
