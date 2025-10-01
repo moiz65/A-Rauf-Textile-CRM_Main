@@ -3472,26 +3472,195 @@ function updatePurchaseOrder(poId, requestBody, res) {
   });
 }
 
-// Delete purchase order
+// Delete purchase order and related invoices
 app.delete("/api/purchase-orders/:id", (req, res) => {
   const { id } = req.params;
+  
+  console.log(`Deleting PO with ID: ${id}`);
   
   // Check if the ID is numeric (database ID) or alphanumeric (PO number)
   const isNumericId = /^\d+$/.test(id);
   const whereCondition = isNumericId ? "id = ?" : "po_number = ?";
-  const query = `DELETE FROM purchase_orders WHERE ${whereCondition}`;
+  const poNumberCondition = isNumericId ? "po.id = ?" : "po.po_number = ?";
   
-  db.query(query, [id], (err, results) => {
+  // Start transaction to ensure data consistency
+  db.beginTransaction((err) => {
     if (err) {
-      console.error("Error deleting purchase order:", err);
-      res.status(500).json({ error: "Failed to delete purchase order" });
-      return;
+      console.error("Error starting transaction:", err);
+      return res.status(500).json({ 
+        error: "Failed to start transaction", 
+        details: err.message 
+      });
     }
-    if (results.affectedRows === 0) {
-      res.status(404).json({ error: "Purchase order not found" });
-      return;
-    }
-    res.json({ message: "Purchase order deleted successfully" });
+    
+    // First, get PO details and related invoices
+    const getPODetailsQuery = `
+      SELECT po.*, 
+             GROUP_CONCAT(pi.id) as invoice_ids,
+             GROUP_CONCAT(pi.invoice_number) as invoice_numbers,
+             COUNT(pi.id) as invoice_count
+      FROM purchase_orders po
+      LEFT JOIN po_invoices pi ON po.po_number = pi.po_number
+      WHERE ${whereCondition}
+      GROUP BY po.id
+    `;
+    
+    db.query(getPODetailsQuery, [id], (err, poResults) => {
+      if (err) {
+        console.error("Error fetching PO details:", err);
+        return db.rollback(() => {
+          res.status(500).json({ 
+            error: "Failed to fetch PO details", 
+            details: err.message 
+          });
+        });
+      }
+      
+      if (poResults.length === 0) {
+        return db.rollback(() => {
+          res.status(404).json({ error: "Purchase order not found" });
+        });
+      }
+      
+      const poData = poResults[0];
+      const invoiceIds = poData.invoice_ids ? poData.invoice_ids.split(',') : [];
+      
+      console.log(`PO ${poData.po_number} has ${poData.invoice_count} related invoices`);
+      
+      // If there are related invoices, delete them first
+      if (invoiceIds.length > 0 && invoiceIds[0] !== null) {
+        // Create deletion history records for all related invoices
+        const historyPromises = invoiceIds.map(invoiceId => {
+          return new Promise((resolve, reject) => {
+            const getInvoiceQuery = "SELECT * FROM po_invoices WHERE id = ?";
+            db.query(getInvoiceQuery, [invoiceId], (err, invoiceResults) => {
+              if (err) {
+                console.error(`Error fetching invoice ${invoiceId}:`, err);
+                resolve(); // Continue even if we can't get invoice details
+                return;
+              }
+              
+              if (invoiceResults.length > 0) {
+                const invoice = invoiceResults[0];
+                const historyQuery = `
+                  INSERT INTO po_deletion_history (
+                    po_invoice_id, invoice_number, po_number, customer_name, 
+                    invoice_amount, invoice_date, deletion_date, deletion_reason, deleted_by
+                  ) VALUES (?, ?, ?, ?, ?, ?, NOW(), 'PO permanently deleted', 'System User')
+                `;
+                
+                db.query(historyQuery, [
+                  invoice.id, invoice.invoice_number, invoice.po_number, 
+                  invoice.customer_name, invoice.total_amount, invoice.invoice_date
+                ], (err) => {
+                  if (err) {
+                    console.error(`Error creating deletion history for invoice ${invoiceId}:`, err);
+                  }
+                  resolve();
+                });
+              } else {
+                resolve();
+              }
+            });
+          });
+        });
+        
+        // Wait for all history records to be created
+        Promise.all(historyPromises).then(() => {
+          // Delete PO invoice items first
+          const deleteInvoiceItemsQuery = "DELETE FROM po_invoice_items WHERE po_invoice_id IN (" + invoiceIds.map(() => '?').join(',') + ")";
+          db.query(deleteInvoiceItemsQuery, invoiceIds, (err) => {
+            if (err) {
+              console.error("Error deleting PO invoice items:", err);
+              // Continue even if items deletion fails
+            }
+            
+            // Delete PO invoices
+            const deleteInvoicesQuery = "DELETE FROM po_invoices WHERE po_number = ?";
+            db.query(deleteInvoicesQuery, [poData.po_number], (err, invoiceDeleteResult) => {
+              if (err) {
+                console.error("Error deleting PO invoices:", err);
+                return db.rollback(() => {
+                  res.status(500).json({ 
+                    error: "Failed to delete related invoices", 
+                    details: err.message 
+                  });
+                });
+              }
+              
+              console.log(`Deleted ${invoiceDeleteResult.affectedRows} invoices for PO ${poData.po_number}`);
+              deletePurchaseOrder();
+            });
+          });
+        });
+      } else {
+        // No invoices to delete, proceed with PO deletion
+        deletePurchaseOrder();
+      }
+      
+      function deletePurchaseOrder() {
+        // Delete PO items first
+        const deleteItemsQuery = "DELETE FROM purchase_order_items WHERE purchase_order_id = ?";
+        db.query(deleteItemsQuery, [poData.id], (err) => {
+          if (err) {
+            console.error("Error deleting PO items:", err);
+            // Continue even if items deletion fails
+          }
+          
+          // Delete PO summary
+          const deleteSummaryQuery = "DELETE FROM po_invoice_summary WHERE po_number = ?";
+          db.query(deleteSummaryQuery, [poData.po_number], (err) => {
+            if (err) {
+              console.error("Error deleting PO summary:", err);
+              // Continue even if summary deletion fails
+            }
+            
+            // Finally, delete the PO itself
+            const deletePOQuery = `DELETE FROM purchase_orders WHERE ${whereCondition}`;
+            db.query(deletePOQuery, [id], (err, results) => {
+              if (err) {
+                console.error("Error deleting purchase order:", err);
+                return db.rollback(() => {
+                  res.status(500).json({ 
+                    error: "Failed to delete purchase order", 
+                    details: err.message 
+                  });
+                });
+              }
+              
+              if (results.affectedRows === 0) {
+                return db.rollback(() => {
+                  res.status(404).json({ error: "Purchase order not found" });
+                });
+              }
+              
+              // Commit the transaction
+              db.commit((err) => {
+                if (err) {
+                  console.error("Error committing transaction:", err);
+                  return db.rollback(() => {
+                    res.status(500).json({ 
+                      error: "Failed to commit deletion transaction", 
+                      details: err.message 
+                    });
+                  });
+                }
+                
+                console.log(`PO ${poData.po_number} and ${poData.invoice_count} related invoices deleted successfully`);
+                
+                res.json({ 
+                  message: "Purchase order deleted successfully",
+                  deletedPO: {
+                    po_number: poData.po_number,
+                    invoices_deleted: poData.invoice_count
+                  }
+                });
+              });
+            });
+          });
+        });
+      }
+    });
   });
 });
 
@@ -3532,84 +3701,112 @@ app.post("/api/po-invoices", (req, res) => {
     return res.status(400).json({ message: "Missing required fields: invoice_number, invoice_date, po_number, supplier_name" });
   }
 
-  // Start transaction for invoice and items
-  db.beginTransaction((err) => {
-    if (err) {
-      console.error("Error starting transaction:", err);
-      return res.status(500).json({ message: "Failed to start transaction", error: err.message });
-    }
-
-    const query = `
-      INSERT INTO po_invoices (
-        invoice_number, invoice_date, due_date, po_id, po_number, customer_name, 
-        customer_email, customer_phone, customer_address, subtotal, tax_rate, 
-        tax_amount, total_amount, currency, status, notes
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `;
-    
-    const values = [
-      invoice_number, invoice_date, due_date, po_id, po_number, customer_name,
-      customer_email || '', customer_phone || '', customer_address || '',
-      subtotal, tax_rate, tax_amount, total_amount, currency, status, notes
-    ];
-
-    db.query(query, values, (err, result) => {
+  // Function to create invoice with resolved items
+  const createInvoiceWithItems = (itemsToSave) => {
+    // Start transaction for invoice and items
+    db.beginTransaction((err) => {
       if (err) {
-        console.error("Error creating PO invoice:", err.message);
-        
-        // Provide specific error message for duplicate invoice numbers
-        if (err.code === 'ER_DUP_ENTRY' && err.sqlMessage.includes('invoice_number')) {
+        console.error("Error starting transaction:", err);
+        return res.status(500).json({ message: "Failed to start transaction", error: err.message });
+      }
+
+      const query = `
+        INSERT INTO po_invoices (
+          invoice_number, invoice_date, due_date, po_id, po_number, customer_name, 
+          customer_email, customer_phone, customer_address, subtotal, tax_rate, 
+          tax_amount, total_amount, currency, status, notes
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `;
+      
+      const values = [
+        invoice_number, invoice_date, due_date, po_id, po_number, customer_name,
+        customer_email || '', customer_phone || '', customer_address || '',
+        subtotal, tax_rate, tax_amount, total_amount, currency, status, notes
+      ];
+
+      db.query(query, values, (err, result) => {
+        if (err) {
+          console.error("Error creating PO invoice:", err.message);
+          
+          // Provide specific error message for duplicate invoice numbers
+          if (err.code === 'ER_DUP_ENTRY' && err.sqlMessage.includes('invoice_number')) {
+            return db.rollback(() => {
+              res.status(409).json({ 
+                message: `Invoice number ${invoice_number} already exists. Please try again with a different number.`,
+                error: "DUPLICATE_INVOICE_NUMBER",
+                suggestion: "The system will generate a new unique number on refresh"
+              });
+            });
+          }
+          
           return db.rollback(() => {
-            res.status(409).json({ 
-              message: `Invoice number ${invoice_number} already exists. Please try again with a different number.`,
-              error: "DUPLICATE_INVOICE_NUMBER",
-              suggestion: "The system will generate a new unique number on refresh"
+            res.status(500).json({ 
+              message: "Failed to create PO invoice", 
+              error: err.message 
             });
           });
         }
         
-        return db.rollback(() => {
-          res.status(500).json({ 
-            message: "Failed to create PO invoice", 
-            error: err.message 
-          });
-        });
-      }
-      
-      const invoiceId = result.insertId;
-      console.log('PO invoice created with ID:', invoiceId);
+        const invoiceId = result.insertId;
+        console.log('PO invoice created with ID:', invoiceId);
 
-      // Insert invoice items if provided
-      if (items && items.length > 0) {
-        const itemsQuery = `
-          INSERT INTO po_invoice_items (po_invoice_id, item_no, description, quantity, unit_price, amount)
-          VALUES ?
-        `;
+        // Insert invoice items if provided
+        if (itemsToSave && itemsToSave.length > 0) {
+          const itemsQuery = `
+            INSERT INTO po_invoice_items (po_invoice_id, item_no, description, quantity, unit_price, amount)
+            VALUES ?
+          `;
 
-        const itemsValues = items.map((item, index) => [
-          invoiceId,
-          item.item_no || index + 1,
-          item.description || '',
-          item.quantity || 1,
-          item.unitPrice || item.unit_price || 0,
-          item.amount || 0
-        ]);
+          const itemsValues = itemsToSave.map((item, index) => [
+            invoiceId,
+            item.item_no || index + 1,
+            item.description || '',
+            item.quantity || 1,
+            item.unitPrice || item.unit_price || 0,
+            item.amount || 0
+          ]);
 
-        db.query(itemsQuery, [itemsValues], (err, itemsResult) => {
-          if (err) {
-            console.error("Error creating PO invoice items:", err);
-            console.error("Note: If po_invoice_items table doesn't exist, please run database_update.sql");
-            
-            // Still commit the invoice even if items table doesn't exist
-            return db.commit((commitErr) => {
-              if (commitErr) {
-                console.error("Error committing transaction:", commitErr);
+          db.query(itemsQuery, [itemsValues], (err, itemsResult) => {
+            if (err) {
+              console.error("Error creating PO invoice items:", err);
+              console.error("Note: If po_invoice_items table doesn't exist, please run database_update.sql");
+              
+              // Still commit the invoice even if items table doesn't exist
+              return db.commit((commitErr) => {
+                if (commitErr) {
+                  console.error("Error committing transaction:", commitErr);
+                  return db.rollback(() => {
+                    res.status(500).json({ message: "Failed to commit transaction", error: commitErr.message });
+                  });
+                }
+
+                console.log('PO invoice created successfully (without items due to table error)');
+                res.status(201).json({
+                  message: "PO invoice created successfully",
+                  invoice: {
+                    id: invoiceId,
+                    invoice_number,
+                    po_number,
+                    customer_name,
+                    total_amount,
+                    status,
+                    items_count: 0,
+                    note: "Items table not available - run database_update.sql"
+                  }
+                });
+              });
+            }
+
+            // Commit transaction and return success
+            db.commit((err) => {
+              if (err) {
+                console.error("Error committing transaction:", err);
                 return db.rollback(() => {
-                  res.status(500).json({ message: "Failed to commit transaction", error: commitErr.message });
+                  res.status(500).json({ message: "Failed to commit transaction", error: err.message });
                 });
               }
 
-              console.log('PO invoice created successfully (without items due to table error)');
+              console.log('PO invoice and items created successfully');
               res.status(201).json({
                 message: "PO invoice created successfully",
                 invoice: {
@@ -3619,14 +3816,13 @@ app.post("/api/po-invoices", (req, res) => {
                   customer_name,
                   total_amount,
                   status,
-                  items_count: 0,
-                  note: "Items table not available - run database_update.sql"
+                  items_count: itemsToSave.length
                 }
               });
             });
-          }
-
-          // Commit transaction and return success
+          });
+        } else {
+          // No items, just commit invoice
           db.commit((err) => {
             if (err) {
               console.error("Error committing transaction:", err);
@@ -3635,7 +3831,7 @@ app.post("/api/po-invoices", (req, res) => {
               });
             }
 
-            console.log('PO invoice and items created successfully');
+            console.log('PO invoice created successfully');
             res.status(201).json({
               message: "PO invoice created successfully",
               invoice: {
@@ -3644,38 +3840,46 @@ app.post("/api/po-invoices", (req, res) => {
                 po_number,
                 customer_name,
                 total_amount,
-                status,
-                items_count: items.length
+                status
               }
             });
           });
-        });
-      } else {
-        // No items, just commit invoice
-        db.commit((err) => {
-          if (err) {
-            console.error("Error committing transaction:", err);
-            return db.rollback(() => {
-              res.status(500).json({ message: "Failed to commit transaction", error: err.message });
-            });
-          }
+        }
+      });
+    });
+  };
 
-          console.log('PO invoice created successfully');
-          res.status(201).json({
-            message: "PO invoice created successfully",
-            invoice: {
-              id: invoiceId,
-              invoice_number,
-              po_number,
-              customer_name,
-              total_amount,
-              status
-            }
-          });
-        });
+  // If no items provided, fetch items from the Purchase Order
+  if (!items || items.length === 0) {
+    console.log(`No items provided, fetching from PO: ${po_number}`);
+    
+    const fetchPOItemsQuery = `
+      SELECT 
+        poi.item_no,
+        poi.description,
+        poi.quantity,
+        poi.unit_price,
+        poi.amount
+      FROM purchase_order_items poi
+      JOIN purchase_orders po ON poi.purchase_order_id = po.id
+      WHERE po.po_number = ?
+      ORDER BY poi.item_no
+    `;
+    
+    db.query(fetchPOItemsQuery, [po_number], (err, poItems) => {
+      if (err) {
+        console.error("Error fetching PO items:", err);
+        // Continue with empty items if fetch fails
+        createInvoiceWithItems([]);
+      } else {
+        console.log(`Found ${poItems.length} items in PO ${po_number}`);
+        createInvoiceWithItems(poItems || []);
       }
     });
-  });
+  } else {
+    // Use provided items
+    createInvoiceWithItems(items);
+  }
 });
 
 // Get single PO invoice by ID with its items
@@ -3714,8 +3918,10 @@ app.get("/api/po-invoices/:id", (req, res) => {
       if (!itemsResults || itemsResults.length === 0) {
         console.log(`No items found for PO invoice ${id}, checking original PO: ${invoice.po_number}`);
         
+        // First try to get items from purchase_order_items table
         const poItemsQuery = `
           SELECT 
+<<<<<<< HEAD
             1 as item_no,
             COALESCE(notes, 'Items as per purchase order agreement') as description,
             1 as quantity,
@@ -3724,24 +3930,92 @@ app.get("/api/po-invoices/:id", (req, res) => {
             CONCAT('Supplier: ', supplier_name, ' - As per PO specifications') as specifications
           FROM purchase_orders 
           WHERE po_number = ?
+=======
+            poi.item_no,
+            poi.description,
+            poi.quantity,
+            poi.unit_price,
+            poi.amount,
+            CONCAT('Supplier: ', po.supplier_name, ' - As per PO specifications') as specifications
+          FROM purchase_order_items poi
+          JOIN purchase_orders po ON poi.purchase_order_id = po.id
+          WHERE po.po_number = ?
+          ORDER BY poi.item_no
+>>>>>>> f7de4a59 (.gitignore file added to untracked teh node_modules)
         `;
         
         db.query(poItemsQuery, [invoice.po_number], (err2, poItemsResults) => {
           if (err2) {
-            console.error("Error fetching PO items:", err2);
-            return res.json({
+            console.error("Error fetching PO items from purchase_order_items:", err2);
+            
+            // Fallback: get basic info from purchase_orders table
+            const fallbackQuery = `
+              SELECT 
+                1 as item_no,
+                COALESCE(notes, 'Items as per purchase order agreement') as description,
+                1 as quantity,
+                total_amount as unit_price,
+                total_amount as amount,
+                CONCAT('Supplier: ', supplier_name, ' - As per PO specifications') as specifications
+              FROM purchase_orders 
+              WHERE po_number = ?
+            `;
+            
+            db.query(fallbackQuery, [invoice.po_number], (err3, fallbackResults) => {
+              if (err3) {
+                console.error("Error fetching PO fallback items:", err3);
+                return res.json({
+                  ...invoice,
+                  items: []
+                });
+              }
+              
+              const invoiceWithItems = {
+                ...invoice,
+                items: fallbackResults || []
+              };
+              
+              res.json(invoiceWithItems);
+            });
+          } else if (poItemsResults && poItemsResults.length > 0) {
+            // Return invoice with actual PO items
+            const invoiceWithItems = {
               ...invoice,
-              items: []
+              items: poItemsResults
+            };
+            
+            res.json(invoiceWithItems);
+          } else {
+            // No items found in purchase_order_items, use fallback
+            const fallbackQuery = `
+              SELECT 
+                1 as item_no,
+                'Items as per purchase order agreement' as description,
+                1 as quantity,
+                total_amount as unit_price,
+                total_amount as amount,
+                CONCAT('Supplier: ', supplier_name, ' - As per PO specifications') as specifications
+              FROM purchase_orders 
+              WHERE po_number = ?
+            `;
+            
+            db.query(fallbackQuery, [invoice.po_number], (err3, fallbackResults) => {
+              if (err3) {
+                console.error("Error fetching PO fallback items:", err3);
+                return res.json({
+                  ...invoice,
+                  items: []
+                });
+              }
+              
+              const invoiceWithItems = {
+                ...invoice,
+                items: fallbackResults || []
+              };
+              
+              res.json(invoiceWithItems);
             });
           }
-          
-          // Return invoice with PO items as fallback
-          const invoiceWithItems = {
-            ...invoice,
-            items: poItemsResults || []
-          };
-          
-          res.json(invoiceWithItems);
         });
       } else {
         // Combine invoice with items

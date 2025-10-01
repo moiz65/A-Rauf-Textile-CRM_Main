@@ -261,17 +261,30 @@ const PurchaseOrderTable = ({ onViewDetails }) => {
     setActiveDropdown(null);
   };
 
-  const handleEdit = (po) => {
-    // Use originalData for editing to ensure all fields are populated
-    const poToEdit = po.originalData ? {
-      ...po.originalData,
-      // Ensure the transformed fields are also available
-      id: po.id,
-      totalAmount: po.totalAmount
-    } : po;
-    
-    setEditingPO(poToEdit);
-    setShowEditModal(true);
+  const handleEdit = async (po) => {
+    try {
+      // Fetch complete PO data including items from API
+      const response = await fetch(`http://localhost:5000/api/purchase-orders/${po.originalData?.id || po.id}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch PO details');
+      }
+      
+      const completePoData = await response.json();
+      
+      // Use originalData for editing to ensure all fields are populated
+      const poToEdit = {
+        ...completePoData,
+        // Ensure the transformed fields are also available
+        id: po.id,
+        totalAmount: po.totalAmount
+      };
+      
+      setEditingPO(poToEdit);
+      setShowEditModal(true);
+    } catch (error) {
+      console.error('Error fetching PO details for editing:', error);
+      showNotification('Error', 'Failed to load PO details for editing', 'error');
+    }
     setActiveDropdown(null);
   };
 
@@ -714,13 +727,13 @@ const PurchaseOrderTable = ({ onViewDetails }) => {
         if (editingPO.items && editingPO.items.length > 0) {
           setPOItems(editingPO.items);
         } else {
-          // Create single item from existing PO data
+          // For existing PO without items data, fetch items from server or use empty default
           setPOItems([{
             item_no: 1,
-            description: 'Purchase Item',
-            quantity: editingPO.items || 1,
-            unit_price: editingPO.totalAmount || 0,
-            amount: editingPO.totalAmount || 0
+            description: '',
+            quantity: 1,
+            unit_price: 0,
+            amount: 0
           }]);
         }
       } else {

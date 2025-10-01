@@ -1,3 +1,5 @@
+/* Category Autocomplete Component */
+
 import React, { useState, useEffect, useRef } from 'react';
 import { ChevronDown } from 'lucide-react';
 
