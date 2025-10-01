@@ -281,7 +281,7 @@ const InvoiceForm = ({ initialData, onSubmit, onCancel }) => {
     }
 
     try {
-      console.log("Submitting invoice with data:", { formData, invoiceItems }); // Debug log
+  console.debug("Submitting invoice with data:", { formData, invoiceItems }); // Debug log
       
       // Prepare invoice data
       const invoiceData = {
@@ -310,7 +310,7 @@ const InvoiceForm = ({ initialData, onSubmit, onCancel }) => {
         }))
       };
 
-      console.log("Sending invoice data to API:", invoiceData); // Debug log
+  console.debug("Sending invoice data to API:", invoiceData); // Debug log
 
       // Use onSubmit prop if provided (for integration), otherwise make direct API call
       if (onSubmit) {
@@ -328,11 +328,11 @@ const InvoiceForm = ({ initialData, onSubmit, onCancel }) => {
       });
 
       const data = await response.json();
-      console.log("API response:", data); // Debug log
+  console.debug("API response:", data); // Debug log
 
       if (response.ok) {
         alert(`✅ Invoice created successfully! Invoice ID: ${data.id}`);
-        console.log("Invoice created:", data);
+  console.debug("Invoice created:", data);
         
         // Reset form after successful submission
         setFormData({

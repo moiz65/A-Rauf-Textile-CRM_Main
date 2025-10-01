@@ -199,7 +199,7 @@ class DashboardController {
       const currentBalance = balanceData.balance || 0;
       
       // Debug logging to understand the balance calculation
-      console.log('Balance Debug Info:', {
+      console.debug('Balance Debug Info:', {
         paidRevenue,
         paidExpenses, 
         currentBalance,

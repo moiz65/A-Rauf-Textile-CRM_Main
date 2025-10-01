@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
+import { useAuth } from '../../context/AuthContext';
 import { Eye, EyeOff } from "lucide-react";
 import LoginImage from "../../assets/Signup/signin.png";
 
@@ -35,6 +36,9 @@ const Login = () => {
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
+  const auth = useAuth();
+  const from = location.state?.from?.pathname || '/dashboard';
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -78,14 +82,15 @@ const Login = () => {
       const data = await res.json();
       setIsLoading(false);
       if (data.success) {
-        // Store user info in localStorage for session management
-        localStorage.setItem('currentUser', JSON.stringify({
+        // Use AuthContext to store user and redirect to intended destination
+        const userObj = {
           id: data.user.id,
           firstName: data.user.firstName,
           lastName: data.user.lastName,
           email: data.user.email
-        }));
-        navigate("/dashboard");
+        };
+        auth.login(userObj);
+        navigate(from, { replace: true });
       } else {
         setError(data.message || "Login failed");
       }

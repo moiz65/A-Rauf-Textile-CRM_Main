@@ -30,6 +30,7 @@ const ExpenseTable = () => {
   const [allCategories, setAllCategories] = useState([]);
   const [categoriesLoading, setCategoriesLoading] = useState(true);
   const dropdownRef = useRef(null);
+  const filterPanelRef = useRef(null);
 
   // Tab categories - only 4 main types
   const tabCategories = ['All', 'Expense', 'Income', 'Asset', 'Liability'];
@@ -85,6 +86,8 @@ const ExpenseTable = () => {
   // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
+      // Ignore clicks inside the filter panel so inputs keep focus
+      if (filterPanelRef.current && filterPanelRef.current.contains(event.target)) return;
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
         setActiveDropdown(null);
       }
@@ -245,7 +248,7 @@ const ExpenseTable = () => {
   const handleSaveExpense = async (updatedExpense) => {
     try {
       // Debug logging
-      console.log('Sending expense data:', updatedExpense);
+  console.debug('Sending expense data:', updatedExpense);
       
       let response;
       
@@ -277,7 +280,7 @@ const ExpenseTable = () => {
       }
 
       const result = await response.json();
-      console.log('Expense saved successfully:', result);
+  console.debug('Expense saved successfully:', result);
 
       // Refresh the data
       await fetchExpenses();
@@ -463,7 +466,7 @@ const ExpenseTable = () => {
         }))
       };
       
-      console.log('Submitting expense data:', expenseData);
+  console.debug('Submitting expense data:', expenseData);
       handleSaveExpense(expenseData);
     };
 
@@ -777,7 +780,7 @@ const ExpenseTable = () => {
 
       {/* Filter Panel */}
       {showFilters && (
-        <div className="bg-gray-50 p-4 rounded-lg mb-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+        <div ref={filterPanelRef} className="bg-gray-50 p-4 rounded-lg mb-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
           <div>
             <label className="block text-xs font-medium text-gray-700 mb-1">Expense Title</label>
             <input
@@ -786,6 +789,7 @@ const ExpenseTable = () => {
               className="w-full p-2 border rounded-md text-xs"
               value={filters.title}
               onChange={handleFilterChange}
+              onMouseDown={(e) => e.stopPropagation()}
               placeholder="Filter by title"
             />
           </div>
@@ -797,6 +801,7 @@ const ExpenseTable = () => {
               className="w-full p-2 border rounded-md text-xs"
               value={filters.vendor}
               onChange={handleFilterChange}
+              onMouseDown={(e) => e.stopPropagation()}
               placeholder="Filter by vendor"
             />
           </div>
@@ -808,6 +813,7 @@ const ExpenseTable = () => {
               className="w-full p-2 border rounded-md text-xs"
               value={filters.minAmount}
               onChange={handleFilterChange}
+              onMouseDown={(e) => e.stopPropagation()}
               placeholder="Minimum amount"
             />
           </div>
@@ -819,6 +825,7 @@ const ExpenseTable = () => {
               className="w-full p-2 border rounded-md text-xs"
               value={filters.maxAmount}
               onChange={handleFilterChange}
+              onMouseDown={(e) => e.stopPropagation()}
               placeholder="Maximum amount"
             />
           </div>
@@ -830,6 +837,7 @@ const ExpenseTable = () => {
               className="w-full p-2 border rounded-md text-xs"
               value={filters.dateFrom}
               onChange={handleFilterChange}
+              onMouseDown={(e) => e.stopPropagation()}
             />
           </div>
           <div>
@@ -840,38 +848,10 @@ const ExpenseTable = () => {
               className="w-full p-2 border rounded-md text-xs"
               value={filters.dateTo}
               onChange={handleFilterChange}
+              onMouseDown={(e) => e.stopPropagation()}
             />
           </div>
-          <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">Category</label>
-            <select
-              name="category"
-              className="w-full p-2 border rounded-md text-xs"
-              value={filters.category}
-              onChange={handleFilterChange}
-            >
-              <option value="">All Categories</option>
-              {allCategories.map(category => (
-                <option key={category.id} value={category.name}>
-                  {category.name} ({category.type})
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">Status</label>
-            <select
-              name="status"
-              className="w-full p-2 border rounded-md text-xs"
-              value={filters.status}
-              onChange={handleFilterChange}
-            >
-              <option value="">All Statuses</option>
-              {statusOptions.filter(stat => stat !== 'All').map(status => (
-                <option key={status} value={status}>{status}</option>
-              ))}
-            </select>
-          </div>
+          {/* Category and Status filters intentionally hidden per user request */}
           <div className="md:col-span-5 flex justify-end gap-2">
             <button
               onClick={resetFilters}

@@ -1,5 +1,3 @@
-/* CategoryStatsCard  */
-
 import React from 'react';
 import { TrendingUp, TrendingDown, DollarSign, CreditCard, PiggyBank, AlertTriangle } from 'lucide-react';
 

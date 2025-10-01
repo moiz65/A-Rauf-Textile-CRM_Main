@@ -1,3 +1,5 @@
+/* Index.js File  */
+
 // --- Required Modules ---
 const express = require("express");
 const cors = require("cors");
@@ -10,6 +12,14 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 app.use(bodyParser.json());
+
+// Lightweight logger wrapper. Toggle verbose debug output with DEV_VERBOSE=true
+const DEV_VERBOSE = process.env.DEV_VERBOSE === 'true' || process.env.NODE_ENV !== 'production';
+const logger = {
+  debug: (...args) => { if (DEV_VERBOSE) console.debug('[DEBUG]', ...args); },
+  info: (...args) => { console.log('[INFO]', ...args); },
+  error: (...args) => { console.error('[ERROR]', ...args); }
+};
 
 // Test endpoint
 app.get("/test", (req, res) => {
@@ -27,10 +37,10 @@ const db = mysql.createConnection({
 // Connect to MySQL
 db.connect((err) => {
   if (err) {
-    console.error("Error connecting to MySQL:", err);
+    logger.error("Error connecting to MySQL:", err);
     return;
   }
-  console.log("Connected to MySQL database");
+  logger.info("Connected to MySQL database");
   
   // Create users table if it doesn't exist (simple structure)
   const createUsersTable = `
@@ -45,15 +55,15 @@ db.connect((err) => {
   
   db.query(createUsersTable, (err) => {
     if (err) {
-      console.error("Error creating users table:", err);
+      logger.error("Error creating users table:", err);
     } else {
-      console.log("Users table ready");
+      logger.info("Users table ready");
       
       // Insert default user if not exists
       const checkUser = "SELECT * FROM users WHERE email = ?";
       db.query(checkUser, ['digious.Sol@gmail.com'], (err, results) => {
         if (err) {
-          console.error("Error checking user:", err);
+          logger.error("Error checking user:", err);
         } else if (results.length === 0) {
           const insertUser = `
             INSERT INTO users (firstName, lastName, email, password) 
@@ -68,13 +78,13 @@ db.connect((err) => {
           
           db.query(insertUser, userValues, (err, result) => {
             if (err) {
-              console.error("Error creating default user:", err);
+              logger.error("Error creating default user:", err);
             } else {
-              console.log("Default user created with ID:", result.insertId);
+              logger.info("Default user created with ID:", result.insertId);
             }
           });
         } else {
-          console.log("Default user already exists");
+          logger.info("Default user already exists");
         }
       });
     }
@@ -185,7 +195,7 @@ app.get("/api/expenses/:id", (req, res) => {
 
 // Create new expense with multiple items support
 app.post("/api/expenses", (req, res) => {
-  console.log('Received expense creation request:', req.body); // Debug log
+  logger.debug('Received expense creation request:', req.body); // Debug log
 
   const {
     title,
@@ -266,7 +276,7 @@ app.post("/api/expenses", (req, res) => {
       }
       
       const expenseId = result.insertId;
-      console.log('Expense created with ID:', expenseId);
+  logger.info('Expense created with ID:', expenseId);
 
       // Skip expense items for now since table doesn't exist
       // TODO: Create expense_items table if detailed item tracking is needed
@@ -280,7 +290,7 @@ app.post("/api/expenses", (req, res) => {
           });
         }
 
-        console.log('Expense created successfully');
+  logger.info('Expense created successfully');
         res.status(201).json({
           message: "Expense created successfully",
           expense: {
@@ -828,13 +838,13 @@ app.get("/api/v1/customers/suggestions", (req, res) => {
 
 // Signup endpoint
 app.post("/signup", (req, res) => {
-  console.log("Signup request received:", req.body);
+  logger.debug("Signup request received:", req.body);
   
   const { firstName, lastName, email, password } = req.body;
 
   // Validate required fields
   if (!firstName || !lastName || !email || !password) {
-    console.log("Missing required fields:", { firstName, lastName, email, password });
+    logger.info("Signup validation failed: missing fields");
     return res.status(400).json({ success: false, message: "All fields are required" });
   }
 
@@ -856,11 +866,11 @@ app.post("/signup", (req, res) => {
 
     db.query(query, values, (err, result) => {
       if (err) {
-        console.error("Error inserting user:", err);
+        logger.error("Error inserting user:", err);
         return res.status(500).json({ success: false, message: "Failed to create account", error: err.message });
       }
       
-      console.log("User created successfully:", result.insertId);
+      logger.info("User created successfully:", result.insertId);
       res.status(201).json({ success: true, message: "Account created successfully", insertId: result.insertId });
     });
   });
@@ -868,7 +878,7 @@ app.post("/signup", (req, res) => {
 
 // Login endpoint
 app.post("/login", (req, res) => {
-  console.log("Login request received:", { email: req.body.email });
+  logger.debug("Login request received for:", req.body.email);
   
   const { email, password } = req.body;
 
@@ -887,12 +897,36 @@ app.post("/login", (req, res) => {
     }
     
     if (results.length > 0) {
-      console.log("Login successful for:", email);
+      logger.info(`Login successful for: ${email}`);
       res.json({ success: true, message: "Login successful", user: results[0] });
     } else {
-      console.log("Invalid login attempt for:", email);
+      logger.info(`Invalid login attempt for: ${email}`);
       res.status(401).json({ success: false, message: "Invalid email or password" });
     }
+  });
+});
+
+// Developer quick-login (only available when DEV_VERBOSE=true)
+app.post('/dev-login', (req, res) => {
+  if (!DEV_VERBOSE) return res.status(404).json({ message: 'Not found' });
+  const { email } = req.body;
+  if (!email) return res.status(400).json({ message: 'email required' });
+  const query = 'SELECT * FROM users WHERE email = ? LIMIT 1';
+  db.query(query, [email], (err, results) => {
+    if (err) {
+      logger.error('Dev login DB error:', err);
+      return res.status(500).json({ message: 'DB error' });
+    }
+    if (!results || results.length === 0) {
+      logger.info(`Dev login failed: user not found: ${email}`);
+      return res.status(404).json({ message: 'User not found' });
+    }
+    const user = results[0];
+    // Very concise developer-friendly log
+    logger.info(`DEV-LOGIN: ${user.email} (id:${user.id}) loaded`);
+    // Remove password before returning
+    delete user.password;
+    res.json({ success: true, user });
   });
 });
 
@@ -1686,7 +1720,7 @@ app.get("/api/invoices/:id", (req, res) => {
 
 // Create new invoice with multiple items support
 app.post("/api/invoices", (req, res) => {
-  console.log('Received invoice creation request:', req.body); // Debug log
+  logger.debug('Received invoice creation request:', req.body); // Debug log
   
   const {
     customer_name, customer_email, p_number, a_p_number, address,
@@ -1745,7 +1779,7 @@ app.post("/api/invoices", (req, res) => {
     // Generate unique invoice number
     const invoice_number = `INV-${new Date().getFullYear()}-${Date.now()}`;
     
-    console.log('Generated invoice_number:', invoice_number); // Debug log
+  logger.debug('Generated invoice_number:', invoice_number); // Debug log
 
     // Start transaction for invoice and items
     db.beginTransaction((err) => {
@@ -1772,7 +1806,7 @@ app.post("/api/invoices", (req, res) => {
         tax_amount || 0, total_amount || 0, bill_date, payment_deadline, note || '', status
       ];
 
-      console.log('Executing invoice query with values:', invoiceValues); // Debug log
+    logger.debug('Executing invoice query with values:', invoiceValues); // Debug log
 
       db.query(invoiceQuery, invoiceValues, (err, invoiceResult) => {
         if (err) {
@@ -1785,8 +1819,8 @@ app.post("/api/invoices", (req, res) => {
           });
         }
 
-        const invoiceId = invoiceResult.insertId;
-        console.log('Invoice created with ID:', invoiceId);
+  const invoiceId = invoiceResult.insertId;
+  logger.info('Invoice created with ID:', invoiceId);
 
         // Insert invoice items
         if (items.length > 0) {
@@ -1827,7 +1861,7 @@ app.post("/api/invoices", (req, res) => {
                 });
               }
 
-              console.log('Invoice and items created successfully');
+              logger.info('Invoice and items created successfully');
               res.status(201).json({ 
                 id: invoiceId, 
                 message: "Invoice created successfully",
@@ -1856,7 +1890,7 @@ app.post("/api/invoices", (req, res) => {
               });
             }
 
-            console.log('Invoice created successfully');
+            logger.info('Invoice created successfully');
             res.status(201).json({ 
               id: invoiceId, 
               message: "Invoice created successfully",
@@ -1885,7 +1919,7 @@ app.put("/api/invoices/:id", (req, res) => {
     total_amount, bill_date, payment_deadline, note, status, items
   } = req.body;
 
-  console.log('Updating invoice with data:', req.body);
+  logger.debug('Updating invoice with data:', req.body);
 
   // Start a transaction to update both invoice and items
   db.beginTransaction((err) => {
@@ -1976,7 +2010,7 @@ app.put("/api/invoices/:id", (req, res) => {
                     });
                   }
                   
-                  console.log('Invoice updated successfully with items');
+                  logger.info('Invoice updated successfully with items');
                   res.json({ 
                     message: "Invoice updated successfully",
                     id: id,
@@ -1996,7 +2030,7 @@ app.put("/api/invoices/:id", (req, res) => {
               });
             }
             
-            console.log('Invoice updated successfully without items');
+            logger.info('Invoice updated successfully without items');
             res.json({ 
               message: "Invoice updated successfully",
               id: id,
@@ -2207,7 +2241,7 @@ app.get("/api/transaction-stats", (req, res) => {
         success: true
       });
     } catch (error) {
-      console.error("Error fetching transaction statistics:", error);
+      logger.error("Error fetching transaction statistics:", error);
       res.status(500).json({ 
         error: "Failed to fetch transaction statistics",
         // Return default values in case of error
@@ -2231,7 +2265,7 @@ app.get("/api/po-invoices", (req, res) => {
   
   db.query(query, (err, results) => {
     if (err) {
-      console.error("Error fetching PO invoice numbers:", err);
+      logger.error("Error fetching PO invoice numbers:", err);
       return res.status(500).json({ 
         error: "Failed to fetch PO invoice numbers",
         invoices: [] // Return empty array for ID generation
@@ -2240,13 +2274,13 @@ app.get("/api/po-invoices", (req, res) => {
     
     // Handle empty table gracefully
     if (!results || results.length === 0) {
-      console.log("No PO invoices found - returning empty array for ID generation");
+      logger.info("No PO invoices found - returning empty array for ID generation");
       return res.json([]);
     }
     
     // Return just the invoice numbers for ID generation
     const invoiceNumbers = results.map(row => row.invoice_number).filter(num => num);
-    console.log(`Returning ${invoiceNumbers.length} existing PO invoice numbers for ID generation`);
+    logger.info(`Returning ${invoiceNumbers.length} existing PO invoice numbers for ID generation`);
     res.json(invoiceNumbers);
   });
 });
@@ -2357,7 +2391,7 @@ app.get("/api/po-invoices/details", (req, res) => {
 
 // Create new PO invoice
 app.post("/api/po-invoices", (req, res) => {
-  console.log('Received PO invoice creation request:', req.body);
+  logger.debug('Received PO invoice creation request:', req.body);
 
   const {
     po_id,
@@ -2404,7 +2438,7 @@ app.post("/api/po-invoices", (req, res) => {
 
   db.query(query, values, (err, result) => {
     if (err) {
-      console.error("Error creating PO invoice:", err);
+      logger.error("Error creating PO invoice:", err);
       res.status(500).json({ 
         error: "Failed to create PO invoice", 
         details: err.message 
@@ -2412,7 +2446,7 @@ app.post("/api/po-invoices", (req, res) => {
       return;
     }
 
-    console.log('PO Invoice created with ID:', result.insertId);
+    logger.info('PO Invoice created with ID:', result.insertId);
     res.status(201).json({
       id: result.insertId,
       message: "PO Invoice created successfully",
@@ -3102,7 +3136,7 @@ app.get("/api/purchase-orders/:id", (req, res) => {
 
 // Create new purchase order with multiple items support
 app.post("/api/purchase-orders", (req, res) => {
-  console.log('Received PO creation request:', req.body); // Debug log
+  logger.debug('Received PO creation request:', req.body); // Debug log
 
   const {
     po_number,
@@ -3165,7 +3199,7 @@ app.post("/api/purchase-orders", (req, res) => {
       }
       
       const poId = result.insertId;
-      console.log('Purchase order created with ID:', poId);
+  logger.info('Purchase order created with ID:', poId);
 
       // Insert PO items if provided
       if (items && items.length > 0) {
@@ -3196,7 +3230,7 @@ app.post("/api/purchase-orders", (req, res) => {
                 });
               }
 
-              console.log('Purchase order created successfully (without items due to table error)');
+              logger.info('Purchase order created successfully (without items due to table error)');
               res.status(201).json({
                 message: "Purchase order created successfully",
                 purchase_order: {
@@ -3231,7 +3265,7 @@ app.post("/api/purchase-orders", (req, res) => {
               });
             }
 
-            console.log('Purchase order and items created successfully');
+            logger.info('Purchase order and items created successfully');
             res.status(201).json({
               message: "Purchase order created successfully",
               purchase_order: {
@@ -3265,7 +3299,7 @@ app.post("/api/purchase-orders", (req, res) => {
             });
           }
 
-          console.log('Purchase order created successfully');
+          logger.info('Purchase order created successfully');
           res.status(201).json({
             message: "Purchase order created successfully",
             purchase_order: {
@@ -3476,7 +3510,7 @@ function updatePurchaseOrder(poId, requestBody, res) {
 app.delete("/api/purchase-orders/:id", (req, res) => {
   const { id } = req.params;
   
-  console.log(`Deleting PO with ID: ${id}`);
+  logger.info(`Deleting PO with ID: ${id}`);
   
   // Check if the ID is numeric (database ID) or alphanumeric (PO number)
   const isNumericId = /^\d+$/.test(id);
@@ -3494,6 +3528,7 @@ app.delete("/api/purchase-orders/:id", (req, res) => {
     }
     
     // First, get PO details and related invoices
+    // Use aliased condition (po.*) in the SELECT to avoid ambiguous column references when joining
     const getPODetailsQuery = `
       SELECT po.*, 
              GROUP_CONCAT(pi.id) as invoice_ids,
@@ -3501,7 +3536,7 @@ app.delete("/api/purchase-orders/:id", (req, res) => {
              COUNT(pi.id) as invoice_count
       FROM purchase_orders po
       LEFT JOIN po_invoices pi ON po.po_number = pi.po_number
-      WHERE ${whereCondition}
+      WHERE ${poNumberCondition}
       GROUP BY po.id
     `;
     
@@ -3525,7 +3560,7 @@ app.delete("/api/purchase-orders/:id", (req, res) => {
       const poData = poResults[0];
       const invoiceIds = poData.invoice_ids ? poData.invoice_ids.split(',') : [];
       
-      console.log(`PO ${poData.po_number} has ${poData.invoice_count} related invoices`);
+  logger.info(`PO ${poData.po_number} has ${poData.invoice_count} related invoices`);
       
       // If there are related invoices, delete them first
       if (invoiceIds.length > 0 && invoiceIds[0] !== null) {
@@ -3588,7 +3623,7 @@ app.delete("/api/purchase-orders/:id", (req, res) => {
                 });
               }
               
-              console.log(`Deleted ${invoiceDeleteResult.affectedRows} invoices for PO ${poData.po_number}`);
+              logger.info(`Deleted ${invoiceDeleteResult.affectedRows} invoices for PO ${poData.po_number}`);
               deletePurchaseOrder();
             });
           });
@@ -3646,7 +3681,7 @@ app.delete("/api/purchase-orders/:id", (req, res) => {
                   });
                 }
                 
-                console.log(`PO ${poData.po_number} and ${poData.invoice_count} related invoices deleted successfully`);
+                logger.info(`PO ${poData.po_number} and ${poData.invoice_count} related invoices deleted successfully`);
                 
                 res.json({ 
                   message: "Purchase order deleted successfully",
@@ -3668,7 +3703,7 @@ app.delete("/api/purchase-orders/:id", (req, res) => {
 
 // Create invoice from PO
 app.post("/api/po-invoices", (req, res) => {
-  console.log('Creating PO invoice:', req.body);
+  logger.debug('Creating PO invoice:', req.body);
 
   const {
     invoice_number,
@@ -3748,7 +3783,7 @@ app.post("/api/po-invoices", (req, res) => {
         }
         
         const invoiceId = result.insertId;
-        console.log('PO invoice created with ID:', invoiceId);
+  logger.info('PO invoice created with ID:', invoiceId);
 
         // Insert invoice items if provided
         if (itemsToSave && itemsToSave.length > 0) {
@@ -3780,7 +3815,7 @@ app.post("/api/po-invoices", (req, res) => {
                   });
                 }
 
-                console.log('PO invoice created successfully (without items due to table error)');
+                logger.info('PO invoice created successfully (without items due to table error)');
                 res.status(201).json({
                   message: "PO invoice created successfully",
                   invoice: {
@@ -3806,7 +3841,7 @@ app.post("/api/po-invoices", (req, res) => {
                 });
               }
 
-              console.log('PO invoice and items created successfully');
+              logger.info('PO invoice and items created successfully');
               res.status(201).json({
                 message: "PO invoice created successfully",
                 invoice: {
@@ -3831,7 +3866,7 @@ app.post("/api/po-invoices", (req, res) => {
               });
             }
 
-            console.log('PO invoice created successfully');
+            logger.info('PO invoice created successfully');
             res.status(201).json({
               message: "PO invoice created successfully",
               invoice: {
@@ -3851,7 +3886,7 @@ app.post("/api/po-invoices", (req, res) => {
 
   // If no items provided, fetch items from the Purchase Order
   if (!items || items.length === 0) {
-    console.log(`No items provided, fetching from PO: ${po_number}`);
+  logger.debug(`No items provided, fetching from PO: ${po_number}`);
     
     const fetchPOItemsQuery = `
       SELECT 
@@ -3872,7 +3907,7 @@ app.post("/api/po-invoices", (req, res) => {
         // Continue with empty items if fetch fails
         createInvoiceWithItems([]);
       } else {
-        console.log(`Found ${poItems.length} items in PO ${po_number}`);
+  logger.info(`Found ${poItems.length} items in PO ${po_number}`);
         createInvoiceWithItems(poItems || []);
       }
     });
@@ -3906,7 +3941,7 @@ app.get("/api/po-invoices/:id", (req, res) => {
     db.query(itemsQuery, [id], (err, itemsResults) => {
       if (err) {
         console.error("Error fetching PO invoice items:", err);
-        console.log("Note: If po_invoice_items table doesn't exist, returning invoice without items");
+  logger.info("Note: If po_invoice_items table doesn't exist, returning invoice without items");
         // Still return invoice even if items fetch fails
         return res.json({
           ...invoice,
@@ -3916,21 +3951,11 @@ app.get("/api/po-invoices/:id", (req, res) => {
       
       // If no items found in po_invoice_items, try to get items from original PO
       if (!itemsResults || itemsResults.length === 0) {
-        console.log(`No items found for PO invoice ${id}, checking original PO: ${invoice.po_number}`);
+  logger.info(`No items found for PO invoice ${id}, checking original PO: ${invoice.po_number}`);
         
-        // First try to get items from purchase_order_items table
+        // First try to get items from purchase_order_items table (preferred)
         const poItemsQuery = `
-          SELECT 
-<<<<<<< HEAD
-            1 as item_no,
-            COALESCE(notes, 'Items as per purchase order agreement') as description,
-            1 as quantity,
-            total_amount as unit_price,
-            total_amount as amount,
-            CONCAT('Supplier: ', supplier_name, ' - As per PO specifications') as specifications
-          FROM purchase_orders 
-          WHERE po_number = ?
-=======
+          SELECT
             poi.item_no,
             poi.description,
             poi.quantity,
@@ -3941,7 +3966,6 @@ app.get("/api/po-invoices/:id", (req, res) => {
           JOIN purchase_orders po ON poi.purchase_order_id = po.id
           WHERE po.po_number = ?
           ORDER BY poi.item_no
->>>>>>> f7de4a59 (.gitignore file added to untracked teh node_modules)
         `;
         
         db.query(poItemsQuery, [invoice.po_number], (err2, poItemsResults) => {
@@ -4201,7 +4225,7 @@ app.get("/api/po-summaries", (req, res) => {
 app.delete("/api/po-invoices/:id", (req, res) => {
   const { id } = req.params;
   
-  console.log(`Deleting PO invoice with ID: ${id}`);
+  logger.info(`Deleting PO invoice with ID: ${id}`);
   
   // Start transaction to ensure data consistency
   db.beginTransaction((err) => {
@@ -4242,7 +4266,7 @@ app.delete("/api/po-invoices/:id", (req, res) => {
       }
       
       const invoiceToDelete = invoiceResults[0];
-      console.log('Invoice to delete:', invoiceToDelete);
+  logger.debug('Invoice to delete:', invoiceToDelete);
       
       // Create deletion history record before actual deletion
       const historyQuery = `
@@ -4271,7 +4295,7 @@ app.delete("/api/po-invoices/:id", (req, res) => {
           console.error("Error creating deletion history (table might not exist):", err);
           // Continue with deletion even if history table doesn't exist
         } else {
-          console.log('Deletion history recorded successfully');
+          logger.info('Deletion history recorded successfully');
         }
         
         // Delete related invoice items first
@@ -4301,7 +4325,7 @@ app.delete("/api/po-invoices/:id", (req, res) => {
               });
             }
             
-            console.log('PO invoice deleted successfully');
+            logger.info('PO invoice deleted successfully');
             
             // Update PO summary to reflect the deletion
             // The trigger should handle this automatically, but let's ensure consistency
@@ -4342,7 +4366,7 @@ app.delete("/api/po-invoices/:id", (req, res) => {
                 console.error("Error updating PO summary after deletion:", err);
                 // Don't fail the entire operation for summary update issues
               } else {
-                console.log('PO summary updated after deletion');
+                logger.info('PO summary updated after deletion');
               }
               
               // Commit the transaction
@@ -4357,7 +4381,7 @@ app.delete("/api/po-invoices/:id", (req, res) => {
                   });
                 }
                 
-                console.log('PO invoice deletion completed successfully');
+                logger.info('PO invoice deletion completed successfully');
                 
                 // Return success response with deletion details
                 res.json({
@@ -4530,5 +4554,5 @@ app.post("/api/settings/:userId", (req, res) => {
 // --- Start Server ---
 const PORT = 5000;
 app.listen(PORT, () => {
-  console.log(`🚀 Server running on http://localhost:${PORT}`);
+  logger.info(`🚀 Server running on http://localhost:${PORT}`);
 });

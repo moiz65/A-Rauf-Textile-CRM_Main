@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Oct 01, 2025 at 04:37 PM
+-- Generation Time: Oct 01, 2025 at 06:59 PM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.0.30
 
@@ -283,7 +283,9 @@ INSERT INTO `po_deletion_history` (`id`, `po_invoice_id`, `invoice_number`, `po_
 (5, 1, 'INV-PO-20250927-180053-1758985774235', 'PO-20250927-180053', 'ABC Textiles Ltd', 111111.00, '2025-09-27', '2025-09-30 12:11:31', 'Manual deletion via system', 'System User', NULL, '2025-09-30 12:11:31'),
 (6, 13, 'INV25-9-001', 'PO-20250929-215641', '11', 111000.00, '2025-09-29', '2025-09-30 12:11:35', 'Manual deletion via system', 'System User', NULL, '2025-09-30 12:11:35'),
 (7, 11, 'INV-PO-20250929-215641-1759165040127', 'PO-20250929-215641', '11', 100000.00, '2025-09-29', '2025-09-30 12:11:40', 'Manual deletion via system', 'System User', NULL, '2025-09-30 12:11:40'),
-(8, 10, 'INV-PO-20250929-150543-1759162977238', 'PO-20250929-150543', 'Muhammad Hunain', 1220096.31, '2025-09-29', '2025-09-30 12:11:46', 'Manual deletion via system', 'System User', NULL, '2025-09-30 12:11:46');
+(8, 10, 'INV-PO-20250929-150543-1759162977238', 'PO-20250929-150543', 'Muhammad Hunain', 1220096.31, '2025-09-29', '2025-09-30 12:11:46', 'Manual deletion via system', 'System User', NULL, '2025-09-30 12:11:46'),
+(9, 25, 'PI25-004', 'PO25-9-004', 'Hunain', 5000.00, '2025-09-30', '2025-10-01 14:56:40', 'PO cancelled - invoices automatically removed', 'System Trigger', NULL, '2025-10-01 14:56:40'),
+(10, 26, 'PI25-004-1', 'PO25-9-004', 'Hunain', 20000.00, '2025-10-01', '2025-10-01 14:56:40', 'PO cancelled - invoices automatically removed', 'System Trigger', NULL, '2025-10-01 14:56:40');
 
 -- --------------------------------------------------------
 
@@ -351,8 +353,7 @@ INSERT INTO `po_invoices` (`id`, `invoice_number`, `invoice_date`, `due_date`, `
 (21, 'PI25-002', '2025-09-30', '2025-10-30', '17', 'PO25-9-001', 'Muhammad Hunain', 'm.hunainofficial@gmail.com', '03435980052', '202 Floor Shan Residency SB-44 Block-K North Nazimabad karachi', 15000.00, 15.00, 0.00, 15000.00, 'PKR', 'Paid', '2025-09-30', NULL, NULL, 'Generated from Purchase Order: PO25-9-001', '2025-09-30 12:31:15', '2025-09-30 12:52:06'),
 (22, 'PI25-003', '2025-09-30', '2025-10-30', '19', 'PO25-9-003', 'Paysys', 'paysys@gmail.com', '03435980052', 'Shan Residency SB-44 Block-K North Nazimabad karachi', 340000.00, 11.70, 0.00, 340000.00, 'PKR', 'Paid', '2025-09-30', NULL, NULL, 'Generated from Purchase Order: PO25-9-003', '2025-09-30 14:46:31', '2025-09-30 14:46:48'),
 (23, 'PI25-003-1', '2025-09-30', '2025-10-30', '19', 'PO25-9-003', 'Paysys', 'paysys@gmail.com', '03435980052', 'Shan Residency SB-44 Block-K North Nazimabad karachi', 1000000.00, 11.70, 0.00, 1000000.00, 'PKR', 'Overdue', NULL, NULL, NULL, 'Generated from Purchase Order: PO25-9-003', '2025-09-30 14:47:43', '2025-09-30 14:48:09'),
-(24, 'PI25-003-2', '2025-09-30', '2025-10-30', '19', 'PO25-9-003', 'Paysys', 'paysys@gmail.com', '03435980052', 'Shan Residency SB-44 Block-K North Nazimabad karachi', 21000000.00, 11.70, 2340000.00, 21000000.00, 'PKR', 'Paid', '2025-09-30', NULL, NULL, 'Generated from Purchase Order: PO25-9-003', '2025-09-30 16:35:51', '2025-09-30 16:36:07'),
-(25, 'PI25-004', '2025-09-30', '2025-10-30', '20', 'PO25-9-004', 'Hunain', 'N/A', 'N/A', 'N/A', 5000.00, 0.00, 0.00, 5000.00, 'PKR', 'Paid', '2025-09-30', NULL, NULL, 'Generated from Purchase Order: PO25-9-004', '2025-09-30 17:09:18', '2025-09-30 17:10:11');
+(24, 'PI25-003-2', '2025-09-30', '2025-10-30', '19', 'PO25-9-003', 'Paysys', 'paysys@gmail.com', '03435980052', 'Shan Residency SB-44 Block-K North Nazimabad karachi', 21000000.00, 11.70, 2340000.00, 21000000.00, 'PKR', 'Paid', '2025-09-30', NULL, NULL, 'Generated from Purchase Order: PO25-9-003', '2025-09-30 16:35:51', '2025-09-30 16:36:07');
 
 --
 -- Triggers `po_invoices`
@@ -555,7 +556,7 @@ INSERT INTO `po_invoice_summary` (`id`, `po_number`, `po_total_amount`, `total_i
 (123, 'PO-20250929-150543', 0.00, 0.00, 0.00, 0, NULL, '2025-09-30 12:11:46', '2025-09-30 12:11:46'),
 (127, 'PO25-9-002', 119900.00, 19900.00, 100000.00, 1, '2025-09-30', '2025-09-30 12:17:28', '2025-09-30 13:22:27'),
 (138, 'PO25-9-003', 22340000.00, 22340000.00, 0.00, 3, '2025-09-30', '2025-09-30 14:46:18', '2025-09-30 16:36:07'),
-(147, 'PO25-9-004', 25000.00, 5000.00, 20000.00, 1, '2025-09-30', '2025-09-30 17:08:56', '2025-09-30 17:10:57');
+(157, 'PO25-9-004', 25000.00, 0.00, 25000.00, 0, NULL, '2025-10-01 16:54:21', '2025-10-01 16:54:27');
 
 -- --------------------------------------------------------
 
@@ -591,11 +592,94 @@ INSERT INTO `purchase_orders` (`id`, `po_number`, `po_date`, `supplier_name`, `s
 (17, 'PO25-9-001', '2025-09-30', 'Muhammad Hunain', 'm.hunainofficial@gmail.com', '03435980052', '202 Floor Shan Residency SB-44 Block-K North Nazimabad karachi', 100000.00, 15.00, 15000.00, 115000.00, 'PKR', 'Approved', NULL, 'this is test ', '2025-09-30 12:02:32', '2025-09-30 12:02:32'),
 (18, 'PO25-9-002', '2025-09-30', 'Muhammad ', 'rizwan519@gmail.com', '03435980052', '504 Floor Shan Residency SB-44 Block-K North Nazimabad karachi', 100000.00, 19.90, 19900.00, 119900.00, 'PKR', 'Approved', NULL, '', '2025-09-30 12:03:21', '2025-09-30 12:03:21'),
 (19, 'PO25-9-003', '2025-09-30', 'Paysys', 'paysys@gmail.com', '03435980052', 'Shan Residency SB-44 Block-K North Nazimabad karachi', 20000000.00, 11.70, 2340000.00, 22340000.00, 'PKR', 'Approved', NULL, 'approved by IT team ', '2025-09-30 14:46:10', '2025-09-30 14:46:10'),
-(20, 'PO25-9-004', '2025-09-30', 'Hunain', '', '', '', 25000.00, 0.00, 0.00, 25000.00, 'PKR', 'Pending', NULL, '', '2025-09-30 17:07:39', '2025-09-30 17:07:39');
+(20, 'PO25-9-004', '2025-09-28', 'Hunain', '', '', '', 25000.00, 0.00, 0.00, 25000.00, 'PKR', 'Pending', NULL, '', '2025-09-30 17:07:39', '2025-10-01 16:54:27');
 
 --
 -- Triggers `purchase_orders`
 --
+DELIMITER $$
+CREATE TRIGGER `trg_po_delete_cleanup` BEFORE DELETE ON `purchase_orders` FOR EACH ROW BEGIN
+    -- Create deletion history records for all related invoices
+    INSERT INTO po_deletion_history (
+        po_invoice_id,
+        invoice_number,
+        po_number,
+        customer_name,
+        invoice_amount,
+        invoice_date,
+        deletion_date,
+        deletion_reason,
+        deleted_by
+    )
+    SELECT 
+        pi.id,
+        pi.invoice_number,
+        pi.po_number,
+        pi.customer_name,
+        pi.total_amount,
+        pi.invoice_date,
+        NOW(),
+        'PO permanently deleted - invoices automatically removed',
+        'System Trigger'
+    FROM po_invoices pi 
+    WHERE pi.po_number = OLD.po_number;
+    
+    -- Delete related PO invoice items first (foreign key constraint)
+    DELETE pii FROM po_invoice_items pii
+    INNER JOIN po_invoices pi ON pii.po_invoice_id = pi.id
+    WHERE pi.po_number = OLD.po_number;
+    
+    -- Delete PO invoices
+    DELETE FROM po_invoices WHERE po_number = OLD.po_number;
+    
+    -- Clear PO invoice summary
+    DELETE FROM po_invoice_summary WHERE po_number = OLD.po_number;
+END
+$$
+DELIMITER ;
+DELIMITER $$
+CREATE TRIGGER `trg_po_status_change_cleanup` AFTER UPDATE ON `purchase_orders` FOR EACH ROW BEGIN
+    -- Check if PO is being cancelled (new status is Cancelled and old status was not Cancelled)
+    IF NEW.status = 'Cancelled' AND OLD.status != 'Cancelled' THEN
+        -- Create deletion history records for all related invoices
+        INSERT INTO po_deletion_history (
+            po_invoice_id,
+            invoice_number,
+            po_number,
+            customer_name,
+            invoice_amount,
+            invoice_date,
+            deletion_date,
+            deletion_reason,
+            deleted_by
+        )
+        SELECT 
+            pi.id,
+            pi.invoice_number,
+            pi.po_number,
+            pi.customer_name,
+            pi.total_amount,
+            pi.invoice_date,
+            NOW(),
+            'PO cancelled - invoices automatically removed',
+            'System Trigger'
+        FROM po_invoices pi 
+        WHERE pi.po_number = NEW.po_number;
+        
+        -- Delete related PO invoice items first (foreign key constraint)
+        DELETE pii FROM po_invoice_items pii
+        INNER JOIN po_invoices pi ON pii.po_invoice_id = pi.id
+        WHERE pi.po_number = NEW.po_number;
+        
+        -- Delete PO invoices
+        DELETE FROM po_invoices WHERE po_number = NEW.po_number;
+        
+        -- Clear or delete PO invoice summary
+        DELETE FROM po_invoice_summary WHERE po_number = NEW.po_number;
+    END IF;
+END
+$$
+DELIMITER ;
 DELIMITER $$
 CREATE TRIGGER `trg_sync_po_total_on_update` AFTER UPDATE ON `purchase_orders` FOR EACH ROW BEGIN
     -- Update the summary table when PO total amount changes
@@ -634,8 +718,7 @@ CREATE TABLE `purchase_order_items` (
 INSERT INTO `purchase_order_items` (`id`, `purchase_order_id`, `item_no`, `description`, `quantity`, `unit_price`, `amount`, `created_at`, `updated_at`) VALUES
 (18, 17, 1, 'this is test', 10000.00, 10.00, 100000.00, '2025-09-30 12:02:32', '2025-09-30 12:02:32'),
 (19, 18, 1, 'this is another test', 10000.00, 10.00, 100000.00, '2025-09-30 12:03:21', '2025-09-30 12:03:21'),
-(20, 19, 1, 'Computer i5 7 gen ', 10.00, 2000000.00, 20000000.00, '2025-09-30 14:46:10', '2025-09-30 14:46:10'),
-(21, 20, 1, 'this test ', 5.00, 5000.00, 25000.00, '2025-09-30 17:07:39', '2025-09-30 17:07:39');
+(20, 19, 1, 'Computer i5 7 gen ', 10.00, 2000000.00, 20000000.00, '2025-09-30 14:46:10', '2025-09-30 14:46:10');
 
 -- --------------------------------------------------------
 
@@ -729,6 +812,13 @@ CREATE TABLE `user_settings` (
   `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
   `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Dumping data for table `user_settings`
+--
+
+INSERT INTO `user_settings` (`id`, `user_id`, `first_name`, `last_name`, `email`, `phone`, `company`, `address`, `profile_picture_url`, `job_title`, `bio`, `timezone`, `language`, `currency_preference`, `date_format`, `two_factor_enabled`, `email_notifications`, `marketing_emails`, `theme_preference`, `dashboard_layout`, `created_at`, `updated_at`) VALUES
+(1, 2, NULL, NULL, '', '3435980052', 'Digious Sol', 'North Nazimabad Khi', NULL, NULL, NULL, 'UTC+5', 'en', 'PKR', 'YYYY-MM-DD', 0, 1, 1, 'light', NULL, '2025-10-01 16:53:22', '2025-10-01 16:53:37');
 
 -- --------------------------------------------------------
 
@@ -952,13 +1042,13 @@ ALTER TABLE `invoice_payments`
 -- AUTO_INCREMENT for table `po_deletion_history`
 --
 ALTER TABLE `po_deletion_history`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=9;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=12;
 
 --
 -- AUTO_INCREMENT for table `po_invoices`
 --
 ALTER TABLE `po_invoices`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=26;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=27;
 
 --
 -- AUTO_INCREMENT for table `po_invoice_items`
@@ -970,7 +1060,7 @@ ALTER TABLE `po_invoice_items`
 -- AUTO_INCREMENT for table `po_invoice_summary`
 --
 ALTER TABLE `po_invoice_summary`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=152;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=158;
 
 --
 -- AUTO_INCREMENT for table `purchase_orders`
@@ -1000,7 +1090,7 @@ ALTER TABLE `user_sessions`
 -- AUTO_INCREMENT for table `user_settings`
 --
 ALTER TABLE `user_settings`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
 
 --
 -- Constraints for dumped tables
