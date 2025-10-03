@@ -36,7 +36,7 @@ const ReportData = () => {
       {/* Main Content */}
       <div className="flex-1 p-6 bg-[#F5F5F5] md:ml-64 overflow-auto">
         {/* Header */}
-        <Header name="A RAUF TEXTILE" />
+        <Header />
         {/* Reports Table */}
         <section className="grid grid-cols-1 lg:grid-cols-1 gap-5">
           <div className="lg:col-span-3">

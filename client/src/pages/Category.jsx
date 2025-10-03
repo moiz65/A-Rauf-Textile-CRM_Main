@@ -1,4 +1,5 @@
 import React from 'react';
+import Footer from '../components/Footer';
 import CategoryTable from '../components/CategoryTable';
 
 const Category = () => {
@@ -15,6 +16,9 @@ const Category = () => {
     </div>
 
       <CategoryTable />
+      
+      {/* Footer */}
+      <Footer />
     </div>
   );
 };

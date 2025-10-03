@@ -1,11 +1,13 @@
 /* Invoicetable.js */
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { filterInvoices } from '../utils/invoiceFilter';
 import { 
   Search, Filter, Ellipsis, Edit, Trash2, Plus, Loader, Eye, ChevronDown, X
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { generateInvoiceId } from '../utils/idGenerator';
+import { useClickOutside } from '../hooks/useClickOutside';
 
 
 const API_BASE_URL = 'http://localhost:5000/api';
@@ -49,6 +51,7 @@ const InvoiceForm = ({ onSubmit, onCancel, initialData = null }) => {
     id: 1,
     description: "",
     quantity: "",
+    unit: '',
     rate: "",
     amount: 0
   }]);
@@ -84,8 +87,8 @@ const InvoiceForm = ({ onSubmit, onCancel, initialData = null }) => {
     phone: "",
     address: "",
     email: "",
-    st_reg_no: "",
-    ntn_number: ""
+    stn: "",
+    ntn: ""
   });
 
   // Handle customer selection from autocomplete
@@ -97,8 +100,8 @@ const InvoiceForm = ({ onSubmit, onCancel, initialData = null }) => {
       customerEmail: customer.email,
       phone: customer.phone,
       address: customer.address,
-      stRegNo: "",
-      ntnNumber: "",
+      stRegNo: customer.stn || "",
+      ntnNumber: customer.ntn || "",
     }));
     setShowDropdown(false);
   };
@@ -208,6 +211,7 @@ const InvoiceForm = ({ onSubmit, onCancel, initialData = null }) => {
           id: index + 1,
           description: item.description || item.item_name || "",
           quantity: item.quantity?.toString() || "",
+          unit: item.unit || item.uom || item.unit_name || "",
           rate: item.rate?.toString() || "",
           amount: parseFloat(item.amount || 0)
         }));
@@ -219,6 +223,7 @@ const InvoiceForm = ({ onSubmit, onCancel, initialData = null }) => {
           id: 1,
           description: initialData.item_name || "",
           quantity: initialData.quantity?.toString() || "",
+          unit: initialData.unit || "",
           rate: initialData.rate?.toString() || "",
           amount: parseFloat(initialData.item_amount || initialData.subtotal || 0)
         }];
@@ -230,6 +235,7 @@ const InvoiceForm = ({ onSubmit, onCancel, initialData = null }) => {
           id: 1,
           description: "",
           quantity: "",
+          unit: '',
           rate: "",
           amount: 0
         }]);
@@ -286,6 +292,7 @@ const InvoiceForm = ({ onSubmit, onCancel, initialData = null }) => {
       id: Date.now(),
       description: "",
       quantity: "",
+      unit: '',
       rate: "",
       amount: 0
     };
@@ -309,6 +316,47 @@ const InvoiceForm = ({ onSubmit, onCancel, initialData = null }) => {
 
   const handleCreateCustomer = async () => {
     try {
+      // Validate required fields
+      if (!newCustomer.customer || !newCustomer.email || !newCustomer.phone || 
+          !newCustomer.address || !newCustomer.stn || !newCustomer.ntn) {
+        alert('Please fill in all required fields (Customer Name, Email, Phone, Address, STN, and NTN)');
+        return;
+      }
+
+      // Check for duplicate email, phone, STN, or NTN
+      const duplicateCheck = customers.find(customer => {
+        const emailMatch = customer.email && newCustomer.email && 
+                          customer.email.toLowerCase() === newCustomer.email.toLowerCase();
+        const phoneMatch = customer.phone && newCustomer.phone && 
+                          customer.phone === newCustomer.phone;
+        const stnMatch = customer.stn && newCustomer.stn && 
+                        customer.stn === newCustomer.stn;
+        const ntnMatch = customer.ntn && newCustomer.ntn && 
+                        customer.ntn === newCustomer.ntn;
+
+        return emailMatch || phoneMatch || stnMatch || ntnMatch;
+      });
+
+      if (duplicateCheck) {
+        // Determine which field is duplicate
+        let duplicateFields = [];
+        if (duplicateCheck.email.toLowerCase() === newCustomer.email.toLowerCase()) {
+          duplicateFields.push('Email');
+        }
+        if (duplicateCheck.phone === newCustomer.phone) {
+          duplicateFields.push('Phone Number');
+        }
+        if (duplicateCheck.stn === newCustomer.stn) {
+          duplicateFields.push('STN');
+        }
+        if (duplicateCheck.ntn === newCustomer.ntn) {
+          duplicateFields.push('NTN');
+        }
+
+        alert(`A customer with the same ${duplicateFields.join(', ')} already exists: "${duplicateCheck.customer}". Please use different values.`);
+        return;
+      }
+
       const response = await fetch(`${API_BASE_URL}/v1/customertable`, {
         method: 'POST',
         headers: {
@@ -318,7 +366,8 @@ const InvoiceForm = ({ onSubmit, onCancel, initialData = null }) => {
       });
       
       if (!response.ok) {
-        throw new Error('Failed to create customer');
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to create customer');
       }
       
       const result = await response.json();
@@ -337,8 +386,8 @@ const InvoiceForm = ({ onSubmit, onCancel, initialData = null }) => {
         email: newCustomer.email,
         phone: newCustomer.phone,
         address: newCustomer.address,
-        st_reg_no: newCustomer.st_reg_no,
-        ntn_number: newCustomer.ntn_number
+        stn: newCustomer.stn,
+        ntn: newCustomer.ntn
       };
       
       handleCustomerSelect(newCustomerData);
@@ -350,12 +399,14 @@ const InvoiceForm = ({ onSubmit, onCancel, initialData = null }) => {
         phone: "",
         address: "",
         email: "",
-        st_reg_no: "",
-        ntn_number: ""
+        stn: "",
+        ntn: ""
       });
+      
+      alert('Customer created successfully!');
     } catch (error) {
       console.error('Error creating customer:', error);
-      alert('Failed to create customer');
+      alert(error.message || 'Failed to create customer');
     }
   };
 
@@ -405,6 +456,7 @@ const InvoiceForm = ({ onSubmit, onCancel, initialData = null }) => {
         item_no: index + 1,
         description: item.description,
         quantity: parseFloat(item.quantity) || 0,
+        unit: item.unit || '',
         rate: parseFloat(item.rate) || 0,
         amount: parseFloat(item.amount) || 0
       }))
@@ -480,11 +532,23 @@ const InvoiceForm = ({ onSubmit, onCancel, initialData = null }) => {
                   />
                   <Input
                     label="Phone *"
+                    type="tel"
                     name="phone"
                     value={newCustomer.phone}
-                    onChange={handleNewCustomerChange}
+                    onChange={(e) => {
+                      // Allow only numbers, spaces, parentheses, +, and -
+                      const filteredValue = e.target.value.replace(/[^0-9\-\+\(\)\s]/g, '');
+                      handleNewCustomerChange({
+                        target: {
+                          name: 'phone',
+                          value: filteredValue,
+                        },
+                      });
+                    }}
                     required
+                    placeholder="Enter phone number"
                   />
+
                   <Input
                     label="Address *"
                     name="address"
@@ -494,16 +558,20 @@ const InvoiceForm = ({ onSubmit, onCancel, initialData = null }) => {
                     className="sm:col-span-2"
                   />
                   <Input
-                    label="S.T Reg No"
-                    name="st_reg_no"
-                    value={newCustomer.st_reg_no}
+                    label="STN Number *"
+                    name="stn"
+                    value={newCustomer.stn}
                     onChange={handleNewCustomerChange}
+                    required
+                    placeholder="Sales Tax Number"
                   />
                   <Input
-                    label="NTN Number"
-                    name="ntn_number"
-                    value={newCustomer.ntn_number}
+                    label="NTN Number *"
+                    name="ntn"
+                    value={newCustomer.ntn}
                     onChange={handleNewCustomerChange}
+                    required
+                    placeholder="National Tax Number"
                   />
                   
                   <div className="sm:col-span-2 flex justify-end gap-2">
@@ -616,13 +684,13 @@ const InvoiceForm = ({ onSubmit, onCancel, initialData = null }) => {
                     Quantity *
                   </th>
                   <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 border-b">
+                    Unit
+                  </th>
+                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 border-b">
                     Rate *
                   </th>
                   <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 border-b">
                     Amount
-                  </th>
-                  <th className="px-4 py-3 text-center text-sm font-semibold text-gray-700 border-b">
-                    Action
                   </th>
                 </tr>
               </thead>
@@ -653,6 +721,15 @@ const InvoiceForm = ({ onSubmit, onCancel, initialData = null }) => {
                     </td>
                     <td className="px-4 py-3">
                       <input
+                        type="text"
+                        value={item.unit || ''}
+                        onChange={(e) => handleItemChange(index, 'unit', e.target.value)}
+                        className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
+                        placeholder="Unit (e.g., MTR)"
+                      />
+                    </td>
+                    <td className="px-4 py-3">
+                      <input
                         type="number"
                         value={item.rate}
                         onChange={(e) => handleItemChange(index, 'rate', e.target.value)}
@@ -671,17 +748,7 @@ const InvoiceForm = ({ onSubmit, onCancel, initialData = null }) => {
                         className="w-full bg-gray-50 border border-gray-300 rounded px-3 py-2 text-sm"
                       />
                     </td>
-                    <td className="px-4 py-3 text-center">
-                      {invoiceItems.length > 1 && (
-                        <button
-                          type="button"
-                          onClick={() => removeItem(index)}
-                          className="text-red-500 hover:text-red-700 text-sm font-medium"
-                        >
-                          Remove
-                        </button>
-                      )}
-                    </td>
+                    {/* Action column removed per request */}
                   </tr>
                 ))}
               </tbody>
@@ -1107,7 +1174,8 @@ const InvoiceManagement = () => {
   const [invoicesData, setInvoicesData] = useState([]);
   const [selectedRows, setSelectedRows] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(10);
+  // Default items per page aligned with other tables so 6 items show a second page
+  const [itemsPerPage, setItemsPerPage] = useState(5);
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState('All');
   const [filters, setFilters] = useState({
@@ -1115,9 +1183,8 @@ const InvoiceManagement = () => {
     maxAmount: '',
     dateFrom: '',
     dateTo: '',
-    account: '',
-    status: '',
-    currency: 'PKR'
+    customer: '',
+    status: ''
   });
   const [showFilters, setShowFilters] = useState(false);
   const [activeDropdown, setActiveDropdown] = useState(null);
@@ -1128,6 +1195,14 @@ const InvoiceManagement = () => {
   const [loading, setLoading] = useState(true);
   const dropdownRefs = useRef([]);
   const filterPanelRef = useRef(null);
+
+  // Add click outside handler for invoice form
+  const invoiceFormRef = useClickOutside(() => {
+    if (showInvoiceForm) {
+      setShowInvoiceForm(false);
+      setEditingInvoice(null);
+    }
+  }, showInvoiceForm);
 
   // State for tab counts
   const [tabCounts, setTabCounts] = useState({
@@ -1143,28 +1218,29 @@ const InvoiceManagement = () => {
     try {
   console.debug('Fetching fresh tab counts...');
       
-      const [allResponse, poResponse] = await Promise.all([
+      const [regularResponse, poResponse] = await Promise.all([
         // Get all regular invoices (excluding PO invoices)
         fetch(`${API_BASE_URL}/invoices?exclude_po=true&limit=1000&_t=${Date.now()}`),
         // Get all PO invoices
         fetch(`${API_BASE_URL}/invoices?invoice_type=po_invoice&limit=1000&_t=${Date.now()}`)
       ]);
       
-      const [allData, poData] = await Promise.all([
-        allResponse.ok ? allResponse.json() : { data: [] },
+      const [regularData, poData] = await Promise.all([
+        regularResponse.ok ? regularResponse.json() : { data: [] },
         poResponse.ok ? poResponse.json() : { data: [] }
       ]);
       
-      const allInvoices = allData.data || allData || [];
+      const regularInvoices = regularData.data || regularData || [];
       const poInvoices = poData.data || poData || [];
+      const combinedInvoices = [...regularInvoices, ...poInvoices];
       
-  console.debug('Raw data - All invoices:', allInvoices.length, 'PO invoices:', poInvoices.length);
+  console.debug('Raw data - Regular invoices:', regularInvoices.length, 'PO invoices:', poInvoices.length);
       
       const counts = {
-        'All': allInvoices.length,
-        'Paid': allInvoices.filter(inv => inv.status === 'Paid').length,
-        'Pending': allInvoices.filter(inv => inv.status === 'Pending').length,
-        'Overdue': allInvoices.filter(inv => inv.status === 'Overdue').length,
+        'All': combinedInvoices.length, // ALL tab shows everything (regular + PO)
+        'Paid': combinedInvoices.filter(inv => inv.status === 'Paid').length,
+        'Pending': combinedInvoices.filter(inv => inv.status === 'Pending').length,
+        'Overdue': combinedInvoices.filter(inv => inv.status === 'Overdue').length,
         'PO Invoices': poInvoices.length
       };
       
@@ -1183,23 +1259,31 @@ const InvoiceManagement = () => {
       'Paid': 0,
       'Pending': 0,
       'Overdue': 0,
+      'Sent': 0,
+      'Not Sent': 0,
       'PO Invoices': 0
     };
 
     invoicesData.forEach(invoice => {
+      // Count ALL invoices (regular + PO) in "All" tab
+      counts['All']++;
+      
       // Count PO Invoices separately
       if (invoice.invoice_type === 'po_invoice') {
         counts['PO Invoices']++;
-      } else {
-        // Count regular invoices
-        counts['All']++;
-        if (invoice.status === 'Paid') {
-          counts['Paid']++;
-        } else if (invoice.status === 'Pending') {
-          counts['Pending']++;
-        } else if (invoice.status === 'Overdue') {
-          counts['Overdue']++;
-        }
+      }
+      
+      // Count ALL invoices (both regular and PO) by status
+      if (invoice.status === 'Paid') {
+        counts['Paid']++;
+      } else if (invoice.status === 'Pending') {
+        counts['Pending']++;
+      } else if (invoice.status === 'Overdue') {
+        counts['Overdue']++;
+      } else if (invoice.status === 'Sent') {
+        counts['Sent']++;
+      } else if (invoice.status === 'Not Sent' || invoice.status === 'Draft') {
+        counts['Not Sent']++;
       }
     });
 
@@ -1235,12 +1319,13 @@ const InvoiceManagement = () => {
       if (activeTab === 'PO Invoices') {
         queryParams.append('invoice_type', 'po_invoice');
       } else if (activeTab === 'All') {
-        // For "All" tab, exclude PO invoices to show only regular invoices
-        queryParams.append('exclude_po', 'true');
+        // For "All" tab, show ALL invoices (including PO invoices)
+        // DO NOT add exclude_po or invoice_type - fetch everything
       } else if (activeTab !== 'All' && (!currentFilters.status || currentFilters.status === '')) {
+        // For status-specific tabs (Paid, Pending, Overdue), filter by status
+        // INCLUDE both regular and PO invoices with matching status
         queryParams.append('status', activeTab);
-        // Also exclude PO invoices for status-specific tabs
-        queryParams.append('exclude_po', 'true');
+        // DO NOT exclude PO invoices - we want to see all invoices with this status
       }
       
       // Add filters
@@ -1313,6 +1398,8 @@ const InvoiceManagement = () => {
   // Refetch when activeTab changes (tab navigation)
   useEffect(() => {
     console.debug('Active tab changed:', activeTab);
+    // Reset to first page whenever the user switches tabs to avoid stale page numbers
+    setCurrentPage(1);
     fetchInvoices();
   }, [activeTab]);
 
@@ -1379,110 +1466,43 @@ const InvoiceManagement = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Client-side filtering as fallback and for additional filtering
+  // Use centralized filter utility for consistency and testability
   const filteredInvoices = useCallback(() => {
-    let filtered = invoicesData || [];
-    
-    // Apply tab-based filtering as fallback
-    if (activeTab === 'PO Invoices') {
-      filtered = filtered.filter(invoice => invoice.invoice_type === 'po_invoice');
-    } else if (activeTab === 'All') {
-      // For "All" tab, exclude PO invoices to show only regular invoices
-      filtered = filtered.filter(invoice => invoice.invoice_type !== 'po_invoice');
-    } else if (activeTab !== 'All') {
-      // For status-specific tabs, filter by status and exclude PO invoices
-      filtered = filtered.filter(invoice => 
-        invoice.status === activeTab && invoice.invoice_type !== 'po_invoice'
-      );
-    }
-
-    // Apply additional filters
-    if (filters.customer && filters.customer.trim()) {
-      filtered = filtered.filter(invoice => 
-        (invoice.customer_name || '').toLowerCase().includes(filters.customer.toLowerCase()) ||
-        (invoice.supplier_name || '').toLowerCase().includes(filters.customer.toLowerCase())
-      );
-    }
-
-    if (filters.invoice_number && filters.invoice_number.trim()) {
-      filtered = filtered.filter(invoice =>
-        (invoice.invoice_number || '').toLowerCase().includes(filters.invoice_number.toLowerCase())
-      );
-    }
-
-    if (filters.dateFrom) {
-      filtered = filtered.filter(invoice => {
-        const invoiceDate = new Date(invoice.bill_date || invoice.invoice_date);
-        const fromDate = new Date(filters.dateFrom);
-        return invoiceDate >= fromDate;
-      });
-    }
-
-    if (filters.dateTo) {
-      filtered = filtered.filter(invoice => {
-        const invoiceDate = new Date(invoice.bill_date || invoice.invoice_date);
-        const toDate = new Date(filters.dateTo);
-        return invoiceDate <= toDate;
-      });
-    }
-
-    if (filters.minAmount && !isNaN(parseFloat(filters.minAmount))) {
-      filtered = filtered.filter(invoice => {
-        const amount = parseFloat(invoice.total_amount || invoice.invoice_amount || 0);
-        return amount >= parseFloat(filters.minAmount);
-      });
-    }
-
-    if (filters.maxAmount && !isNaN(parseFloat(filters.maxAmount))) {
-      filtered = filtered.filter(invoice => {
-        const amount = parseFloat(invoice.total_amount || invoice.invoice_amount || 0);
-        return amount <= parseFloat(filters.maxAmount);
-      });
-    }
-    
-    // Sort invoices with latest confirmed first (Sent/Paid status priority)
-    filtered.sort((a, b) => {
-      // Define status priority: confirmed statuses (Sent, Paid) come first
-      const getStatusPriority = (status) => {
-        switch (status) {
-          case 'Sent': return 1;
-          case 'Paid': return 1;
-          case 'Overdue': return 2;
-          case 'Pending': return 3;
-          case 'Not Sent': return 4;
-          case 'Draft': return 5;
-          case 'Cancelled': return 6;
-          default: return 7;
-        }
-      };
-      
-      const aPriority = getStatusPriority(a.status);
-      const bPriority = getStatusPriority(b.status);
-      
-      // First, sort by status priority
-      if (aPriority !== bPriority) {
-        return aPriority - bPriority;
-      }
-      
-      // If same priority, sort by date (latest first)
-      const getDateForSorting = (invoice) => {
-        // Use updated_at if available, otherwise use created_at, otherwise use bill_date
-        return invoice.updated_at || invoice.created_at || invoice.bill_date || '';
-      };
-      
-      const dateA = new Date(getDateForSorting(a));
-      const dateB = new Date(getDateForSorting(b));
-      
-      return dateB - dateA; // Latest first
-    });
-    
-    return filtered;
-  }, [invoicesData, activeTab, filters]);
+    return filterInvoices(invoicesData, activeTab, filters, searchTerm);
+  }, [invoicesData, activeTab, filters, searchTerm]);
 
   // Pagination calculations
   const totalPages = Math.ceil(filteredInvoices().length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const visibleInvoices = filteredInvoices().slice(startIndex, startIndex + itemsPerPage);
+
+  // Compute pages to display in pagination (max 5 visible pages, with ellipses)
+  const maxVisiblePages = 5;
+  const pages = [];
+  if (totalPages <= maxVisiblePages) {
+    for (let i = 1; i <= totalPages; i++) pages.push(i);
+  } else {
+    const half = Math.floor(maxVisiblePages / 2);
+    let startPage = Math.max(1, currentPage - half);
+    let endPage = startPage + maxVisiblePages - 1;
+
+    if (endPage > totalPages) {
+      endPage = totalPages;
+      startPage = endPage - maxVisiblePages + 1;
+    }
+
+    if (startPage > 1) {
+      pages.push(1);
+      if (startPage > 2) pages.push('...');
+    }
+
+    for (let i = startPage; i <= endPage; i++) pages.push(i);
+
+    if (endPage < totalPages) {
+      if (endPage < totalPages - 1) pages.push('...');
+      pages.push(totalPages);
+    }
+  }
 
   // Format date for display
   const formatDate = (dateString) => {
@@ -1742,7 +1762,7 @@ const InvoiceManagement = () => {
       {showInvoiceForm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           <div className="absolute inset-0 bg-gray-900/60 backdrop-blur-sm"></div>
-          <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto m-4 p-6">
+          <div ref={invoiceFormRef} className="relative bg-white rounded-2xl shadow-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto m-4 p-6">
             <div className="mb-4">
               <h2 className="text-2xl font-bold text-gray-800">
                 {editingInvoice ? `Edit Invoice ${editingInvoice.id}` : 'Create New Invoice'}
@@ -1873,9 +1893,9 @@ const InvoiceManagement = () => {
                 <label className="block text-xs font-medium text-gray-700 mb-1">Customer Name</label>
                 <input
                   type="text"
-                  name="account"
+                  name="customer"
                   className="w-full p-2 border rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  value={filters.account}
+                  value={filters.customer}
                   onChange={handleFilterChange}
                   placeholder="Type customer name..."
                 />
@@ -1894,21 +1914,11 @@ const InvoiceManagement = () => {
                   <option value="Sent">Sent</option>
                   <option value="Pending">Pending</option>
                   <option value="Paid">Paid</option>
-                  <option value="Cancelled">Cancelled</option>
+                  
                   <option value="Overdue">Overdue</option>
                 </select>
               </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Currency</label>
-                <select
-                  name="currency"
-                  className="w-full p-2 border rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  value={filters.currency}
-                  onChange={handleFilterChange}
-                >
-                  <option value="PKR">PKR</option>
-                </select>
-              </div>
+              {/* currency filter removed per request */}
             </div>
             
             {/* Action Buttons */}
@@ -1954,7 +1964,7 @@ const InvoiceManagement = () => {
         <div className="overflow-x-auto mb-4">
           <div className="flex items-center justify-between mb-2">
             <div className="flex border-b w-max min-w-full">
-              {['All', 'Paid', 'Pending', 'Overdue', 'PO Invoices'].map(status => {
+              {['All', 'Paid', 'Pending', 'Overdue', 'Sent', 'Not Sent', 'PO Invoices'].map(status => {
                 const counts = getTabCounts();
                 return (
                   <button
@@ -1979,13 +1989,7 @@ const InvoiceManagement = () => {
                 );
               })}
             </div>
-            <button
-              onClick={fetchTabCounts}
-              className="text-xs text-blue-500 hover:text-blue-700 px-2 py-1 rounded border border-blue-200 hover:bg-blue-50"
-              title="Refresh tab counts"
-            >
-              Refresh Counts
-            </button>
+
           </div>
         </div>
 
@@ -2097,7 +2101,7 @@ const InvoiceManagement = () => {
                                 className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left"
                               >
                                 <Eye className="w-4 h-4 mr-2" />
-                                {invoice.invoice_type === 'po_invoice' ? 'View PO' : 'View'}
+                                {invoice.invoice_type === 'po_invoice' ? 'View PO Inovice' : 'View'}
                               </button>
                               {invoice.invoice_type !== 'po_invoice' && (
                                 <>
@@ -2110,15 +2114,7 @@ const InvoiceManagement = () => {
                                   </button>
                                 </>
                               )}
-                              {invoice.invoice_type === 'po_invoice' && (
-                                <button
-                                  onClick={() => handleEditInvoice(invoice)}
-                                  className="flex items-center px-4 py-2 text-sm text-blue-600 hover:bg-blue-50 w-full text-left"
-                                >
-                                  <Edit className="w-4 h-4 mr-2" />
-                                  Edit in PO
-                                </button>
-                              )}
+                              {/* Edit in PO option intentionally hidden for PO invoices */}
                               <button
                                 onClick={() => handleDeleteInvoice(invoice)}
                                 className="flex items-center px-4 py-2 text-sm text-red-600 hover:bg-red-50 w-full text-left"
@@ -2153,32 +2149,23 @@ const InvoiceManagement = () => {
                 Previous
               </button>
               
-              {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                let pageNum;
-                if (totalPages <= 5) {
-                  pageNum = i + 1;
-                } else if (currentPage <= 3) {
-                  pageNum = i + 1;
-                } else if (currentPage >= totalPages - 2) {
-                  pageNum = totalPages - 4 + i;
-                } else {
-                  pageNum = currentPage - 2 + i;
-                }
-                
-                return (
+              {pages.map((p, idx) => (
+                p === '...' ? (
+                  <div key={`dots-${idx}`} className="px-3 py-1 text-sm rounded-md min-w-[36px] flex items-center justify-center">...</div>
+                ) : (
                   <button
-                    key={pageNum}
-                    onClick={() => handlePageChange(pageNum)}
+                    key={p}
+                    onClick={() => handlePageChange(p)}
                     className={`px-3 py-1 text-sm rounded-md min-w-[36px] ${
-                      currentPage === pageNum
+                      currentPage === p
                         ? "bg-blue-500 text-white border-blue-500"
                         : "bg-white text-gray-700 border-gray-300 hover:bg-gray-100"
                     } border`}
                   >
-                    {pageNum}
+                    {p}
                   </button>
-                );
-              })}
+                )
+              ))}
               
               <button
                 onClick={() => handlePageChange(currentPage + 1)}

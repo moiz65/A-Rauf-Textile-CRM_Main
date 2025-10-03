@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import Sidebar from '../components/Sidebar';
 import Header from '../components/Header';
+import Footer from '../components/Footer';
 import ExpenseTable from '../components/ExpenseTable';
 import CategoryTable from '../components/CategoryTable';
 
@@ -15,7 +16,7 @@ const Expense = () => {
       </div>
       {/* Main Content */}
       <main className="flex-1 p-6 bg-[#F5F5F5] md:ml-64">
-        <Header name="A RAUF TEXTILE" />
+        <Header/>
 
         {/* Toggle Buttons */}
         <div className="mb-6">
@@ -45,6 +46,9 @@ const Expense = () => {
 
         {/* Content Based on Active View */}
         {activeView === 'expenses' ? <ExpenseTable /> : <CategoryTable />}
+        
+        {/* Footer */}
+        <Footer />
       </main>
     </div>
   );

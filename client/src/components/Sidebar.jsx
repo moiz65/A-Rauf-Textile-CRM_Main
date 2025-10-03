@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import Logo from "../assets/Logo/Logo.png"; // Ensure this path is correct
+import Logo from "../assets/Logo/rauf textile png.png"; // updated to user's logo
 import Logo2 from "../assets/Logo/Logo-2.png"; // Ensure this path is correct
 
 const NavItem = ({
@@ -97,6 +97,7 @@ const Sidebar = () => {
       ),
       label: "Reports",
       to: "/report",
+      hidden: true, // Temporarily hidden as per requirements
     },
     {
       icon: (
@@ -127,10 +128,10 @@ const Sidebar = () => {
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          class="lucide lucide-user-icon lucide-user"
+          strokeWidth={2}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          className="lucide lucide-user-icon lucide-user"
         >
           <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
           <circle cx="12" cy="7" r="4" />
@@ -148,10 +149,10 @@ const Sidebar = () => {
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          class="lucide lucide-history-icon lucide-history"
+          strokeWidth={2}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          className="lucide lucide-history-icon lucide-history"
         >
           <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
           <path d="M3 3v5h5" />
@@ -241,7 +242,7 @@ const Sidebar = () => {
             <div className="flex items-center">
               <img
                 src={Logo}
-                alt="Company Logo"
+                alt="A rauf Textile"
                 className="h-10 w-auto object-contain"
               />
             </div>
@@ -283,7 +284,7 @@ const Sidebar = () => {
 
         {/* Navigation items */}
         <div className="space-y-1 overflow-y-auto flex-grow">
-          {navItems.map((item) => (
+          {navItems.filter(item => !item.hidden).map((item) => (
             <NavItem
               key={item.to}
               icon={item.icon}

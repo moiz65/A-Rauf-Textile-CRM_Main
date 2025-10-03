@@ -392,9 +392,7 @@ const ExpenseChart = ({ showControls = true }) => {
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
         <div>
           <div className="flex items-baseline gap-2">
-            <span className="text-3xl font-bold text-gray-900">
-              Rs{currentMonth.amount.toLocaleString()}
-            </span>
+
             {prevMonth && prevMonth.amount > 0 && (
               <span className={`flex items-center text-sm font-medium px-2 py-1 rounded-full ${
                 isPositive ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
@@ -406,11 +404,7 @@ const ExpenseChart = ({ showControls = true }) => {
               </span>
             )}
           </div>
-          <p className="text-sm text-gray-500 mt-1">
-            {prevMonth && prevMonth.amount > 0 
-              ? `${isPositive ? 'Increase' : 'Decrease'} from previous month` 
-              : 'No comparison data available'}
-          </p>
+
         </div>
 
         {availableYears.length > 0 && (

@@ -409,12 +409,7 @@ const FinancialOverview = ({ dashboardData }) => {
 
             {/* View Full Report Button */}
             <div className="pt-4 border-t">
-              <button className="text-blue-600 hover:text-blue-700 font-medium text-sm flex items-center gap-2">
-                View full report
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                </svg>
-              </button>
+
             </div>
           </div>
         ) : (

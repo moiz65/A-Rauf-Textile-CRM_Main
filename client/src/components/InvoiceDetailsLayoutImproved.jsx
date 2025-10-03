@@ -476,11 +476,9 @@ const InvoiceDetailsLayoutImproved = () => {
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col md:ml-64 relative">
-        {/* Header */}
-        <Header name="A RAUF TEXTILE" />
-
-        {/* Main Container - Better Layout */}
+    <div className="flex-1 flex flex-col md:ml-64 relative">
+      {/* Header */}
+      <Header />        {/* Main Container - Better Layout */}
         <div className="flex-1 p-6">
           {/* Enhanced Invoice Header with better spacing */}
           <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 mb-6 bg-white rounded-lg shadow-sm p-6">

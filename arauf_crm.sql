@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Oct 01, 2025 at 06:59 PM
+-- Generation Time: Oct 03, 2025 at 04:31 PM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.0.30
 
@@ -80,6 +80,8 @@ CREATE TABLE `customertable` (
   `date` date NOT NULL,
   `phone` varchar(50) NOT NULL,
   `address` text NOT NULL,
+  `stn` varchar(100) DEFAULT '',
+  `ntn` varchar(100) DEFAULT '',
   `email` varchar(255) NOT NULL,
   `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
   `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
@@ -89,9 +91,10 @@ CREATE TABLE `customertable` (
 -- Dumping data for table `customertable`
 --
 
-INSERT INTO `customertable` (`customer_id`, `customer`, `company`, `date`, `phone`, `address`, `email`, `created_at`, `updated_at`) VALUES
-(1, 'Muhammad Huinain', 'Digious', '2025-09-30', '+923435980052', '202 Floor Shan Residency SB-44 Block-K North Nazimabad karachi', 'm.hunainofficial@gmail.com', '2025-09-30 11:49:35', '2025-09-30 11:49:35'),
-(2, 'XYZ', 'FAST', '2025-09-30', '03435980052', '504 Floor Shan Residency SB-44 Block-K North Nazimabad karachi', 'xyz@gmail.com', '2025-09-30 13:02:28', '2025-09-30 13:02:28');
+INSERT INTO `customertable` (`customer_id`, `customer`, `company`, `date`, `phone`, `address`, `stn`, `ntn`, `email`, `created_at`, `updated_at`) VALUES
+(1, 'Muhammad Huinain', 'Digious', '2025-09-30', '+923435980052', '202 Floor Shan Residency SB-44 Block-K North Nazimabad karachi', '', '', 'm.hunainofficial@gmail.com', '2025-09-30 11:49:35', '2025-09-30 11:49:35'),
+(2, 'XYZ', 'FAST', '2025-09-30', '03435980052', '504 Floor Shan Residency SB-44 Block-K North Nazimabad karachi', '', '', 'xyz@gmail.com', '2025-09-30 13:02:28', '2025-09-30 13:02:28'),
+(3, 'MH', NULL, '2025-10-02', '+923435980052', 'Floor Shan Residency SB-44 Block-K North Nazimabad karachi', '1111111', '1111111', '19@gmail.com', '2025-10-02 13:16:16', '2025-10-02 13:16:16');
 
 -- --------------------------------------------------------
 
@@ -122,7 +125,7 @@ INSERT INTO `expenses` (`id`, `title`, `date`, `vendor`, `amount`, `category`, `
 (2, 'Loan ', '2025-09-30', 'Digious Sol.', 5000.00, 'Loan ', 'Cash', 'Pending', '', '2025-09-30 14:37:44', '2025-09-30 16:37:31', NULL),
 (3, 'Travel Expense ', '2025-09-30', 'Digious Sol.', 15000.00, 'Travel Expense', 'Cash', 'Paid', '', '2025-09-30 14:50:25', '2025-09-30 16:37:31', NULL),
 (4, 'New Expense', '2025-09-30', 'Digious Sol.', 25000.00, 'Computer', 'Cash', 'Paid', '', '2025-09-30 14:51:33', '2025-09-30 16:37:31', NULL),
-(5, 'computer loan ', '2025-09-30', 'xyz', 10000.00, 'Computer loan ', 'Cash', 'Paid', '', '2025-09-30 17:13:31', '2025-09-30 17:14:58', NULL);
+(5, 'computer loan ', '2025-10-02', 'xyz', 10000.00, 'Computer loan ', 'Cash', 'Paid', 'mmmmm', '2025-09-30 17:13:31', '2025-10-01 19:59:57', NULL);
 
 -- --------------------------------------------------------
 
@@ -171,7 +174,7 @@ INSERT INTO `invoice` (`id`, `invoice_number`, `customer_id`, `customer_name`, `
 (1, 'INV-2025-1759233981527', 1, 'Muhammad Huinain', 'm.hunainofficial@gmail.com', '+923435980052', '', '202 Floor Shan Residency SB-44 Block-K North Nazimabad karachi', '', '', NULL, 0.00, 0.00, 'USD', 0.00, 0.00, '2025-09-30', NULL, 'Within 15 days', '2025-09-29', 'this is test ', 100000.00, 17.00, 17000.00, 117000.00, 'Paid', 0, NULL, '2025-09-30 12:06:21', '2025-09-30 16:38:40'),
 (2, 'INV-2025-1759237352951', 2, 'XYZ', 'xyz@gmail.com', '03435980052', '', '504 Floor Shan Residency SB-44 Block-K North Nazimabad karachi', '', '', NULL, 0.00, 0.00, 'PKR', 0.00, 0.00, '2025-09-30', NULL, 'Within 15 days', '2025-10-01', 'this is another test ', 2500.00, 14.99, 374.75, 2874.75, 'Paid', 0, NULL, '2025-09-30 13:02:32', '2025-09-30 16:38:40'),
 (3, 'INV-2025-1759237849385', 1, 'Muhammad Huinain', 'm.hunainofficial@gmail.com', '+923435980052', '', '202 Floor Shan Residency SB-44 Block-K North Nazimabad karachi', '', '', NULL, 0.00, 0.00, 'PKR', 0.00, 0.00, '2025-09-30', NULL, 'Within 15 days', '2025-09-30', 'Paid ', 1750.00, 12.00, 210.00, 1960.00, 'Paid', 0, NULL, '2025-09-30 13:10:49', '2025-09-30 13:10:49'),
-(4, 'INV-2025-1759252924412', 1, 'Muhammad Huinain', 'm.hunainofficial@gmail.com', '+923435980052', '', '202 Floor Shan Residency SB-44 Block-K North Nazimabad karachi', '', '', NULL, 0.00, 0.00, 'PKR', 0.00, 0.00, '2025-09-30', NULL, 'Within 15 days', '2025-10-14', '', 100000.00, 17.00, 17000.00, 117000.00, 'Pending', 0, NULL, '2025-09-30 17:22:04', '2025-09-30 17:22:04');
+(8, 'INV-2025-1759425800766', 3, 'MH', '19@gmail.com', '+923435980052', '', 'Floor Shan Residency SB-44 Block-K North Nazimabad karachi', '', '', NULL, 0.00, 0.00, 'PKR', 0.00, 0.00, '2025-09-30', NULL, 'Within 15 days', '2025-09-30', 'iiiiii', 512.82, 17.00, 87.18, 600.00, 'Pending', 0, NULL, '2025-10-02 17:23:20', '2025-10-02 17:37:29');
 
 -- --------------------------------------------------------
 
@@ -185,6 +188,7 @@ CREATE TABLE `invoice_items` (
   `item_no` int(11) NOT NULL,
   `description` varchar(255) NOT NULL,
   `quantity` int(11) NOT NULL,
+  `unit` varchar(50) DEFAULT NULL,
   `net_weight` decimal(10,2) DEFAULT NULL,
   `rate` decimal(10,2) NOT NULL,
   `amount` decimal(12,2) NOT NULL,
@@ -195,11 +199,11 @@ CREATE TABLE `invoice_items` (
 -- Dumping data for table `invoice_items`
 --
 
-INSERT INTO `invoice_items` (`id`, `invoice_id`, `item_no`, `description`, `quantity`, `net_weight`, `rate`, `amount`, `created_at`) VALUES
-(1, 1, 1, 'this is test ', 1000, NULL, 100.00, 100000.00, '2025-09-30 12:06:21'),
-(2, 2, 1, 'this is another test ', 5, NULL, 500.00, 2500.00, '2025-09-30 13:02:32'),
-(3, 3, 1, 'Tape Ball ', 5, NULL, 350.00, 1750.00, '2025-09-30 13:10:49'),
-(4, 4, 1, 'iii', 1, NULL, 100000.00, 100000.00, '2025-09-30 17:22:04');
+INSERT INTO `invoice_items` (`id`, `invoice_id`, `item_no`, `description`, `quantity`, `unit`, `net_weight`, `rate`, `amount`, `created_at`) VALUES
+(1, 1, 1, 'this is test ', 1000, 'NOS', NULL, 100.00, 100000.00, '2025-09-30 12:06:21'),
+(2, 2, 1, 'this is another test ', 5, NULL, NULL, 500.00, 2500.00, '2025-09-30 13:02:32'),
+(3, 3, 1, 'Tape Ball ', 5, NULL, NULL, 350.00, 1750.00, '2025-09-30 13:10:49'),
+(12, 8, 1, 'iiiii', 1, 'Nos', NULL, 512.82, 512.82, '2025-10-02 17:37:29');
 
 -- --------------------------------------------------------
 
@@ -352,8 +356,11 @@ INSERT INTO `po_invoices` (`id`, `invoice_number`, `invoice_date`, `due_date`, `
 (20, 'PI25-001', '2025-09-30', '2025-10-30', '18', 'PO25-9-002', 'Muhammad ', 'rizwan519@gmail.com', '03435980052', '504 Floor Shan Residency SB-44 Block-K North Nazimabad karachi', 19900.00, 19.90, 0.00, 19900.00, 'PKR', 'Paid', '2025-09-30', NULL, NULL, 'Generated from Purchase Order: PO25-9-002', '2025-09-30 12:20:42', '2025-09-30 13:22:27'),
 (21, 'PI25-002', '2025-09-30', '2025-10-30', '17', 'PO25-9-001', 'Muhammad Hunain', 'm.hunainofficial@gmail.com', '03435980052', '202 Floor Shan Residency SB-44 Block-K North Nazimabad karachi', 15000.00, 15.00, 0.00, 15000.00, 'PKR', 'Paid', '2025-09-30', NULL, NULL, 'Generated from Purchase Order: PO25-9-001', '2025-09-30 12:31:15', '2025-09-30 12:52:06'),
 (22, 'PI25-003', '2025-09-30', '2025-10-30', '19', 'PO25-9-003', 'Paysys', 'paysys@gmail.com', '03435980052', 'Shan Residency SB-44 Block-K North Nazimabad karachi', 340000.00, 11.70, 0.00, 340000.00, 'PKR', 'Paid', '2025-09-30', NULL, NULL, 'Generated from Purchase Order: PO25-9-003', '2025-09-30 14:46:31', '2025-09-30 14:46:48'),
-(23, 'PI25-003-1', '2025-09-30', '2025-10-30', '19', 'PO25-9-003', 'Paysys', 'paysys@gmail.com', '03435980052', 'Shan Residency SB-44 Block-K North Nazimabad karachi', 1000000.00, 11.70, 0.00, 1000000.00, 'PKR', 'Overdue', NULL, NULL, NULL, 'Generated from Purchase Order: PO25-9-003', '2025-09-30 14:47:43', '2025-09-30 14:48:09'),
-(24, 'PI25-003-2', '2025-09-30', '2025-10-30', '19', 'PO25-9-003', 'Paysys', 'paysys@gmail.com', '03435980052', 'Shan Residency SB-44 Block-K North Nazimabad karachi', 21000000.00, 11.70, 2340000.00, 21000000.00, 'PKR', 'Paid', '2025-09-30', NULL, NULL, 'Generated from Purchase Order: PO25-9-003', '2025-09-30 16:35:51', '2025-09-30 16:36:07');
+(23, 'PI25-003-1', '2025-09-30', '2025-10-30', '19', 'PO25-9-003', 'Paysys', 'paysys@gmail.com', '03435980052', 'Shan Residency SB-44 Block-K North Nazimabad karachi', 1000000.00, 11.70, 0.00, 1000000.00, 'PKR', 'Not Sent', NULL, NULL, NULL, 'Generated from Purchase Order: PO25-9-003', '2025-09-30 14:47:43', '2025-10-02 20:28:27'),
+(24, 'PI25-003-2', '2025-09-30', '2025-10-30', '19', 'PO25-9-003', 'Paysys', 'paysys@gmail.com', '03435980052', 'Shan Residency SB-44 Block-K North Nazimabad karachi', 21000000.00, 11.70, 2340000.00, 21000000.00, 'PKR', 'Paid', '2025-09-30', NULL, NULL, 'Generated from Purchase Order: PO25-9-003', '2025-09-30 16:35:51', '2025-09-30 16:36:07'),
+(27, 'PI25-004', '2025-10-01', '2025-10-31', '24', 'PO25-10-001', 'Muhammad Hunain', 'ayesharizwan519@gmail.com', '03435980052', '504 Floor Shan Residency SB-44 Block-K North Nazimabad karachi', 50.00, 5.00, 0.00, 50.00, 'PKR', 'Paid', '2025-10-02', NULL, NULL, 'Generated from Purchase Order: PO25-10-001', '2025-10-01 17:42:15', '2025-10-02 21:07:30'),
+(28, 'PI25-004-1', '2025-10-02', '2025-10-01', '24', 'PO25-10-001', 'Muhammad Hunain', 'ayesharizwan519@gmail.com', '03435980052', '504 Floor Shan Residency SB-44 Block-K North Nazimabad karachi', 1000.00, 5.00, 50.00, 1000.00, 'PKR', 'Overdue', NULL, NULL, NULL, 'Generated from Purchase Order: PO25-10-001', '2025-10-02 13:47:54', '2025-10-02 13:48:36'),
+(29, 'PI25-005', '2025-10-02', '2025-11-01', '26', 'PO25-10-003', 'efg', 'efg@gmail.com', '03435980052', 'SB-44 Block-K North Nazimabad karachi', 10.00, 0.00, 0.00, 10.00, 'PKR', 'Draft', NULL, NULL, NULL, 'Generated from Purchase Order: PO25-10-003', '2025-10-02 21:15:07', '2025-10-02 21:15:07');
 
 --
 -- Triggers `po_invoices`
@@ -555,8 +562,9 @@ INSERT INTO `po_invoice_summary` (`id`, `po_number`, `po_total_amount`, `total_i
 (122, 'PO-20250929-215641', 0.00, 0.00, 0.00, 0, NULL, '2025-09-30 12:11:40', '2025-09-30 12:11:40'),
 (123, 'PO-20250929-150543', 0.00, 0.00, 0.00, 0, NULL, '2025-09-30 12:11:46', '2025-09-30 12:11:46'),
 (127, 'PO25-9-002', 119900.00, 19900.00, 100000.00, 1, '2025-09-30', '2025-09-30 12:17:28', '2025-09-30 13:22:27'),
-(138, 'PO25-9-003', 22340000.00, 22340000.00, 0.00, 3, '2025-09-30', '2025-09-30 14:46:18', '2025-09-30 16:36:07'),
-(157, 'PO25-9-004', 25000.00, 0.00, 25000.00, 0, NULL, '2025-10-01 16:54:21', '2025-10-01 16:54:27');
+(138, 'PO25-9-003', 22340000.00, 22340000.00, 0.00, 3, '2025-09-30', '2025-09-30 14:46:18', '2025-10-02 20:28:27'),
+(158, 'PO25-10-001', 1050.00, 1050.00, 0.00, 2, '2025-10-01', '2025-10-01 17:42:02', '2025-10-02 21:07:30'),
+(171, 'PO25-10-003', 50.00, 10.00, 40.00, 1, '2025-10-02', '2025-10-02 21:14:49', '2025-10-02 21:15:07');
 
 -- --------------------------------------------------------
 
@@ -592,7 +600,9 @@ INSERT INTO `purchase_orders` (`id`, `po_number`, `po_date`, `supplier_name`, `s
 (17, 'PO25-9-001', '2025-09-30', 'Muhammad Hunain', 'm.hunainofficial@gmail.com', '03435980052', '202 Floor Shan Residency SB-44 Block-K North Nazimabad karachi', 100000.00, 15.00, 15000.00, 115000.00, 'PKR', 'Approved', NULL, 'this is test ', '2025-09-30 12:02:32', '2025-09-30 12:02:32'),
 (18, 'PO25-9-002', '2025-09-30', 'Muhammad ', 'rizwan519@gmail.com', '03435980052', '504 Floor Shan Residency SB-44 Block-K North Nazimabad karachi', 100000.00, 19.90, 19900.00, 119900.00, 'PKR', 'Approved', NULL, '', '2025-09-30 12:03:21', '2025-09-30 12:03:21'),
 (19, 'PO25-9-003', '2025-09-30', 'Paysys', 'paysys@gmail.com', '03435980052', 'Shan Residency SB-44 Block-K North Nazimabad karachi', 20000000.00, 11.70, 2340000.00, 22340000.00, 'PKR', 'Approved', NULL, 'approved by IT team ', '2025-09-30 14:46:10', '2025-09-30 14:46:10'),
-(20, 'PO25-9-004', '2025-09-28', 'Hunain', '', '', '', 25000.00, 0.00, 0.00, 25000.00, 'PKR', 'Pending', NULL, '', '2025-09-30 17:07:39', '2025-10-01 16:54:27');
+(24, 'PO25-10-001', '2025-10-01', 'Muhammad Hunain', 'ayesharizwan519@gmail.com', '03435980052', '504 Floor Shan Residency SB-44 Block-K North Nazimabad karachi', 1000.00, 5.00, 50.00, 1050.00, 'PKR', 'Approved', NULL, '', '2025-10-01 17:36:57', '2025-10-01 17:49:57'),
+(25, 'PO25-10-002', '2025-10-03', 'ABC', 'ABC@gmail.com', '03435980052', 'SB-44 Block-K North Nazimabad karachi', 15000.00, 20.00, 3000.00, 18000.00, 'PKR', 'Pending', NULL, 'iii', '2025-10-02 19:52:24', '2025-10-02 19:52:44'),
+(26, 'PO25-10-003', '2025-10-02', 'efg', 'efg@gmail.com', '03435980052', 'SB-44 Block-K North Nazimabad karachi', 50.00, 0.00, 0.00, 50.00, 'PKR', 'Draft', NULL, '', '2025-10-02 20:15:22', '2025-10-02 20:15:22');
 
 --
 -- Triggers `purchase_orders`
@@ -705,6 +715,7 @@ CREATE TABLE `purchase_order_items` (
   `item_no` int(11) NOT NULL,
   `description` text NOT NULL,
   `quantity` decimal(10,2) NOT NULL,
+  `unit` varchar(50) DEFAULT NULL,
   `unit_price` decimal(15,2) NOT NULL,
   `amount` decimal(15,2) NOT NULL,
   `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
@@ -715,10 +726,14 @@ CREATE TABLE `purchase_order_items` (
 -- Dumping data for table `purchase_order_items`
 --
 
-INSERT INTO `purchase_order_items` (`id`, `purchase_order_id`, `item_no`, `description`, `quantity`, `unit_price`, `amount`, `created_at`, `updated_at`) VALUES
-(18, 17, 1, 'this is test', 10000.00, 10.00, 100000.00, '2025-09-30 12:02:32', '2025-09-30 12:02:32'),
-(19, 18, 1, 'this is another test', 10000.00, 10.00, 100000.00, '2025-09-30 12:03:21', '2025-09-30 12:03:21'),
-(20, 19, 1, 'Computer i5 7 gen ', 10.00, 2000000.00, 20000000.00, '2025-09-30 14:46:10', '2025-09-30 14:46:10');
+INSERT INTO `purchase_order_items` (`id`, `purchase_order_id`, `item_no`, `description`, `quantity`, `unit`, `unit_price`, `amount`, `created_at`, `updated_at`) VALUES
+(18, 17, 1, 'this is test', 10000.00, 'pcs', 10.00, 100000.00, '2025-09-30 12:02:32', '2025-10-02 18:58:09'),
+(19, 18, 1, 'this is another test', 10000.00, 'pcs', 10.00, 100000.00, '2025-09-30 12:03:21', '2025-10-02 18:58:09'),
+(20, 19, 1, 'Computer i5 7 gen ', 10.00, 'pcs', 2000000.00, 20000000.00, '2025-09-30 14:46:10', '2025-10-02 18:58:09'),
+(28, 24, 1, 'mmm', 1.00, 'pcs', 1000.00, 1000.00, '2025-10-01 17:49:57', '2025-10-02 18:58:09'),
+(31, 25, 1, 'aaa', 1.00, 'NOS', 5000.00, 5000.00, '2025-10-02 19:52:44', '2025-10-02 19:52:44'),
+(32, 25, 2, 'bbb', 1.00, 'JOB', 10000.00, 10000.00, '2025-10-02 19:52:44', '2025-10-02 19:52:44'),
+(33, 26, 1, 'efg', 1.00, 'Mtrs', 50.00, 50.00, '2025-10-02 20:15:22', '2025-10-02 20:15:22');
 
 -- --------------------------------------------------------
 
@@ -740,7 +755,8 @@ CREATE TABLE `reporttable` (
 
 INSERT INTO `reporttable` (`id`, `date`, `customer`, `price`, `status`) VALUES
 ('01', '2025-09-30', 'Muhammad Huinain', 150000.00, 'Pending'),
-('02', '2025-09-30', 'hunain ', 1000000.00, 'Pending');
+('02', '2025-09-30', 'hunain ', 1000000.00, 'Pending'),
+('03', '2025-10-01', 'Muhammad Huinain', 15000.00, 'Pending');
 
 -- --------------------------------------------------------
 
@@ -761,7 +777,6 @@ CREATE TABLE `users` (
 --
 
 INSERT INTO `users` (`id`, `firstName`, `lastName`, `email`, `password`) VALUES
-(1, 'Muhammad', 'Ahmed', 'digious.Sol@gmail.com', 'karachi@123'),
 (2, 'Muhammad', 'Hunain', 'm.hunainofficial@gmail.com', 'Karachi@123');
 
 -- --------------------------------------------------------
@@ -810,15 +825,16 @@ CREATE TABLE `user_settings` (
   `theme_preference` varchar(20) DEFAULT 'light',
   `dashboard_layout` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL CHECK (json_valid(`dashboard_layout`)),
   `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
-  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
+  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  `profile_picture` varchar(255) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
 -- Dumping data for table `user_settings`
 --
 
-INSERT INTO `user_settings` (`id`, `user_id`, `first_name`, `last_name`, `email`, `phone`, `company`, `address`, `profile_picture_url`, `job_title`, `bio`, `timezone`, `language`, `currency_preference`, `date_format`, `two_factor_enabled`, `email_notifications`, `marketing_emails`, `theme_preference`, `dashboard_layout`, `created_at`, `updated_at`) VALUES
-(1, 2, NULL, NULL, '', '3435980052', 'Digious Sol', 'North Nazimabad Khi', NULL, NULL, NULL, 'UTC+5', 'en', 'PKR', 'YYYY-MM-DD', 0, 1, 1, 'light', NULL, '2025-10-01 16:53:22', '2025-10-01 16:53:37');
+INSERT INTO `user_settings` (`id`, `user_id`, `first_name`, `last_name`, `email`, `phone`, `company`, `address`, `profile_picture_url`, `job_title`, `bio`, `timezone`, `language`, `currency_preference`, `date_format`, `two_factor_enabled`, `email_notifications`, `marketing_emails`, `theme_preference`, `dashboard_layout`, `created_at`, `updated_at`, `profile_picture`) VALUES
+(1, 2, NULL, NULL, '', '3435980052', 'Digious Sol', 'North Nazimabad Khi', 'user_1_1759498793298.png', NULL, NULL, 'UTC+5', 'en', 'PKR', 'YYYY-MM-DD', 0, 1, 1, 'light', NULL, '2025-10-01 16:53:22', '2025-10-03 13:39:53', 'user_2_1759494851048.png');
 
 -- --------------------------------------------------------
 
@@ -868,7 +884,10 @@ ALTER TABLE `company_settings`
 -- Indexes for table `customertable`
 --
 ALTER TABLE `customertable`
-  ADD PRIMARY KEY (`customer_id`);
+  ADD PRIMARY KEY (`customer_id`),
+  ADD KEY `idx_customertable_phone` (`phone`),
+  ADD KEY `idx_customertable_email` (`email`),
+  ADD KEY `idx_customertable_stn_ntn` (`stn`,`ntn`);
 
 --
 -- Indexes for table `expenses`
@@ -990,7 +1009,8 @@ ALTER TABLE `user_settings`
   ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `email` (`email`),
   ADD KEY `idx_user_id` (`user_id`),
-  ADD KEY `idx_email` (`email`);
+  ADD KEY `idx_email` (`email`),
+  ADD KEY `idx_user_settings_user_id` (`user_id`);
 
 --
 -- AUTO_INCREMENT for dumped tables
@@ -1012,7 +1032,7 @@ ALTER TABLE `company_settings`
 -- AUTO_INCREMENT for table `customertable`
 --
 ALTER TABLE `customertable`
-  MODIFY `customer_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
+  MODIFY `customer_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
 
 --
 -- AUTO_INCREMENT for table `expenses`
@@ -1024,13 +1044,13 @@ ALTER TABLE `expenses`
 -- AUTO_INCREMENT for table `invoice`
 --
 ALTER TABLE `invoice`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=9;
 
 --
 -- AUTO_INCREMENT for table `invoice_items`
 --
 ALTER TABLE `invoice_items`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=13;
 
 --
 -- AUTO_INCREMENT for table `invoice_payments`
@@ -1042,13 +1062,13 @@ ALTER TABLE `invoice_payments`
 -- AUTO_INCREMENT for table `po_deletion_history`
 --
 ALTER TABLE `po_deletion_history`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=12;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=11;
 
 --
 -- AUTO_INCREMENT for table `po_invoices`
 --
 ALTER TABLE `po_invoices`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=27;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=30;
 
 --
 -- AUTO_INCREMENT for table `po_invoice_items`
@@ -1060,19 +1080,19 @@ ALTER TABLE `po_invoice_items`
 -- AUTO_INCREMENT for table `po_invoice_summary`
 --
 ALTER TABLE `po_invoice_summary`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=158;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=175;
 
 --
 -- AUTO_INCREMENT for table `purchase_orders`
 --
 ALTER TABLE `purchase_orders`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=21;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=27;
 
 --
 -- AUTO_INCREMENT for table `purchase_order_items`
 --
 ALTER TABLE `purchase_order_items`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=22;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=34;
 
 --
 -- AUTO_INCREMENT for table `users`
@@ -1090,7 +1110,7 @@ ALTER TABLE `user_sessions`
 -- AUTO_INCREMENT for table `user_settings`
 --
 ALTER TABLE `user_settings`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=8;
 
 --
 -- Constraints for dumped tables

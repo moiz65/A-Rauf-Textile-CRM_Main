@@ -19,9 +19,10 @@ import {
   XCircle,
   RotateCcw
 } from 'lucide-react';
+import { useClickOutside } from '../hooks/useClickOutside';
 import { generatePOId } from '../utils/idGenerator';
 
-const ITEMS_PER_PAGE = 10;
+const ITEMS_PER_PAGE = 5;
 
 const PurchaseOrderTable = ({ onViewDetails, openEditPOId = null }) => {
   const [purchaseOrders, setPurchaseOrders] = useState([]);
@@ -52,7 +53,23 @@ const PurchaseOrderTable = ({ onViewDetails, openEditPOId = null }) => {
   const dropdownRef = useRef(null);
   const filterPanelRef = useRef(null);
 
-  const statusTabs = ['All', 'Draft', 'Pending', 'Approved', 'Completed', 'Cancelled'];
+  // Add click outside handler for edit modal
+  const editModalRef = useClickOutside(() => {
+    if (showEditModal) {
+      setShowEditModal(false);
+      setEditingPO(null);
+    }
+  }, showEditModal);
+
+  // Add click outside handler for history modal
+  const historyModalRef = useClickOutside(() => {
+    if (showHistoryModal) {
+      setShowHistoryModal(false);
+      setSelectedPOHistory(null);
+    }
+  }, showHistoryModal);
+
+  const statusTabs = ['All', 'Draft', 'Pending', 'Approved', 'Completed'];
 
   // Fetch purchase orders from API
   const fetchPurchaseOrders = async () => {
@@ -183,8 +200,14 @@ const PurchaseOrderTable = ({ onViewDetails, openEditPOId = null }) => {
       'Draft': basePOs.filter(po => po.status === 'Draft').length,
       'Pending': basePOs.filter(po => po.status === 'Pending').length,
       'Approved': basePOs.filter(po => po.status === 'Approved').length,
-      'Completed': basePOs.filter(po => po.status === 'Completed').length,
-      'Cancelled': basePOs.filter(po => po.status === 'Cancelled').length,
+      // Count Completed as either explicitly Completed OR Fully Invoiced according to PO summaries
+      'Completed': basePOs.filter(po => {
+        if (po.status === 'Completed') return true;
+        const summary = poSummaries[po.id];
+        if (!summary || !summary.po_total_amount) return false;
+        const percentage = (summary.total_invoiced_amount / summary.po_total_amount) * 100;
+        return percentage >= 100;
+      }).length,
     };
     return counts;
   };
@@ -202,7 +225,7 @@ const PurchaseOrderTable = ({ onViewDetails, openEditPOId = null }) => {
       case 'Pending': return 'bg-orange-100 text-orange-800';
       case 'Approved': return 'bg-blue-100 text-blue-800';
       case 'Completed': return 'bg-green-100 text-green-800';
-      case 'Cancelled': return 'bg-red-100 text-red-800';
+      
       default: return 'bg-gray-100 text-gray-800';
     }
   };
@@ -238,7 +261,17 @@ const PurchaseOrderTable = ({ onViewDetails, openEditPOId = null }) => {
       po.supplier.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (po.originalData?.po_number || '').toLowerCase().includes(searchTerm.toLowerCase())
     )
-    .filter(po => activeTab === 'All' || po.status === activeTab)
+    .filter(po => {
+      if (activeTab === 'All') return true;
+      if (activeTab === 'Completed') {
+        // Consider a PO completed if its status is 'Completed' OR if PO summary shows it fully invoiced
+        const summary = poSummaries[po.id];
+        const percentage = summary && summary.po_total_amount > 0 ? (summary.total_invoiced_amount / summary.po_total_amount) * 100 : 0;
+        const fullyInvoiced = percentage >= 100;
+        return po.status === 'Completed' || fullyInvoiced;
+      }
+      return po.status === activeTab;
+    })
     .filter(po =>
       (!filters.supplier || po.supplier.toLowerCase().includes(filters.supplier.toLowerCase())) &&
       (!filters.minAmount || po.totalAmount >= parseFloat(filters.minAmount)) &&
@@ -250,6 +283,36 @@ const PurchaseOrderTable = ({ onViewDetails, openEditPOId = null }) => {
   const totalPages = Math.ceil(filteredPOs.length / ITEMS_PER_PAGE);
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
   const visiblePOs = filteredPOs.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+
+  // Compute pages to display in pagination (max 5 visible pages, with ellipses)
+  const maxVisiblePages = 5;
+  const pages = [];
+  if (totalPages <= maxVisiblePages) {
+    for (let i = 1; i <= totalPages; i++) pages.push(i);
+  } else {
+    // Center current page within the window when possible
+    const half = Math.floor(maxVisiblePages / 2);
+    let startPage = Math.max(1, currentPage - half);
+    let endPage = startPage + maxVisiblePages - 1;
+
+    // If we overflow the total pages, shift back
+    if (endPage > totalPages) {
+      endPage = totalPages;
+      startPage = endPage - maxVisiblePages + 1;
+    }
+
+    if (startPage > 1) {
+      pages.push(1);
+      if (startPage > 2) pages.push('...');
+    }
+
+    for (let i = startPage; i <= endPage; i++) pages.push(i);
+
+    if (endPage < totalPages) {
+      if (endPage < totalPages - 1) pages.push('...');
+      pages.push(totalPages);
+    }
+  }
 
   const toggleSelectAll = () => {
     if (selectedRows.length === visiblePOs.length) {
@@ -640,7 +703,7 @@ const PurchaseOrderTable = ({ onViewDetails, openEditPOId = null }) => {
 
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-        <div className="bg-white rounded-lg p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+        <div ref={historyModalRef} className="bg-white rounded-lg p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto">
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-xl font-semibold">Invoice History - {selectedPOHistory?.id}</h2>
             <button
@@ -773,7 +836,7 @@ const PurchaseOrderTable = ({ onViewDetails, openEditPOId = null }) => {
   const EditPOModal = () => {
     const [formData, setFormData] = useState(editingPO || {});
     const [poItems, setPOItems] = useState([
-      { item_no: 1, description: '', quantity: 1, unit_price: 0, amount: 0, specifications: '' }
+      { item_no: 1, description: '', quantity: 1, unit: 'pcs', unit_price: 0, amount: 0, specifications: '' }
     ]);
     const [taxRate, setTaxRate] = useState(0);
 
@@ -787,6 +850,7 @@ const PurchaseOrderTable = ({ onViewDetails, openEditPOId = null }) => {
           item_no: it.item_no || it.id || idx + 1,
           description: it.description || it.desc || it.description_text || '',
           quantity: it.quantity != null ? it.quantity : (it.qty || 1),
+          unit: it.unit || 'pcs',
           unit_price: it.unit_price != null ? it.unit_price : (it.unitPrice || it.rate || 0),
           amount: it.amount != null ? it.amount : (it.total || ( (it.quantity || 1) * (it.unit_price || it.unitPrice || it.rate || 0) )),
           specifications: it.specifications || it.specs || ''
@@ -844,6 +908,7 @@ const PurchaseOrderTable = ({ onViewDetails, openEditPOId = null }) => {
                 item_no: 1,
                 description: '',
                 quantity: 1,
+                unit: 'pcs',
                 unit_price: 0,
                 amount: 0
               }]);
@@ -872,7 +937,7 @@ const PurchaseOrderTable = ({ onViewDetails, openEditPOId = null }) => {
           });
           setTaxRate(0);
           setPOItems([
-            { item_no: 1, description: '', quantity: 1, unit_price: 0, amount: 0 }
+            { item_no: 1, description: '', quantity: 1, unit: 'pcs', unit_price: 0, amount: 0 }
           ]);
         }
       })();
@@ -941,6 +1006,7 @@ const PurchaseOrderTable = ({ onViewDetails, openEditPOId = null }) => {
         item_no: newItemNo,
         description: '',
         quantity: 1,
+        unit: 'pcs',
         unit_price: 0,
         amount: 0
       }]);
@@ -1008,7 +1074,7 @@ const PurchaseOrderTable = ({ onViewDetails, openEditPOId = null }) => {
 
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-        <div className="bg-white rounded-lg p-6 w-full max-w-6xl max-h-[90vh] overflow-y-auto">
+        <div ref={editModalRef} className="bg-white rounded-lg p-6 w-full max-w-6xl max-h-[90vh] overflow-y-auto">
           <h2 className="text-xl font-semibold mb-4">
             {editingPO ? 'Edit Purchase Order' : 'Create New Purchase Order'}
           </h2>
@@ -1023,8 +1089,9 @@ const PurchaseOrderTable = ({ onViewDetails, openEditPOId = null }) => {
                   type="text"
                   name="po_number"
                   value={formData.po_number || formData.id || ''}
-                  onChange={handleChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  readOnly
+                  disabled={!!editingPO}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 cursor-not-allowed focus:outline-none"
                   required
                 />
               </div>
@@ -1069,13 +1136,24 @@ const PurchaseOrderTable = ({ onViewDetails, openEditPOId = null }) => {
                 <div>
                   <label className="block text-gray-700 font-medium mb-2">Supplier Phone</label>
                   <input
-                    type="text"
+                    type="tel"
                     name="supplier_phone"
                     value={formData.supplier_phone || ''}
-                    onChange={handleChange}
+                    onChange={(e) => {
+                      // Allow only numeric values, spaces, parentheses, and + or -
+                      const filteredValue = e.target.value.replace(/[^0-9\-\+\(\)\s]/g, '');
+                      handleChange({
+                        target: {
+                          name: 'supplier_phone',
+                          value: filteredValue,
+                        },
+                      });
+                    }}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Enter phone number"
                   />
                 </div>
+
                 <div>
                   <label className="block text-gray-700 font-medium mb-2">Supplier Address</label>
                   <input
@@ -1109,9 +1187,10 @@ const PurchaseOrderTable = ({ onViewDetails, openEditPOId = null }) => {
                       <th className="border border-gray-300 px-3 py-3 text-left text-sm font-medium">Item #</th>
                       <th className="border border-gray-300 px-3 py-3 text-left text-sm font-medium">Item Description & Specifications *</th>
                       <th className="border border-gray-300 px-3 py-3 text-left text-sm font-medium">Quantity</th>
+                      <th className="border border-gray-300 px-3 py-3 text-left text-sm font-medium">Unit</th>
                       <th className="border border-gray-300 px-3 py-3 text-left text-sm font-medium">Unit Price (PKR)</th>
                       <th className="border border-gray-300 px-3 py-3 text-left text-sm font-medium">Amount (PKR)</th>
-                      <th className="border border-gray-300 px-3 py-3 text-center text-sm font-medium">Action</th>
+                      <th className="border border-gray-300 px-3 py-3 text-center text-sm font-medium"></th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1139,6 +1218,15 @@ const PurchaseOrderTable = ({ onViewDetails, openEditPOId = null }) => {
                             min="0"
                             step="1"
                             required
+                          />
+                        </td>
+                        <td className="border border-gray-300 px-3 py-3">
+                          <input
+                            type="text"
+                            value={item.unit || ''}
+                            onChange={(e) => handleItemChange(index, 'unit', e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+                            placeholder="Unit (e.g. pcs, MTR, Nos)"
                           />
                         </td>
                         <td className="border border-gray-300 px-3 py-3">
@@ -1243,7 +1331,7 @@ const PurchaseOrderTable = ({ onViewDetails, openEditPOId = null }) => {
                   <option value="Pending">Pending</option>
                   <option value="Approved">Approved</option>
                   <option value="Completed">Completed</option>
-                  <option value="Cancelled">Cancelled</option>
+                  
                 </select>
               </div>
               <div></div>
@@ -1711,84 +1799,23 @@ const PurchaseOrderTable = ({ onViewDetails, openEditPOId = null }) => {
             >
               Previous
             </button>
-            {(() => {
-              const maxVisiblePages = 5;
-              const pages = [];
-              
-              if (totalPages <= maxVisiblePages) {
-                // Show all pages if total is 5 or less
-                for (let i = 1; i <= totalPages; i++) {
-                  pages.push(i);
-                }
-              } else {
-                // Calculate the range of pages to show
-                let startPage, endPage;
-                
-                if (currentPage <= 3) {
-                  // Show pages 1-5 when current page is in the beginning
-                  startPage = 1;
-                  endPage = maxVisiblePages;
-                } else if (currentPage >= totalPages - 2) {
-                  // Show last 5 pages when current page is near the end
-                  startPage = totalPages - maxVisiblePages + 1;
-                  endPage = totalPages;
-                } else {
-                  // Show current page in the middle with 2 pages on each side
-                  startPage = currentPage - 2;
-                  endPage = currentPage + 2;
-                }
-                
-                // Add first page and ellipsis if needed
-                if (startPage > 1) {
-                  pages.push(1);
-                  if (startPage > 2) {
-                    pages.push('...');
-                  }
-                }
-                
-                // Add the main range of pages
-                for (let i = startPage; i <= endPage; i++) {
-                  if (i > 0 && i <= totalPages) {
-                    pages.push(i);
-                  }
-                }
-                
-                // Add ellipsis and last page if needed
-                if (endPage < totalPages) {
-                  if (endPage < totalPages - 1) {
-                    pages.push('...');
-                  }
-                  pages.push(totalPages);
-                }
-              }
-              
-              return pages.map((page, index) => {
-                if (page === '...') {
-                  return (
-                    <span
-                      key={`ellipsis-${index}`}
-                      className="px-3 py-1 text-sm text-gray-500"
-                    >
-                      ...
-                    </span>
-                  );
-                }
-                
-                return (
-                  <button
-                    key={page}
-                    onClick={() => handlePageChange(page)}
-                    className={`px-3 py-1 text-sm rounded-md transition-colors ${
-                      currentPage === page
-                        ? "bg-blue-500 text-white border-blue-500 shadow-sm"
-                        : "bg-white text-gray-700 border-gray-300 hover:bg-gray-100 hover:border-gray-400"
-                    } border`}
-                  >
-                    {page}
-                  </button>
-                );
-              });
-            })()}
+            {pages.map((page, index) => (
+              page === '...' ? (
+                <span key={`ellipsis-${index}`} className="px-3 py-1 text-sm text-gray-500">...</span>
+              ) : (
+                <button
+                  key={page}
+                  onClick={() => handlePageChange(page)}
+                  className={`px-3 py-1 text-sm rounded-md transition-colors ${
+                    currentPage === page
+                      ? "bg-blue-500 text-white border-blue-500 shadow-sm"
+                      : "bg-white text-gray-700 border-gray-300 hover:bg-gray-100 hover:border-gray-400"
+                  } border`}
+                >
+                  {page}
+                </button>
+              )
+            ))}
             
             <button
               onClick={() => handlePageChange(currentPage + 1)}

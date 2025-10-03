@@ -1,34 +1,17 @@
 import React, { useState } from 'react';
-import { FileText, BarChart3, DollarSign, ShoppingCart, Users, ChevronRight } from 'lucide-react';
+import { FileText, BarChart3, DollarSign, ShoppingCart, Users } from 'lucide-react';
 
 const QuickActions = ({ dashboardData }) => {
   const [activeAction, setActiveAction] = useState(null);
-  const [isExpanded, setIsExpanded] = useState(false);
 
   const actions = [
     {
-      icon: FileText,
-      label: 'Invoices',
-      description: `Manage invoices (${dashboardData?.quickActions?.totalInvoices || 0})`,
-      color: 'bg-amber-100 text-amber-600',
-      hoverColor: 'hover:bg-amber-50',
-      action: () => window.location.href = '/Invoices'
-    },
-    {
-      icon: BarChart3,
-      label: 'Reports',
-      description: 'View business analytics and insights',
-      color: 'bg-blue-100 text-blue-600',
-      hoverColor: 'hover:bg-blue-50',
-      action: () => window.location.href = '/Report'
-    },
-    {
-      icon: DollarSign,
-      label: 'Expenses',
-      description: `Track expenses (${dashboardData?.quickActions?.totalExpenses || 0})`,
-      color: 'bg-emerald-100 text-emerald-600',
-      hoverColor: 'hover:bg-emerald-50',
-      action: () => window.location.href = '/Expense'
+      icon: Users,
+      label: 'Customers',
+      description: `Manage customers (${dashboardData?.quickActions?.totalCustomers || 0})`,
+      color: 'bg-violet-100 text-violet-600',
+      hoverColor: 'hover:bg-violet-50',
+      action: () => window.location.href = '/customers'
     },
     {
       icon: ShoppingCart,
@@ -39,33 +22,41 @@ const QuickActions = ({ dashboardData }) => {
       action: () => window.location.href = '/purchase-order'
     },
     {
-      icon: Users,
-      label: 'Customers',
-      description: `Manage customers (${dashboardData?.quickActions?.totalCustomers || 0})`,
-      color: 'bg-violet-100 text-violet-600',
-      hoverColor: 'hover:bg-violet-50',
-      action: () => window.location.href = '/Customers'
+      icon: FileText,
+      label: 'Invoices',
+      description: `Manage invoices (${dashboardData?.quickActions?.totalInvoices || 0})`,
+      color: 'bg-amber-100 text-amber-600',
+      hoverColor: 'hover:bg-amber-50',
+      action: () => window.location.href = '/invoices'
+    },
+    {
+      icon: DollarSign,
+      label: 'Expenses',
+      description: `Track expenses (${dashboardData?.quickActions?.totalExpenses || 0})`,
+      color: 'bg-emerald-100 text-emerald-600',
+      hoverColor: 'hover:bg-emerald-50',
+      action: () => window.location.href = '/expense'
+    },
+    {
+      icon: BarChart3,
+      label: 'Reports',
+      description: 'View financial reports',
+      color: 'bg-blue-100 text-blue-600',
+      hoverColor: 'hover:bg-blue-50',
+      action: () => window.location.href = '/reports'
     }
   ];
 
-  const visibleActions = isExpanded ? actions : actions.slice(0, 4);
+  // Always show the first four action boxes (no show more / show less)
+  const visibleActions = actions.slice(0, 4);
 
   return (
     <div className="mb-8">
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-lg font-semibold text-gray-900">Quick Actions</h3>
-        {actions.length > 4 && (
-          <button 
-            onClick={() => setIsExpanded(!isExpanded)}
-            className="text-sm font-medium text-gray-500 hover:text-gray-700 flex items-center gap-1"
-          >
-            {isExpanded ? 'Show less' : 'Show all'}
-            <ChevronRight className={`w-4 h-4 transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
-          </button>
-        )}
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-5 gap-3">
+  <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-4 gap-3">
         {visibleActions.map((action, index) => {
           const Icon = action.icon;
           return (
