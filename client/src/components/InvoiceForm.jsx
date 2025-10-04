@@ -14,6 +14,7 @@ const InvoiceForm = ({ initialData, onSubmit, onCancel }) => {
     id: 1,
     description: "",
     quantity: "",
+    unit: "",
     rate: "",
     amount: 0
   }]);
@@ -116,6 +117,7 @@ const InvoiceForm = ({ initialData, onSubmit, onCancel }) => {
           id: index + 1,
           description: item.description || item.item_name || '',
           quantity: item.quantity || '',
+          unit: item.unit || item.uom || item.unit_name || '',
           rate: item.rate || item.unit_price || '',
           amount: item.amount || item.total || 0
         }));
@@ -126,6 +128,7 @@ const InvoiceForm = ({ initialData, onSubmit, onCancel }) => {
           id: 1,
           description: initialData.item_name,
           quantity: initialData.quantity || '',
+          unit: initialData.unit || '',
           rate: initialData.rate || '',
           amount: initialData.total_amount || initialData.totalAmount || 0
         }]);
@@ -231,6 +234,7 @@ const InvoiceForm = ({ initialData, onSubmit, onCancel }) => {
       id: Date.now(),
       description: "",
       quantity: "",
+      unit: '',
       rate: "",
       amount: 0
     };
@@ -305,6 +309,7 @@ const InvoiceForm = ({ initialData, onSubmit, onCancel }) => {
           item_no: index + 1,
           description: item.description,
           quantity: parseFloat(item.quantity) || 0,
+          unit: item.unit || '',
           rate: parseFloat(item.rate) || 0,
           amount: parseFloat(item.amount) || 0
         }))
@@ -358,6 +363,7 @@ const InvoiceForm = ({ initialData, onSubmit, onCancel }) => {
           id: 1,
           description: "",
           quantity: "",
+          unit: '',
           rate: "",
           amount: 0
         }]);
@@ -543,13 +549,13 @@ const InvoiceForm = ({ initialData, onSubmit, onCancel }) => {
                     Quantity *
                   </th>
                   <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 border-b">
+                    Unit
+                  </th>
+                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 border-b">
                     Rate *
                   </th>
                   <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 border-b">
                     Amount
-                  </th>
-                  <th className="px-4 py-3 text-center text-sm font-semibold text-gray-700 border-b">
-                    Action
                   </th>
                 </tr>
               </thead>
@@ -580,6 +586,15 @@ const InvoiceForm = ({ initialData, onSubmit, onCancel }) => {
                     </td>
                     <td className="px-4 py-3">
                       <input
+                        type="text"
+                        value={item.unit || ''}
+                        onChange={(e) => handleItemChange(index, 'unit', e.target.value)}
+                        className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
+                        placeholder="Unit (e.g., MTR)"
+                      />
+                    </td>
+                    <td className="px-4 py-3">
+                      <input
                         type="number"
                         value={item.rate}
                         onChange={(e) => handleItemChange(index, 'rate', e.target.value)}
@@ -598,17 +613,7 @@ const InvoiceForm = ({ initialData, onSubmit, onCancel }) => {
                         className="w-full bg-gray-50 border border-gray-300 rounded px-3 py-2 text-sm"
                       />
                     </td>
-                    <td className="px-4 py-3 text-center">
-                      {invoiceItems.length > 1 && (
-                        <button
-                          type="button"
-                          onClick={() => removeItem(index)}
-                          className="text-red-500 hover:text-red-700 text-sm font-medium"
-                        >
-                          Remove
-                        </button>
-                      )}
-                    </td>
+                    {/* removed Action column per request */}
                   </tr>
                 ))}
               </tbody>
@@ -628,9 +633,6 @@ const InvoiceForm = ({ initialData, onSubmit, onCancel }) => {
                   onChange={handleCurrencyChange}
                 >
                   <option value="PKR">PKR</option>
-                  <option value="USD">USD</option>
-                  <option value="EUR">EUR</option>
-                  <option value="GBP">GBP</option>
                 </select>
               </div>
 

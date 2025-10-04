@@ -92,13 +92,13 @@ class DashboardController {
             ) as balance
         `,
 
-        // Upcoming Payments (invoices that are sent but not paid - both regular and PO)
+        // Upcoming Payments (invoices that are not paid yet: Draft, Not Sent, Sent, Pending - both regular and PO)
         upcomingPayments: `
           SELECT 
-            (COALESCE((SELECT SUM(total_amount) FROM invoice WHERE status IN ('Sent', 'Pending')), 0) +
-             COALESCE((SELECT SUM(total_amount) FROM po_invoices WHERE status IN ('Sent', 'Pending')), 0)) as total,
-            (COALESCE((SELECT COUNT(*) FROM invoice WHERE status IN ('Sent', 'Pending')), 0) +
-             COALESCE((SELECT COUNT(*) FROM po_invoices WHERE status IN ('Sent', 'Pending')), 0)) as count
+            (COALESCE((SELECT SUM(total_amount) FROM invoice WHERE status IN ('Not Sent', 'Draft', 'Sent', 'Pending')), 0) +
+             COALESCE((SELECT SUM(total_amount) FROM po_invoices WHERE status IN ('Not Sent', 'Draft', 'Sent', 'Pending')), 0)) as total,
+            (COALESCE((SELECT COUNT(*) FROM invoice WHERE status IN ('Not Sent', 'Draft', 'Sent', 'Pending')), 0) +
+             COALESCE((SELECT COUNT(*) FROM po_invoices WHERE status IN ('Not Sent', 'Draft', 'Sent', 'Pending')), 0)) as count
         `,
 
         // Overdue Invoices (both regular and PO)
@@ -224,13 +224,13 @@ class DashboardController {
             (SELECT COUNT(*) FROM invoice) + (SELECT COUNT(*) FROM po_invoices) as count
         `,
         
-        // Pending invoices awaiting payment (both regular and PO invoices)
+        // Pending invoices awaiting payment (both regular and PO invoices - excludes Paid and Overdue)
         pendingInvoices: `
           SELECT 
-            (COALESCE((SELECT COUNT(*) FROM invoice WHERE status IN ('Sent', 'Pending', 'Draft')), 0) +
-             COALESCE((SELECT COUNT(*) FROM po_invoices WHERE status IN ('Sent', 'Pending', 'Draft')), 0)) as count,
-            (COALESCE((SELECT SUM(total_amount) FROM invoice WHERE status IN ('Sent', 'Pending', 'Draft')), 0) +
-             COALESCE((SELECT SUM(total_amount) FROM po_invoices WHERE status IN ('Sent', 'Pending', 'Draft')), 0)) as total
+            (COALESCE((SELECT COUNT(*) FROM invoice WHERE status IN ('Not Sent', 'Draft', 'Sent', 'Pending')), 0) +
+             COALESCE((SELECT COUNT(*) FROM po_invoices WHERE status IN ('Not Sent', 'Draft', 'Sent', 'Pending')), 0)) as count,
+            (COALESCE((SELECT SUM(total_amount) FROM invoice WHERE status IN ('Not Sent', 'Draft', 'Sent', 'Pending')), 0) +
+             COALESCE((SELECT SUM(total_amount) FROM po_invoices WHERE status IN ('Not Sent', 'Draft', 'Sent', 'Pending')), 0)) as total
         `,
         
         // This month's new invoices (both regular and PO invoices)
@@ -306,7 +306,7 @@ class DashboardController {
             amount: pendingInvoicesAmount,
             change: `${pendingInvoicesCount} invoices`,
             changeType: pendingInvoicesCount > 0 ? 'warning' : 'good',
-            subtitle: 'Awaiting customer payments'
+            subtitle: 'Not yet paid (Draft/Sent/Pending)'
           },
           activePurchaseOrders: {
             amount: activePOAmount,

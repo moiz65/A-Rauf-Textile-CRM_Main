@@ -95,6 +95,13 @@ db.connect((err) => {
 const dashboardRoutes = require('./routes/dashboard');
 app.use('/api/dashboard', dashboardRoutes);
 
+// --- Profile Picture Routes ---
+const profilePictureRoutes = require('./routes/profile-picture')(db);
+app.use('/api/profile-picture', profilePictureRoutes);
+
+// Serve static files from uploads directory
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
 // --- Expense Routes ---
 
 // Get all expenses with optional filtering
@@ -622,36 +629,58 @@ app.get("/api/v1/customertable", (req, res) => {
 
 // Create a new customer
 app.post("/api/v1/customertable", (req, res) => {
-  const { customer, company, date, phone, address, email } = req.body;
+  const { customer, company, date, phone, address, email, stn, ntn } = req.body;
 
   // Validate required fields
-  if (!customer || !date || !phone || !address || !email) {
+  if (!customer || !date || !phone || !address || !email || !stn || !ntn) {
     return res.status(400).json({ message: "Missing required fields" });
   }
 
-  const query = `
-    INSERT INTO customertable (customer, company, date, phone, address, email)
-    VALUES (?, ?, ?, ?, ?, ?)
+  // Check for exact duplicate (all fields match)
+  const duplicateCheck = `
+    SELECT customer_id FROM customertable 
+    WHERE customer = ? AND email = ? AND phone = ? 
+    AND address = ? AND stn = ? AND ntn = ?
+    AND (company = ? OR (company IS NULL AND ? IS NULL))
   `;
-  const values = [customer, company, date, phone, address, email];
-
-  db.query(query, values, (err, result) => {
+  
+  db.query(duplicateCheck, [customer, email, phone, address, stn, ntn, company, company], (err, duplicates) => {
     if (err) {
-      console.error("Error creating customer:", err.message);
-      return res.status(500).json({ message: "Failed to create customer", error: err.message });
+      console.error("Error checking for duplicates:", err.message);
+      return res.status(500).json({ message: "Failed to check for duplicates", error: err.message });
     }
-    
-    // Return the newly created customer
-    const selectQuery = "SELECT * FROM customertable WHERE customer_id = ?";
-    db.query(selectQuery, [result.insertId], (err, results) => {
+
+    if (duplicates.length > 0) {
+      return res.status(409).json({ 
+        message: "Duplicate customer: A customer with identical information already exists" 
+      });
+    }
+
+    // No duplicate found, proceed with insert
+    const query = `
+      INSERT INTO customertable (customer, company, date, phone, address, email, stn, ntn)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `;
+    const values = [customer, company, date, phone, address, email, stn, ntn];
+
+    db.query(query, values, (err, result) => {
       if (err) {
-        console.error("Error fetching created customer:", err.message);
-        return res.status(500).json({ message: "Customer created but failed to retrieve details", error: err.message });
+        console.error("Error creating customer:", err.message);
+        return res.status(500).json({ message: "Failed to create customer", error: err.message });
       }
       
-      res.status(201).json({
-        message: "Customer created successfully",
-        customer: results[0]
+      // Return the newly created customer
+      const selectQuery = "SELECT * FROM customertable WHERE customer_id = ?";
+      db.query(selectQuery, [result.insertId], (err, results) => {
+        if (err) {
+          console.error("Error fetching created customer:", err.message);
+          return res.status(500).json({ message: "Customer created but failed to retrieve details", error: err.message });
+        }
+        
+        res.status(201).json({
+          message: "Customer created successfully",
+          customer: results[0]
+        });
       });
     });
   });
@@ -660,41 +689,64 @@ app.post("/api/v1/customertable", (req, res) => {
 // Update a customer
 app.put("/api/v1/customertable/:id", (req, res) => {
   const customerId = req.params.id;
-  const { customer, company, date, phone, address, email } = req.body;
+  const { customer, company, date, phone, address, email, stn, ntn } = req.body;
 
   // Validate required fields
-  if (!customer || !date || !phone || !address || !email) {
+  if (!customer || !date || !phone || !address || !email || !stn || !ntn) {
     return res.status(400).json({ message: "Missing required fields" });
   }
 
-  const query = `
-    UPDATE customertable
-    SET customer = ?, company = ?, date = ?, phone = ?, address = ?, email = ?
-    WHERE customer_id = ?
+  // Check for exact duplicate (excluding current record)
+  const duplicateCheck = `
+    SELECT customer_id FROM customertable 
+    WHERE customer_id != ? 
+    AND customer = ? AND email = ? AND phone = ? 
+    AND address = ? AND stn = ? AND ntn = ?
+    AND (company = ? OR (company IS NULL AND ? IS NULL))
   `;
-  const values = [customer, company, date, phone, address, email, customerId];
-
-  db.query(query, values, (err, result) => {
+  
+  db.query(duplicateCheck, [customerId, customer, email, phone, address, stn, ntn, company, company], (err, duplicates) => {
     if (err) {
-      console.error("Error updating customer:", err.message);
-      return res.status(500).json({ message: "Failed to update customer", error: err.message });
+      console.error("Error checking for duplicates:", err.message);
+      return res.status(500).json({ message: "Failed to check for duplicates", error: err.message });
     }
-    
-    if (result.affectedRows === 0) {
-      return res.status(404).json({ message: "Customer not found" });
+
+    if (duplicates.length > 0) {
+      return res.status(409).json({ 
+        message: "Duplicate customer: A customer with identical information already exists" 
+      });
     }
-    
-    // Return the updated customer
-    const selectQuery = "SELECT * FROM customertable WHERE customer_id = ?";
-    db.query(selectQuery, [customerId], (err, results) => {
+
+    // No duplicate found, proceed with update
+    const query = `
+      UPDATE customertable
+      SET customer = ?, company = ?, date = ?, phone = ?, address = ?, email = ?, stn = ?, ntn = ?
+      WHERE customer_id = ?
+    `;
+    const values = [customer, company, date, phone, address, email, stn, ntn, customerId];
+
+    db.query(query, values, (err, result) => {
       if (err) {
-        console.error("Error fetching updated customer:", err.message);
-        return res.status(500).json({ message: "Customer updated but failed to retrieve details", error: err.message });
+        console.error("Error updating customer:", err.message);
+        return res.status(500).json({ message: "Failed to update customer", error: err.message });
       }
       
-      res.json({
-        message: "Customer updated successfully",
-        customer: results[0]
+      if (result.affectedRows === 0) {
+        return res.status(404).json({ message: "Customer not found" });
+      }
+      
+      // Return the updated customer
+      const selectQuery = "SELECT * FROM customertable WHERE customer_id = ?";
+      db.query(selectQuery, [customerId], (err, results) => {
+        if (err) {
+          console.error("Error fetching updated customer:", err.message);
+          return res.status(500).json({ message: "Customer updated but failed to retrieve details", error: err.message });
+        }
+        
+        res.json({
+          message: "Customer updated successfully",
+          customer: results[0]
+        });
       });
     });
   });
@@ -1644,7 +1696,7 @@ app.get("/api/invoices/filters/options", (req, res) => {
       res.status(500).json({ 
         error: "Failed to fetch filter options",
         statuses: ['Draft', 'Pending', 'Sent', 'Paid', 'Overdue', 'Cancelled'],
-        currencies: ['PKR', 'USD'],
+        currencies: ['PKR'],
         statistics: {
           total_invoices: 0,
           paid_count: 0,
@@ -1825,7 +1877,7 @@ app.post("/api/invoices", (req, res) => {
         // Insert invoice items
         if (items.length > 0) {
           const itemsQuery = `
-            INSERT INTO invoice_items (invoice_id, item_no, description, quantity, rate, amount)
+            INSERT INTO invoice_items (invoice_id, item_no, description, quantity, unit, rate, amount)
             VALUES ?
           `;
 
@@ -1834,6 +1886,7 @@ app.post("/api/invoices", (req, res) => {
             item.item_no || 1,
             item.description || '',
             item.quantity || 0,
+            item.unit || '',
             item.rate || 0,
             item.amount || 0
           ]);
@@ -1972,8 +2025,8 @@ app.put("/api/invoices/:id", (req, res) => {
         // Insert new items if provided
         if (items && Array.isArray(items) && items.length > 0) {
           const insertItemQuery = `
-            INSERT INTO invoice_items (invoice_id, item_no, description, quantity, rate, amount, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, NOW())
+            INSERT INTO invoice_items (invoice_id, item_no, description, quantity, unit, rate, amount, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, NOW())
           `;
 
           let completedInserts = 0;
@@ -1985,6 +2038,7 @@ app.put("/api/invoices/:id", (req, res) => {
               item.item_no || (index + 1),
               item.description || '',
               parseFloat(item.quantity) || 0,
+              item.unit || '',
               parseFloat(item.rate) || 0,
               parseFloat(item.amount) || 0
             ];
@@ -3204,7 +3258,7 @@ app.post("/api/purchase-orders", (req, res) => {
       // Insert PO items if provided
       if (items && items.length > 0) {
         const itemsQuery = `
-          INSERT INTO purchase_order_items (purchase_order_id, item_no, description, quantity, unit_price, amount)
+          INSERT INTO purchase_order_items (purchase_order_id, item_no, description, quantity, unit, unit_price, amount)
           VALUES ?
         `;
 
@@ -3213,6 +3267,7 @@ app.post("/api/purchase-orders", (req, res) => {
           item.item_no || 1,
           item.description || '',
           item.quantity || 1,
+          item.unit || 'pcs',
           item.unit_price || 0,
           item.amount || 0
         ]);
@@ -3419,7 +3474,7 @@ function updatePurchaseOrder(poId, requestBody, res) {
         // Insert new items if provided
         if (items && items.length > 0) {
           const itemsQuery = `
-            INSERT INTO purchase_order_items (purchase_order_id, item_no, description, quantity, unit_price, amount)
+            INSERT INTO purchase_order_items (purchase_order_id, item_no, description, quantity, unit, unit_price, amount)
             VALUES ?
           `;
 
@@ -3428,6 +3483,7 @@ function updatePurchaseOrder(poId, requestBody, res) {
             item.item_no || 1,
             item.description || '',
             item.quantity || 1,
+            item.unit || 'pcs',
             item.unit_price || 0,
             item.amount || 0
           ]);
@@ -4446,43 +4502,112 @@ app.get("/api/invoice-numbers", (req, res) => {
 // Get user settings
 app.get("/api/settings/:userId", (req, res) => {
   const userId = req.params.userId || 1; // Default to user 1
-  
-  // Get user basic info and settings
-  const getUserQuery = `
-    SELECT u.id, u.firstName, u.lastName, u.email, 
-           us.phone, us.company, us.address, us.two_factor_enabled, us.email_notifications
+
+  // Query users and user_settings separately and merge safely. This avoids SQL errors if one table
+  // doesn't have all columns and also ensures we return sensible fallbacks.
+  const userQuery = `SELECT * FROM users WHERE id = ? LIMIT 1`;
+  const settingsQuery = `SELECT * FROM user_settings WHERE user_id = ? LIMIT 1`;
+
+  // Execute both queries in parallel
+  db.query(userQuery, [userId], (uErr, uResults) => {
+    if (uErr) {
+      console.error('Error fetching user:', uErr);
+      return res.status(500).json({ success: false, message: 'Error fetching user' });
+    }
+
+    if (!uResults || uResults.length === 0) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    const user = uResults[0] || {};
+
+    db.query(settingsQuery, [userId], (sErr, sResults) => {
+      if (sErr) {
+        console.error('Error fetching user_settings:', sErr);
+        // Do not fail completely; return user info with empty settings
+      }
+
+      const us = (sResults && sResults[0]) ? sResults[0] : {};
+
+      // Prefer explicit user_settings values, fall back to users table when available
+      const personal = {
+        firstName: user.firstName || '',
+        lastName: user.lastName || '',
+        email: user.email || '',
+        phone: us.phone || user.phone || '',
+        company: us.company || user.company || '',
+        address: us.address || user.address || '',
+        profilePicture: us.profile_picture_url || user.profile_picture_url || null,
+        profilePictureUrl: (us.profile_picture_url || user.profile_picture_url)
+          ? `/api/profile-picture/view/${us.profile_picture_url || user.profile_picture_url}`
+          : null
+      };
+
+      const security = {
+        twoFactorEnabled: (typeof us.two_factor_enabled !== 'undefined') ? us.two_factor_enabled === 1 : !!user.two_factor_enabled,
+        loginNotifications: (typeof us.email_notifications !== 'undefined') ? us.email_notifications === 1 : !!user.email_notifications
+      };
+
+      res.json({ success: true, data: { personal, security } });
+    });
+  });
+});
+
+// --- Lightweight Header Endpoint ---
+// GET user header info (optimized for Header component - only essential fields)
+app.get("/api/user/header/:userId", (req, res) => {
+  const userId = req.params.userId || 1;
+
+  // Single optimized query - join users and user_settings, select only needed fields
+  const query = `
+    SELECT 
+      u.firstName,
+      u.lastName,
+      u.email,
+      us.company,
+      us.phone,
+      us.profile_picture_url
     FROM users u
     LEFT JOIN user_settings us ON u.id = us.user_id
     WHERE u.id = ?
+    LIMIT 1
   `;
-  
-  db.query(getUserQuery, [userId], (err, results) => {
+
+  db.query(query, [userId], (err, results) => {
     if (err) {
-      console.error("Error fetching user settings:", err);
-      return res.status(500).json({ success: false, message: "Error fetching settings" });
+      console.error('Error fetching header data:', err);
+      return res.status(500).json({ 
+        success: false, 
+        message: 'Error fetching user header information' 
+      });
     }
-    
+
+    if (!results || results.length === 0) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'User not found' 
+      });
+    }
+
     const user = results[0];
-    if (!user) {
-      return res.status(404).json({ success: false, message: "User not found" });
-    }
     
-    const settings = {
-      personal: {
-        firstName: user.firstName || "",
-        lastName: user.lastName || "",
-        email: user.email || "",
-        phone: user.phone || "",
-        company: user.company || "",
-        address: user.address || ""
-      },
-      security: {
-        twoFactorEnabled: user.two_factor_enabled === 1,
-        loginNotifications: user.email_notifications === 1
-      }
+    // Build response with clean field names
+    const headerData = {
+      firstName: user.firstName || '',
+      lastName: user.lastName || '',
+      fullName: `${user.firstName || ''} ${user.lastName || ''}`.trim(),
+      email: user.email || '',
+      company: user.company || '',
+      phone: user.phone || '',
+      profilePictureUrl: user.profile_picture_url 
+        ? `/api/profile-picture/view/${user.profile_picture_url}`
+        : null
     };
-    
-    res.json({ success: true, data: settings });
+
+    res.json({ 
+      success: true, 
+      data: headerData 
+    });
   });
 });
 

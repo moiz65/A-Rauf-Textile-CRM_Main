@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { ArrowLeft, Download, Printer, Edit, Share2, Eye, EyeOff, X } from 'lucide-react';
 import { generateInvoiceId, generateIncrementalPOInvoiceId } from '../utils/idGenerator';
-import Logo from '../assets/Logo/Logo.png';
+import Logo from '../assets/Logo/rauf textile png.png';
 
 const PurchaseOrderDetails = ({ poId, onBack }) => {
   const [purchaseOrder, setPurchaseOrder] = useState(null);
@@ -233,7 +233,7 @@ const PurchaseOrderDetails = ({ poId, onBack }) => {
   const generatePDF = () => {
     if (!purchaseOrder) return;
     
-    const printWindow = window.open('', '_blank', 'width=800,height=600');
+    const printWindow = window.open('', '_blank', 'width=900,height=700');
     
     if (!printWindow) {
       alert('Pop-up blocked. Please allow pop-ups for this site to generate PDF.');
@@ -253,18 +253,53 @@ const PurchaseOrderDetails = ({ poId, onBack }) => {
             box-sizing: border-box;
           }
           
-          body {
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: white;
-            color: #333;
-            line-height: 1.5;
-            padding: 20px;
+          @page {
+            size: A4;
+            margin: 10mm;
           }
           
+          body {
+            font-family: Arial, sans-serif;
+            background: white;
+            color: #333;
+            line-height: 1.3;
+            padding: 0;
+            margin: 0;
+          }
+          
+          /* Force an A4 page-sized container so printed output matches A4 */
           .po-container {
-            max-width: 800px;
+            width: 210mm;
+            min-height: 297mm;
             margin: 0 auto;
             background: white;
+            position: relative;
+            box-sizing: border-box;
+            overflow: hidden;
+            /* allow content to break across pages when it overflows */
+            page-break-after: always;
+          }
+          
+          /* Use an inline fixed <img> watermark so it prints reliably on each page */
+          .print-watermark {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            /* Keep the image visually centered, but rotate around its left edge for a 'tilt from left' look */
+            transform: translate(-50%, -50%) rotate(-14deg);
+            transform-origin: 12% 50%; /* pivot near the left side, vertically centered */
+            width: 65%;
+            max-width: 820px;
+            height: auto;
+            opacity: 0.06;
+            pointer-events: none;
+            z-index: 0;
+            display: block;
+          }
+          
+          .content {
+            position: relative;
+            z-index: 1;
           }
           
           .header {
@@ -446,105 +481,373 @@ const PurchaseOrderDetails = ({ poId, onBack }) => {
           }
           
           @media print {
-            body { margin: 0; padding: 10px; }
-            .po-container { margin: 0; padding: 0; }
+            @page {
+              size: A4 portrait;
+              margin: 8mm;
+            }
+            
+            * {
+              -webkit-print-color-adjust: exact;
+              print-color-adjust: exact;
+            }
+            
+            body {
+              margin: 0 !important;
+              padding: 0 !important;
+              line-height: 1.2 !important;
+            }
+            
+            .po-container {
+              width: 210mm !important;
+              min-height: 297mm !important;
+              margin: 0 auto !important;
+              padding: 0 !important;
+              box-shadow: none !important;
+              page-break-after: always !important;
+            }
+            
+            .content > div {
+              padding: 16px !important;
+            }
+            
+            .header {
+              margin-bottom: 20px !important;
+              padding-bottom: 12px !important;
+            }
+            
+            .company-logo {
+              width: 100px !important;
+              height: auto !important;
+              padding-bottom: 8px !important;
+            }
+            
+            .company-details h2 {
+              font-size: 14px !important;
+              margin-bottom: 4px !important;
+            }
+            
+            .company-details p {
+              font-size: 10px !important;
+              margin-bottom: 2px !important;
+            }
+            
+            .po-title {
+              font-size: 16px !important;
+              margin-bottom: 6px !important;
+            }
+            
+            .po-info {
+              padding: 8px !important;
+              margin-bottom: 12px !important;
+            }
+            
+            .po-info div {
+              font-size: 10px !important;
+              margin-bottom: 2px !important;
+            }
+            
+            .section {
+              margin-bottom: 16px !important;
+              page-break-inside: avoid;
+            }
+            
+            .section-title {
+              font-size: 12px !important;
+              margin-bottom: 8px !important;
+              padding-bottom: 4px !important;
+            }
+            
+            .supplier-info {
+              padding: 12px !important;
+              margin-bottom: 12px !important;
+            }
+            
+            .supplier-info h3 {
+              font-size: 12px !important;
+              margin-bottom: 6px !important;
+            }
+            
+            .supplier-info p {
+              font-size: 10px !important;
+              margin-bottom: 2px !important;
+            }
+            
+            .items-table {
+              margin-bottom: 12px !important;
+            }
+            
+            .items-table th,
+            .items-table td {
+              padding: 6px 8px !important;
+              font-size: 10px !important;
+            }
+            
+            .items-table th {
+              font-size: 10px !important;
+            }
+            
+            .summary-section {
+              margin-bottom: 16px !important;
+            }
+            
+            .summary-table {
+              width: 250px !important;
+            }
+            
+            .summary-row {
+              padding: 4px 0 !important;
+              font-size: 10px !important;
+            }
+            
+            .summary-row.total {
+              padding: 6px 0 !important;
+              font-size: 12px !important;
+            }
+            
+            .terms {
+              padding: 12px !important;
+              margin-bottom: 12px !important;
+              page-break-inside: avoid;
+            }
+            
+            .terms h4 {
+              font-size: 11px !important;
+              margin-bottom: 4px !important;
+            }
+            
+            .terms p {
+              font-size: 9px !important;
+              line-height: 1.3 !important;
+            }
+            
+            .footer {
+              margin-top: 16px !important;
+              padding-top: 12px !important;
+              font-size: 9px !important;
+            }
+            
+            /* Compress inline styles in HTML body */
+            div[style*="padding: 32px"] {
+              padding: 16px !important;
+            }
+            
+            div[style*="font-size: 20px"] {
+              font-size: 14px !important;
+            }
+            
+            div[style*="font-size: 13px"] {
+              font-size: 10px !important;
+            }
+            
+            div[style*="margin-bottom: 16px"] {
+              margin-bottom: 10px !important;
+            }
+            
+            img[style*="height: 128px"] {
+              height: 80px !important;
+            }
+            
+            table td[style*="padding: 12px"],
+            table th[style*="padding: 12px"] {
+              padding: 6px 8px !important;
+            }
           }
         </style>
       </head>
       <body>
-        <div class="po-container">
-          <div class="header">
-            <div class="company-info">
-              <img src="${Logo}" alt="Company Logo" class="company-logo">
-              <div class="company-details">
-                <h2>A Rauf Brother Textile</h2>
-                <p>Room No.205 Floor Saleha Chamber, Plot No. 8-9/C-1 Site, Karachi</p>
-                <p>Email: contact@araufbrother.com | Phone: 021-36404043</p>
-                <p><strong>S.T. Reg.No:</strong> 3253255666541 | <strong>NTN:</strong> 7755266214-8</p>
+          <div class="po-container">
+          <!-- Watermark image placed as a fixed element so it appears on every printed page -->
+          <img class="print-watermark" src="${Logo}" alt="Watermark" />
+          <div class="content">
+            <!-- Company Header - Matching On-Screen Layout -->
+            <div style="position: relative; padding: 32px; border-bottom: 2px solid #9ca3af;">
+              <!-- Company Logo and Info - Centered -->
+              <div style="position: relative; z-index: 10; text-align: center; margin-bottom: 16px;">
+                <div style="display: flex; justify-content: center; margin-bottom: 12px;">
+                  <img src="${Logo}" alt="A Rauf Textile" style="height: 128px; width: auto; max-width: 280px; object-fit: contain;">
+                </div>
+                <div style="font-size: 13px; color: #374151;">
+                  <p style="font-size: 11px; margin: 2px 0;">Deals in all kind of Greige & Dyed Fabric</p>
+                  <p style="font-size: 11px; margin: 3px 0;"><strong>STRN #</strong> 32-77-8761-279-54</p>
+                  <p style="font-size: 11px; margin: 2px 0;"><strong>NTN #</strong> 7225539-1</p>
+                </div>
               </div>
-            </div>
-            <div class="po-meta">
-              <div class="po-title">PURCHASE ORDER</div>
-              <div class="po-info">
-                <div><span class="label">PO Number:</span> ${purchaseOrder.number}</div>
-                <div><span class="label">Date:</span> ${new Date(purchaseOrder.date).toLocaleDateString()}</div>
-                <div><span class="label">Delivery Date:</span> ${new Date(purchaseOrder.deliveryDate).toLocaleDateString()}</div>
-                <div><span class="label">Status:</span> ${purchaseOrder.status}</div>
-              </div>
-            </div>
-          </div>
-          
-          <div class="section">
-            <div class="section-title">Supplier Information</div>
-            <div class="supplier-info">
-              <h3>${purchaseOrder.supplier.name}</h3>
-              <p><strong>Company:</strong> ${purchaseOrder.supplier.company}</p>
-              <p><strong>Email:</strong> ${purchaseOrder.supplier.email}</p>
-              <p><strong>Phone:</strong> ${purchaseOrder.supplier.phone}</p>
-              <p><strong>Address:</strong> ${purchaseOrder.supplier.address}</p>
-            </div>
-          </div>
-          
-          <div class="section">
-            <div class="section-title">Order Details</div>
-            <table class="items-table">
-              <thead>
-                <tr>
-                  <th>Description</th>
-                  <th class="text-right">Qty</th>
-                  <th class="text-right">Unit</th>
-                  <th class="text-right">Unit Price</th>
-                  <th class="text-right">Total</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${(purchaseOrder.items || []).length > 0 ? 
-                  purchaseOrder.items.map(item => `
-                    <tr>
-                      <td>${item.description || 'N/A'}</td>
-                      <td class="text-right">${item.quantity || 0}</td>
-                      <td class="text-right">${item.unit || 'pcs'}</td>
-                      <td class="text-right">${formatCurrency(item.unitPrice || item.unit_price || 0, purchaseOrder.currency)}</td>
-                      <td class="text-right">${formatCurrency(item.total || item.amount || 0, purchaseOrder.currency)}</td>
-                    </tr>
-                  `).join('') :
-                  '<tr><td colspan="5" style="text-align: center; padding: 20px; color: #666;">No items found</td></tr>'
-                }
-              </tbody>
-            </table>
-          </div>
-          
-          <div class="summary-section">
-            <div class="summary-table">
-              <div class="summary-row">
-                <span>Subtotal</span>
-                <span>${formatCurrency(purchaseOrder.subtotal, purchaseOrder.currency)}</span>
-              </div>
-              <div class="summary-row">
-                <span>Tax (${purchaseOrder.taxRate}%)</span>
-                <span>${formatCurrency(purchaseOrder.taxAmount, purchaseOrder.currency)}</span>
-              </div>
-              <div class="summary-row total">
-                <span>Total Amount</span>
-                <span>${formatCurrency(purchaseOrder.totalAmount, purchaseOrder.currency)}</span>
-              </div>
-            </div>
-          </div>
-          
-          <div class="section">
-            <div class="terms">
-              <h4>Terms and Conditions</h4>
-              <p>${purchaseOrder.termsAndConditions}</p>
-              ${purchaseOrder.notes ? `
-                <h4 style="margin-top: 15px;">Special Notes</h4>
-                <p>${purchaseOrder.notes}</p>
-              ` : ''}
-            </div>
-          </div>
-          
 
+              <!-- Title Section -->
+              <div style="position: relative; z-index: 10; text-align: center; margin-bottom: 16px; border-top: 1px solid #d1d5db; padding-top: 16px;">
+                <h1 style="font-size: 20px; font-weight: bold; color: #1f2937; text-transform: uppercase; letter-spacing: 1px; margin: 0;">PURCHASE ORDER</h1>
+              </div>
+
+              <!-- PO Info Grid -->
+              <div style="position: relative; z-index: 10; border-top: 2px solid #9ca3af; padding-top: 16px;">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 32px; margin-bottom: 16px;">
+                  <!-- Left Column - PO Details -->
+                  <div style="font-size: 13px;">
+                    <div style="margin-bottom: 6px;">
+                      <span style="font-weight: 600; color: #374151; display: inline-block; width: 128px;">PO Number :</span>
+                      <span style="color: #1f2937;">${purchaseOrder.number}</span>
+                    </div>
+                    <div style="margin-bottom: 6px;">
+                      <span style="font-weight: 600; color: #374151; display: inline-block; width: 128px;">Date :</span>
+                      <span style="color: #1f2937;">${new Date(purchaseOrder.date).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' })}</span>
+                    </div>
+                  </div>
+
+                  <!-- Right Column - Delivery & Status -->
+                  <div style="text-align: right; font-size: 13px;">
+                    <div style="margin-bottom: 6px;">
+                      <span style="font-weight: 600; color: #374151;">Delivery Date: </span>
+                      <span style="color: #1f2937;">${new Date(purchaseOrder.deliveryDate).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' })}</span>
+                    </div>
+                    <div style="margin-bottom: 6px;">
+                      <span style="font-weight: 600; color: #374151;">Status: </span>
+                      <span style="margin-left: 8px; padding: 4px 12px; border-radius: 9999px; font-size: 11px; font-weight: 500; ${
+                        purchaseOrder.status === 'Pending' ? 'background: #fed7aa; color: #9a3412;' :
+                        purchaseOrder.status === 'Approved' ? 'background: #bfdbfe; color: #1e40af;' :
+                        purchaseOrder.status === 'In Transit' ? 'background: #e9d5ff; color: #6b21a8;' :
+                        purchaseOrder.status === 'Delivered' ? 'background: #bbf7d0; color: #15803d;' :
+                        'background: #fecaca; color: #991b1b;'
+                      }">
+                        ${purchaseOrder.status}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Supplier Information Section -->
+              <div style="position: relative; z-index: 10; border: 1px solid #9ca3af; padding: 16px; margin-bottom: 16px;">
+                <h3 style="font-weight: bold; color: #1f2937; margin-bottom: 12px; text-decoration: underline; font-size: 13px;">Supplier Information :</h3>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px 48px; font-size: 13px;">
+                  <div>
+                    <span style="font-weight: 600; color: #374151; display: inline-block; width: 160px;">Name :</span>
+                    <span style="color: #1f2937; font-weight: bold;">${purchaseOrder.supplier.name}</span>
+                  </div>
+                  <div>
+                    <span style="font-weight: 600; color: #374151; display: inline-block; width: 192px;">Company :</span>
+                    <span style="color: #1f2937;">${purchaseOrder.supplier.company}</span>
+                  </div>
+                  <div>
+                    <span style="font-weight: 600; color: #374151; display: inline-block; width: 160px;">Email :</span>
+                    <span style="color: #1f2937;">${purchaseOrder.supplier.email}</span>
+                  </div>
+                  <div>
+                    <span style="font-weight: 600; color: #374151; display: inline-block; width: 192px;">Phone :</span>
+                    <span style="color: #1f2937;">${purchaseOrder.supplier.phone}</span>
+                  </div>
+                  <div style="grid-column: 1 / -1;">
+                    <span style="font-weight: 600; color: #374151; display: inline-block; width: 160px;">Address :</span>
+                    <span style="color: #1f2937;">${purchaseOrder.supplier.address}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Items Table Section -->
+            <div style="padding: 32px;">
+              <!-- PO Table - Matching On-Screen Style -->
+              <div style="margin-bottom: 24px;">
+                <div style="overflow-x: auto; border: 2px solid #9ca3af;">
+                  <table style="width: 100%; border-collapse: collapse;">
+                    <thead>
+                      <tr style="background: #e5e7eb; border-bottom: 2px solid #9ca3af;">
+                        <th style="padding: 12px 8px; text-align: center; font-size: 11px; font-weight: bold; color: #1f2937; border-right: 1px solid #9ca3af;">S.No</th>
+                        <th style="padding: 12px 12px; text-align: center; font-size: 11px; font-weight: bold; color: #1f2937; border-right: 1px solid #9ca3af;">Description</th>
+                        <th style="padding: 12px 12px; text-align: center; font-size: 11px; font-weight: bold; color: #1f2937; border-right: 1px solid #9ca3af;">Quantity</th>
+                        <th style="padding: 12px 12px; text-align: center; font-size: 11px; font-weight: bold; color: #1f2937; border-right: 1px solid #9ca3af;">Unit</th>
+                        <th style="padding: 12px 12px; text-align: center; font-size: 11px; font-weight: bold; color: #1f2937; border-right: 1px solid #9ca3af;">Unit Price</th>
+                        <th style="padding: 12px 12px; text-align: center; font-size: 11px; font-weight: bold; color: #1f2937;">Total Amount</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      ${(purchaseOrder.items || []).length > 0 ? 
+                        purchaseOrder.items.map((item, index) => `
+                          <tr style="border-bottom: 1px solid #d1d5db;">
+                            <td style="padding: 16px 8px; font-size: 13px; color: #1f2937; text-align: center; border-right: 1px solid #d1d5db; font-weight: 600;">${index + 1}</td>
+                            <td style="padding: 16px 12px; font-size: 13px; color: #1f2937; border-right: 1px solid #d1d5db;">
+                              <div style="font-weight: 500;">${item.description || 'N/A'}</div>
+                            </td>
+                            <td style="padding: 16px 12px; font-size: 13px; color: #1f2937; text-align: center; border-right: 1px solid #d1d5db;">${parseFloat(item.quantity || 0).toLocaleString()}</td>
+                            <td style="padding: 16px 12px; font-size: 13px; color: #1f2937; text-align: center; border-right: 1px solid #d1d5db;">${item.unit || 'pcs'}</td>
+                            <td style="padding: 16px 12px; font-size: 13px; color: #1f2937; text-align: right; border-right: 1px solid #d1d5db;">${purchaseOrder.currency} ${parseFloat(item.unitPrice || item.unit_price || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+                            <td style="padding: 16px 12px; font-size: 13px; font-weight: 600; color: #111827; text-align: right;">${purchaseOrder.currency} ${parseFloat(item.total || item.amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+                          </tr>
+                        `).join('') :
+                        '<tr style="border-bottom: 1px solid #d1d5db;"><td colspan="6" style="padding: 32px 16px; text-align: center; font-size: 13px; color: #6b7280;">No items found for this purchase order</td></tr>'
+                      }
+                      <!-- Total Row -->
+                      <tr style="background: #f3f4f6; border-top: 2px solid #9ca3af;">
+                        <td style="padding: 12px 8px; border-right: 1px solid #d1d5db;"></td>
+                        <td style="padding: 12px 12px; font-size: 13px; font-weight: bold; color: #1f2937; border-right: 1px solid #d1d5db;">TOTAL</td>
+                        <td style="padding: 12px 12px; font-size: 13px; color: #1f2937; text-align: center; border-right: 1px solid #d1d5db;">
+                          ${purchaseOrder.items ? purchaseOrder.items.reduce((sum, item) => sum + parseFloat(item.quantity || 0), 0).toLocaleString() : 0}
+                        </td>
+                        <td style="padding: 12px 12px; border-right: 1px solid #d1d5db;"></td>
+                        <td style="padding: 12px 12px; border-right: 1px solid #d1d5db;"></td>
+                        <td style="padding: 12px 12px; font-size: 13px; font-weight: bold; color: #111827; text-align: right;">${purchaseOrder.currency} ${parseFloat(purchaseOrder.totalAmount || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <!-- Summary Section -->
+              <div style="margin-bottom: 24px; border: 1px solid #d1d5db; padding: 16px;">
+                <div>
+                  <div style="margin-bottom: 12px;">
+                    <span style="font-weight: 600; color: #1f2937;">Amount Breakdown:</span>
+                  </div>
+                  <div style="font-size: 13px;">
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 6px;">
+                      <span style="color: #374151;">Subtotal:</span>
+                      <span style="font-weight: 600; color: #111827;">${purchaseOrder.currency} ${parseFloat(purchaseOrder.subtotal || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 6px;">
+                      <span style="color: #374151;">Tax (${purchaseOrder.taxRate}%):</span>
+                      <span style="font-weight: 600; color: #111827;">${purchaseOrder.currency} ${parseFloat(purchaseOrder.taxAmount || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; padding-top: 8px; border-top: 1px solid #d1d5db;">
+                      <span style="font-weight: bold; color: #1f2937;">Total Amount:</span>
+                      <span style="font-weight: bold; color: #111827;">${purchaseOrder.currency} ${parseFloat(purchaseOrder.totalAmount || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Terms and Conditions -->
+              <div style="margin-bottom: 24px; border: 1px solid #d1d5db; padding: 16px;">
+                <h4 style="font-weight: bold; color: #1f2937; margin-bottom: 12px;">Terms and Conditions</h4>
+                <p style="font-size: 13px; color: #374151; line-height: 1.6; margin-bottom: 16px;">${purchaseOrder.termsAndConditions}</p>
+                ${purchaseOrder.notes ? `
+                  <h4 style="font-weight: bold; color: #1f2937; margin-bottom: 12px;">Special Notes</h4>
+                  <p style="font-size: 13px; color: #374151; line-height: 1.6;">${purchaseOrder.notes}</p>
+                ` : ''}
+              </div>
+
+              <!-- Signature Section -->
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 32px; border-top: 2px solid #d1d5db; padding-top: 24px;">
+                <div style="text-align: center;">
+                  <div style="height: 64px; margin-bottom: 8px;"></div>
+                  <div style="border-top: 1px solid #9ca3af; padding-top: 8px;">
+                    <span style="font-size: 13px; font-weight: 600; color: #1f2937;">Prepared By</span>
+                  </div>
+                </div>
+                <div style="text-align: center;">
+                  <div style="height: 64px; margin-bottom: 8px;"></div>
+                  <div style="border-top: 1px solid #9ca3af; padding-top: 8px;">
+                    <span style="font-size: 13px; font-weight: 600; color: #1f2937;">Authorized By</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
-        <script>window.print();</script>
+        <script>
+          // Print when the new window loads. Use native rendering so A4 sizing from CSS is respected.
+          window.onload = function(){
+            setTimeout(function(){ window.print(); }, 150);
+          };
+        </script>
       </body>
       </html>
     `;
@@ -977,11 +1280,13 @@ const PurchaseOrderDetails = ({ poId, onBack }) => {
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
                   <input
-                    type="text"
+                    type="tel"
                     name="phone"
                     value={invoiceData.supplier.phone}
                     onChange={handleSupplierChange}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    pattern="[0-9\-\+\(\)\s]*"
+                    placeholder="Enter phone number"
                   />
                 </div>
                 <div>
@@ -1147,33 +1452,43 @@ const PurchaseOrderDetails = ({ poId, onBack }) => {
         </div>
         
         <div className="flex gap-2">
-          {/* Only show Make Invoice button if PO is not fully invoiced */}
-          {poSummary.remainingAmount > 0 && (
-            <button
-              onClick={async () => {
-                // Refresh PO summary and fetch latest invoice history before opening modal
-                setLoadingHistory(true);
-                await fetchPOSummary();
-                await fetchInvoiceHistory();
-                setLoadingHistory(false);
-                setShowInvoiceModal(true);
-              }}
-              disabled={loadingHistory}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {loadingHistory ? (
-                <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                  <span>Loading...</span>
-                </>
-              ) : (
-                <>
-                  <Edit className="w-4 h-4" />
-                  <span>Make Invoice</span>
-                </>
-              )}
-            </button>
-          )}
+          {/* Make Invoice button: only enabled if there is remaining amount AND PO status allows invoicing */}
+          {poSummary.remainingAmount > 0 && (() => {
+            const blockedStatuses = ['Draft', 'Pending'];
+            const isBlocked = blockedStatuses.includes(purchaseOrder?.status);
+            const btnDisabled = isBlocked || loadingHistory;
+
+            return (
+              <button
+                onClick={async () => {
+                  // Prevent action when blocked
+                  if (isBlocked) return;
+
+                  // Refresh PO summary and fetch latest invoice history before opening modal
+                  setLoadingHistory(true);
+                  await fetchPOSummary();
+                  await fetchInvoiceHistory();
+                  setLoadingHistory(false);
+                  setShowInvoiceModal(true);
+                }}
+                disabled={btnDisabled}
+                title={isBlocked ? 'Cannot create invoice for Draft or Pending purchase orders' : 'Create an invoice from this PO'}
+                className={`flex items-center gap-2 px-4 py-2 rounded-md transition-colors ${btnDisabled ? 'bg-gray-200 text-gray-600 cursor-not-allowed' : 'bg-blue-600 text-white hover:bg-blue-700'}`}
+              >
+                {loadingHistory ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    <span>Loading...</span>
+                  </>
+                ) : (
+                  <>
+                    <Edit className="w-4 h-4" />
+                    <span>{isBlocked ? 'Cannot Make Invoice' : 'Make Invoice'}</span>
+                  </>
+                )}
+              </button>
+            );
+          })()}
           
           {/* Show fully invoiced message when PO is complete */}
           {poSummary.remainingAmount <= 0 && poSummary.totalInvoiced > 0 && (
@@ -1202,120 +1517,169 @@ const PurchaseOrderDetails = ({ poId, onBack }) => {
       </div>
 
       {/* Purchase Order Content */}
-      <div ref={poRef} className="p-4 sm:p-6">
-        {/* Company Header */}
-        <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6 mb-8 pb-6 border-b-2 border-gray-200">
-          <div className="flex flex-col gap-5">
-            <div className="w-[15rem] flex-shrink-0">
-              <img src={Logo} alt="Company Logo" className="w-full h-full object-contain" />
+      <div ref={poRef} className="bg-white rounded-lg shadow-sm overflow-hidden">
+        
+        {/* Company Header - Matching Invoice Layout */}
+        <div className="relative px-8 py-6 border-b border-gray-400">
+          {/* Company Logo and Info - Centered */}
+          <div className="relative z-10 text-center mb-4">
+            <div className="flex justify-center mb-3">
+              <img src={Logo} alt="A Rauf Textile" className="h-32 w-auto object-contain" style={{ maxWidth: '280px' }} />
             </div>
-            <div>
-              <h2 className="text-xl font-semibold text-gray-900 mb-2">A Rauf Brother Textile</h2>
-              <p className="text-sm text-gray-600">Room No.205 Floor Saleha Chamber, Plot No. 8-9/C-1 Site, Karachi</p>
-              <p className="text-sm text-gray-600">Email: contact@araufbrother.com | Phone: 021-36404043</p>
-              <p className="text-sm text-gray-600"><strong>S.T. Reg.No:</strong> 3253255666541 | <strong>NTN:</strong> 7755266214-8</p>
+            <div className="text-sm text-gray-700">
+              <p className="text-xs">Deals in all kind of Greige & Dyed Fabric</p>
+              <p className="text-xs mt-1"><strong>STRN #</strong> 32-77-8761-279-54</p>
+              <p className="text-xs"><strong>NTN #</strong> 7225539-1</p>
             </div>
           </div>
-          
-          <div className="text-right">
-            <h1 className="text-3xl font-bold text-blue-600 mb-4">PURCHASE ORDER</h1>
-            <div className="bg-gray-50 p-4 rounded-lg border">
-              <div className="mb-2"><span className="font-semibold">PO Number:</span> {purchaseOrder.number}</div>
-              <div className="mb-2"><span className="font-semibold">Date:</span> {new Date(purchaseOrder.date).toLocaleDateString()}</div>
-              <div className="mb-2"><span className="font-semibold">Delivery Date:</span> {new Date(purchaseOrder.deliveryDate).toLocaleDateString()}</div>
-              <div>
-                <span className="font-semibold">Status:</span>
-                <span className={`ml-2 px-3 py-1 rounded-full text-xs font-medium ${
-                  purchaseOrder.status === 'Pending' ? 'bg-orange-100 text-orange-800' :
-                  purchaseOrder.status === 'Approved' ? 'bg-blue-100 text-blue-800' :
-                  purchaseOrder.status === 'In Transit' ? 'bg-purple-100 text-purple-800' :
-                  purchaseOrder.status === 'Delivered' ? 'bg-green-100 text-green-800' :
-                  'bg-red-100 text-red-800'
-                }`}>
-                  {purchaseOrder.status}
-                </span>
+
+          {/* Title Section */}
+          <div className="relative z-10 text-center mb-4 border-t border-gray-300 pt-4">
+            <h1 className="text-xl font-bold text-gray-800 uppercase tracking-wide">PURCHASE ORDER</h1>
+          </div>
+
+          {/* PO Info Grid */}
+          <div className="relative z-10 border-t border-gray-400 pt-4">
+            <div className="grid grid-cols-2 gap-8 mb-4">
+              {/* Left Column - PO Details */}
+              <div className="space-y-1 text-sm">
+                <div className="flex">
+                  <span className="font-semibold text-gray-700 w-32">PO Number :</span>
+                  <span className="text-gray-800">{purchaseOrder.number}</span>
+                </div>
+                <div className="flex">
+                  <span className="font-semibold text-gray-700 w-32">Date :</span>
+                  <span className="text-gray-800">{new Date(purchaseOrder.date).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' })}</span>
+                </div>
+              </div>
+
+              {/* Right Column - Delivery & Status */}
+              <div className="text-right space-y-1">
+                <div className="text-sm">
+                  <span className="font-semibold text-gray-700">Delivery Date: </span>
+                  <span className="text-gray-800">{new Date(purchaseOrder.deliveryDate).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' })}</span>
+                </div>
+                <div className="text-sm">
+                  <span className="font-semibold text-gray-700">Status: </span>
+                  <span className={`ml-2 px-3 py-1 rounded-full text-xs font-medium ${
+                    purchaseOrder.status === 'Pending' ? 'bg-orange-100 text-orange-800' :
+                    purchaseOrder.status === 'Approved' ? 'bg-blue-100 text-blue-800' :
+                    purchaseOrder.status === 'In Transit' ? 'bg-purple-100 text-purple-800' :
+                    purchaseOrder.status === 'Delivered' ? 'bg-green-100 text-green-800' :
+                    'bg-red-100 text-red-800'
+                  }`}>
+                    {purchaseOrder.status}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Supplier Information Section */}
+          <div className="relative z-10 border border-gray-400 p-4 mb-4">
+            <h3 className="font-bold text-gray-800 mb-3 underline text-sm">Supplier Information :</h3>
+            <div className="grid grid-cols-2 gap-x-12 gap-y-2 text-sm">
+              <div className="flex">
+                <span className="font-semibold text-gray-700 w-40">Name :</span>
+                <span className="text-gray-800 font-bold">{purchaseOrder.supplier.name}</span>
+              </div>
+              <div className="flex">
+                <span className="font-semibold text-gray-700 w-48">Company :</span>
+                <span className="text-gray-800">{purchaseOrder.supplier.company}</span>
+              </div>
+              <div className="flex">
+                <span className="font-semibold text-gray-700 w-40">Email :</span>
+                <span className="text-gray-800">{purchaseOrder.supplier.email}</span>
+              </div>
+              <div className="flex">
+                <span className="font-semibold text-gray-700 w-48">Phone :</span>
+                <span className="text-gray-800">{purchaseOrder.supplier.phone}</span>
+              </div>
+              <div className="flex col-span-2">
+                <span className="font-semibold text-gray-700 w-40">Address :</span>
+                <span className="text-gray-800">{purchaseOrder.supplier.address}</span>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Supplier Information */}
-        <div className="mb-8">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4 pb-2 border-b border-gray-200">Supplier Information</h3>
-          <div className="bg-gray-50 p-6 rounded-lg border">
-            <h4 className="text-lg font-semibold text-gray-900 mb-3">{purchaseOrder.supplier.name}</h4>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <p className="text-sm text-gray-600 mb-1"><strong>Company:</strong> {purchaseOrder.supplier.company}</p>
-                <p className="text-sm text-gray-600 mb-1"><strong>Email:</strong> {purchaseOrder.supplier.email}</p>
-                <p className="text-sm text-gray-600 mb-1"><strong>Phone:</strong> {purchaseOrder.supplier.phone}</p>
-                <p className="text-sm text-gray-600"><strong>Address:</strong> {purchaseOrder.supplier.address}</p>
-              </div>
-
-            </div>
-          </div>
-        </div>
-
-        {/* Items Table */}
-        <div className="mb-8">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4 pb-2 border-b border-gray-200">Order Details</h3>
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse border border-gray-200">
-              <thead>
-                <tr className="bg-gray-50">
-                  <th className="border border-gray-200 px-4 py-3 text-left text-sm font-semibold text-gray-900">Description</th>
-                  <th className="border border-gray-200 px-4 py-3 text-right text-sm font-semibold text-gray-900">Qty</th>
-                  <th className="border border-gray-200 px-4 py-3 text-right text-sm font-semibold text-gray-900">Unit</th>
-                  <th className="border border-gray-200 px-4 py-3 text-right text-sm font-semibold text-gray-900">Unit Price</th>
-                  <th className="border border-gray-200 px-4 py-3 text-right text-sm font-semibold text-gray-900">Total</th>
-                </tr>
-              </thead>
-              <tbody>
-                {(purchaseOrder.items || []).length > 0 ? (
-                  purchaseOrder.items.map((item, index) => (
-                    <tr key={index} className="hover:bg-gray-50">
-                      <td className="border border-gray-200 px-4 py-3 text-sm text-gray-900">{item.description || 'N/A'}</td>
-                      <td className="border border-gray-200 px-4 py-3 text-sm text-gray-900 text-right">{item.quantity || 0}</td>
-                      <td className="border border-gray-200 px-4 py-3 text-sm text-gray-900 text-right">{item.unit || 'pcs'}</td>
-                      <td className="border border-gray-200 px-4 py-3 text-sm text-gray-900 text-right">
-                        {purchaseOrder.currency} {(item.unitPrice || item.unit_price || 0).toLocaleString()}
-                      </td>
-                      <td className="border border-gray-200 px-4 py-3 text-sm font-semibold text-gray-900 text-right">
-                        {purchaseOrder.currency} {(item.total || item.amount || 0).toLocaleString()}
+        {/* Items Table Section */}
+        <div className="px-8 py-6">
+          {/* PO Table - Invoice Style */}
+          <div className="mb-6">
+            <div className="overflow-x-auto border-2 border-gray-400">
+              <table className="w-full border-collapse">
+                <thead>
+                  <tr className="bg-gray-200 border-b-2 border-gray-400">
+                    <th className="py-3 px-2 text-center text-xs font-bold text-gray-800 border-r border-gray-400">S.No</th>
+                    <th className="py-3 px-3 text-center text-xs font-bold text-gray-800 border-r border-gray-400">Description</th>
+                    <th className="py-3 px-3 text-center text-xs font-bold text-gray-800 border-r border-gray-400">Quantity</th>
+                    <th className="py-3 px-3 text-center text-xs font-bold text-gray-800 border-r border-gray-400">Unit</th>
+                    <th className="py-3 px-3 text-center text-xs font-bold text-gray-800 border-r border-gray-400">Unit Price</th>
+                    <th className="py-3 px-3 text-center text-xs font-bold text-gray-800">Total Amount</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(purchaseOrder.items || []).length > 0 ? (
+                    purchaseOrder.items.map((item, index) => (
+                      <tr key={index} className="border-b border-gray-300">
+                        <td className="py-4 px-2 text-sm text-gray-800 text-center border-r border-gray-300 font-semibold">{index + 1}</td>
+                        <td className="py-4 px-3 text-sm text-gray-800 border-r border-gray-300">
+                          <div className="font-medium">{item.description || 'N/A'}</div>
+                        </td>
+                        <td className="py-4 px-3 text-sm text-gray-800 text-center border-r border-gray-300">{parseFloat(item.quantity || 0).toLocaleString()}</td>
+                        <td className="py-4 px-3 text-sm text-gray-800 text-center border-r border-gray-300">{item.unit || 'pcs'}</td>
+                        <td className="py-4 px-3 text-sm text-gray-800 text-right border-r border-gray-300">{purchaseOrder.currency} {parseFloat(item.unitPrice || item.unit_price || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+                        <td className="py-4 px-3 text-sm font-semibold text-gray-900 text-right">{purchaseOrder.currency} {parseFloat(item.total || item.amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr className="border-b border-gray-300">
+                      <td colSpan="6" className="py-8 px-4 text-center text-sm text-gray-500">
+                        No items found for this purchase order
                       </td>
                     </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan="5" className="border border-gray-200 px-4 py-8 text-center text-sm text-gray-500">
-                      No items found for this purchase order
+                  )}
+                  {/* Total Row */}
+                  <tr className="bg-gray-100 border-t-2 border-gray-400">
+                    <td className="py-3 px-2 border-r border-gray-300"></td>
+                    <td className="py-3 px-3 text-sm font-bold text-gray-800 border-r border-gray-300">TOTAL</td>
+                    <td className="py-3 px-3 text-sm text-gray-800 text-center border-r border-gray-300">
+                      {purchaseOrder.items ? purchaseOrder.items.reduce((sum, item) => sum + parseFloat(item.quantity || 0), 0).toLocaleString() : 0}
                     </td>
+                    <td className="py-3 px-3 border-r border-gray-300"></td>
+                    <td className="py-3 px-3 border-r border-gray-300"></td>
+                    <td className="py-3 px-3 text-sm font-bold text-gray-900 text-right">{purchaseOrder.currency} {parseFloat(purchaseOrder.totalAmount || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
                   </tr>
-                )}
-              </tbody>
-            </table>
+                </tbody>
+              </table>
+            </div>
           </div>
-        </div>
 
-        {/* Summary */}
-        <div className="flex justify-end mb-8">
-          <div className="w-full max-w-sm">
-            <div className="space-y-2">
-              <div className="flex justify-between py-2 border-b border-gray-200">
-                <span className="text-sm font-medium text-gray-700">Subtotal</span>
-                <span className="text-sm font-semibold text-gray-900">{purchaseOrder.currency} {purchaseOrder.subtotal.toLocaleString()}</span>
-              </div>
-              <div className="flex justify-between py-2 border-b border-gray-200">
-                <span className="text-sm font-medium text-gray-700">Tax ({purchaseOrder.taxRate}%)</span>
-                <span className="text-sm font-semibold text-gray-900">{purchaseOrder.currency} {purchaseOrder.taxAmount.toLocaleString()}</span>
-              </div>
-              <div className="flex justify-between py-3 border-t-2 border-blue-600">
-                <span className="text-lg font-bold text-blue-600">Total Amount</span>
-                <span className="text-lg font-bold text-blue-600">{purchaseOrder.currency} {purchaseOrder.totalAmount.toLocaleString()}</span>
+          {/* Summary Section */}
+          <div className="mb-6 border border-gray-300 p-4">
+            <div className="flex justify-between items-start">
+              <div className="flex-1">
+                <div className="mb-3">
+                  <span className="font-semibold text-gray-800">Amount Breakdown:</span>
+                </div>
+                <div className="space-y-1 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-gray-700">Subtotal:</span>
+                    <span className="font-semibold text-gray-900">{purchaseOrder.currency} {parseFloat(purchaseOrder.subtotal || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-700">Tax ({purchaseOrder.taxRate}%):</span>
+                    <span className="font-semibold text-gray-900">{purchaseOrder.currency} {parseFloat(purchaseOrder.taxAmount || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+                  </div>
+                  <div className="flex justify-between pt-2 border-t border-gray-300">
+                    <span className="font-bold text-gray-800">Total Amount:</span>
+                    <span className="font-bold text-gray-900">{purchaseOrder.currency} {parseFloat(purchaseOrder.totalAmount || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
-        </div>
 
         {/* Invoice & Payment History */}
         {showPaymentHistory && (
@@ -1509,28 +1873,47 @@ const PurchaseOrderDetails = ({ poId, onBack }) => {
           </div>
         )}
 
-        {/* Terms and Conditions */}
-        <div className="mb-8">
-          <div className="bg-gray-50 p-6 rounded-lg border">
-            <h4 className="text-lg font-semibold text-gray-900 mb-3">Terms and Conditions</h4>
+          {/* Terms and Conditions - Inside PO Card */}
+          <div className="mb-6 border border-gray-300 p-4">
+            <h4 className="font-bold text-gray-800 mb-3">Terms and Conditions</h4>
             <p className="text-sm text-gray-700 leading-relaxed mb-4">{purchaseOrder.termsAndConditions}</p>
             
             {purchaseOrder.notes && (
               <>
-                <h4 className="text-lg font-semibold text-gray-900 mb-3">Special Notes</h4>
+                <h4 className="font-bold text-gray-800 mb-3">Special Notes</h4>
                 <p className="text-sm text-gray-700 leading-relaxed">{purchaseOrder.notes}</p>
               </>
             )}
           </div>
+
+          {/* Signature Section */}
+          <div className="grid grid-cols-2 gap-8 border-t-2 border-gray-300 pt-6 mb-6">
+            <div className="text-center">
+              <div className="h-16 mb-2"></div>
+              <div className="border-t border-gray-400 pt-2">
+                <span className="text-sm font-semibold text-gray-800">Prepared By</span>
+              </div>
+            </div>
+            <div className="text-center">
+              <div className="h-16 mb-2"></div>
+              <div className="border-t border-gray-400 pt-2">
+                <span className="text-sm font-semibold text-gray-800">Authorized By</span>
+              </div>
+            </div>
+          </div>
         </div>
 
-        {/* Footer */}
-        <div className="text-center pt-6 border-t border-gray-200">
-          <p className="text-xs text-gray-500">This is a computer-generated purchase order and does not require a signature.</p>
-          <p className="text-xs text-gray-500 mt-1">
-            Created by {purchaseOrder.createdBy} • 
-            {purchaseOrder.approvedBy && ` Approved by ${purchaseOrder.approvedBy} •`}
-            Generated on {new Date().toLocaleDateString()}
+        {/* Footer - Company Info */}
+        <div className="relative z-10 bg-[#E8D5A8] text-center py-3 rounded-b-lg border-t-2 border-gray-400">
+          <p className="text-xs text-gray-700 mt-1">
+            Deals in all kind of Greige & Dyed Fabric
+          </p>
+          <p className="text-xs text-gray-700 mt-1">
+            STRN # 32-77-8761-279-54 | NTN # 7225539-1
+          </p>
+          <p className="text-xs text-gray-500 mt-2">
+            Generated on {new Date().toLocaleDateString()} | Created by {purchaseOrder.createdBy}
+            {purchaseOrder.approvedBy && ` | Approved by ${purchaseOrder.approvedBy}`}
           </p>
         </div>
       </div>

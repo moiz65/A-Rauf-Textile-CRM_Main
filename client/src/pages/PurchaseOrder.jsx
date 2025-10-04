@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
 import Header from '../components/Header';
+import Footer from '../components/Footer';
 import PurchaseOrderTable from '../components/PurchaseOrderTable';
 import PurchaseOrderDetails from '../components/PurchaseOrderDetails';
 
@@ -190,7 +191,7 @@ const PurchaseOrder = () => {
 
       {/* Main Content */}
       <main className="flex-1 p-6 bg-[#F5F5F5] md:ml-64">
-        <Header name="A RAUF TEXTILE" />
+        <Header />
 
         {/* Toggle between List and Details View */}
         {activeView === 'list' ? (
@@ -239,6 +240,9 @@ const PurchaseOrder = () => {
             onBack={handleBackToList}
           />
         )}
+        
+        {/* Footer */}
+        <Footer />
       </main>
     </div>
   );

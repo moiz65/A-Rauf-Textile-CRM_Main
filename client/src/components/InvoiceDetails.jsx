@@ -1,11 +1,45 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Download, Printer, Eye, EyeOff } from 'lucide-react';
+import { ArrowLeft, Download, Printer } from 'lucide-react';
 import Sidebar from '../components/Sidebar';
 import Header from '../components/Header';
-import Logo from '../assets/Logo/Logo.png';
+import Logo from '../assets/Logo/rauf textile png.png';
 
 const API_BASE_URL = 'http://localhost:5000/api';
+
+// Number to Words Converter
+const numberToWords = (num) => {
+  if (num === 0) return 'Zero';
+  
+  const ones = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine'];
+  const tens = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
+  const teens = ['Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
+  
+  const convertHundreds = (n) => {
+    if (n === 0) return '';
+    if (n < 10) return ones[n];
+    if (n < 20) return teens[n - 10];
+    if (n < 100) return tens[Math.floor(n / 10)] + (n % 10 !== 0 ? ' ' + ones[n % 10] : '');
+    return ones[Math.floor(n / 100)] + ' Hundred' + (n % 100 !== 0 ? ' ' + convertHundreds(n % 100) : '');
+  };
+  
+  const convertThousands = (n) => {
+    if (n === 0) return '';
+    if (n < 1000) return convertHundreds(n);
+    if (n < 100000) return convertHundreds(Math.floor(n / 1000)) + ' Thousand' + (n % 1000 !== 0 ? ' ' + convertHundreds(n % 1000) : '');
+    if (n < 10000000) return convertHundreds(Math.floor(n / 100000)) + ' Lakh' + (n % 100000 !== 0 ? ' ' + convertThousands(n % 100000) : '');
+    return convertHundreds(Math.floor(n / 10000000)) + ' Crore' + (n % 10000000 !== 0 ? ' ' + convertThousands(n % 10000000) : '');
+  };
+  
+  const [intPart, decPart] = num.toString().split('.');
+  let words = convertThousands(parseInt(intPart));
+  
+  if (decPart && parseInt(decPart) > 0) {
+    words += ' and ' + convertHundreds(parseInt(decPart.padEnd(2, '0').slice(0, 2))) + ' Paisa';
+  }
+  
+  return words;
+};
 
 const InvoiceDetailsLayoutImproved = () => {
   const { id, type } = useParams();
@@ -41,347 +75,291 @@ const InvoiceDetailsLayoutImproved = () => {
             }
             
             body {
-              font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+              font-family: Arial, sans-serif;
               background: white;
               color: #333;
-              line-height: 1.4;
-              padding: 20px;
+              line-height: 1.5;
+              padding: 15px;
             }
             
             .invoice-container {
-              max-width: 800px;
+              max-width: 900px;
               margin: 0 auto;
               background: white;
-              padding: 0;
+              border: 1px solid #666;
+              position: relative;
             }
             
-            .company-header {
-              display: flex;
-              justify-content: space-between;
-              align-items: center;
-              margin-bottom: 30px;
-              padding: 20px;
-              border-bottom: 1px solid #e5e5e5;
-            }
-            
-            .company-info {
+            /* Inline fixed watermark image so it prints on every page reliably */
+            .print-watermark {
+              position: fixed;
+              top: 50%;
+              left: 50%;
+              transform: translate(-50%, -50%) rotate(-14deg);
+              transform-origin: 12% 50%; /* pivot near left edge */
+              width: 65%;
+              max-width: 820px;
+              height: auto;
+              opacity: 0.06;
+              pointer-events: none;
+              z-index: 0;
               display: block;
-              align-items: center;
-              gap: 20px;
             }
             
-            .company-logo {
-              width: 15rem;
-              padding-bottom: 20px;
+            .content {
+              position: relative;
+              z-index: 1;
             }
             
-            .company-details h2 {
-              font-size: 16px;
-              font-weight: 600;
-              color: #333843;
+            .title-section {
+              text-align: center;
+              padding: 10px;
+              border-bottom: 1px solid #999;
+            }
+            
+            .title-section h1 {
+              font-size: 18px;
+              font-weight: bold;
+              letter-spacing: 1px;
+            }
+            
+            .invoice-info {
+              display: grid;
+              grid-template-columns: 1fr 1fr;
+              padding: 15px;
+              border-bottom: 2px solid #999;
+              font-size: 13px;
+            }
+            
+            .invoice-info-left div {
               margin-bottom: 8px;
             }
             
-            .company-details p {
-              font-size: 12px;
-              color: #667085;
-              margin-bottom: 2px;
-            }
-            
-            .invoice-meta {
+            .invoice-info-right {
               text-align: right;
             }
             
-            .invoice-number {
-              background: #f4f5f6;
-              padding: 8px 12px;
-              border-radius: 6px;
-              font-size: 12px;
-              font-weight: 600;
-              margin-bottom: 8px;
-            }
-            
-            .total-amount {
-              font-size: 18px;
+            .label {
               font-weight: bold;
-              color: #333843;
+              display: inline-block;
+              width: 110px;
             }
             
-            .total-label {
-              font-size: 12px;
-              color: #667085;
-              margin-bottom: 4px;
+            .buyer-section {
+              padding: 15px;
+              border-bottom: 2px solid #999;
             }
             
-            .billing-section {
+            .buyer-section h3 {
+              font-size: 15px;
+              font-weight: bold;
+              margin-bottom: 10px;
+            }
+            
+            .buyer-grid {
               display: grid;
-              grid-template-columns: 1fr 2fr;
-              gap: 30px;
-              margin-bottom: 30px;
-            }
-            
-            .bill-dates {
-              background: #1976d2;
-              color: white;
-              padding: 20px;
-              border-radius: 8px;
-            }
-            
-            .bill-dates p {
-              margin-bottom: 15px;
-            }
-            
-            .bill-dates .label {
-              font-size: 14px;
-              margin-bottom: 5px;
-            }
-            
-            .bill-dates .value {
-              font-size: 16px;
-              font-weight: 500;
-            }
-            
-            .billing-address h3 {
-              font-size: 15px;
-              font-weight: 600;
-              margin-bottom: 8px;
-            }
-            
-            .customer-name {
-              font-size: 16px;
-              font-weight: 600;
-              margin-bottom: 5px;
-            }
-            
-            .billing-address p {
-              font-size: 14px;
-              color: #666;
-              margin-bottom: 2px;
-            }
-            
-            .note-section {
-              margin-top: 20px;
-            }
-            
-            .note-section h4 {
-              font-size: 15px;
-              font-weight: 600;
-              margin-bottom: 8px;
+              grid-template-columns: 1fr 1fr;
+              gap: 8px;
+              font-size: 12px;
             }
             
             .invoice-table {
               width: 100%;
               border-collapse: collapse;
-              margin-bottom: 30px;
+              font-size: 11px;
             }
             
             .invoice-table th {
-              background: #f8f9fa;
-              padding: 12px 8px;
-              font-size: 12px;
-              font-weight: 600;
-              text-transform: uppercase;
-              color: #667085;
-              border-bottom: 1px solid #e5e5e5;
+              background: #e0e0e0;
+              padding: 10px 6px;
+              font-weight: bold;
+              text-align: center;
+              border: 1px solid #999;
             }
             
             .invoice-table td {
-              padding: 15px 8px;
-              font-size: 14px;
-              border-bottom: 1px solid #f0f0f0;
+              padding: 10px 6px;
+              border: 1px solid #999;
             }
             
-            .invoice-table th:first-child,
-            .invoice-table td:first-child {
+            .invoice-table .text-left {
               text-align: left;
             }
             
-            .invoice-table th:not(:first-child),
-            .invoice-table td:not(:first-child) {
+            .invoice-table .text-center {
+              text-align: center;
+            }
+            
+            .invoice-table .text-right {
               text-align: right;
             }
             
-            .summary-section {
-              display: flex;
-              justify-content: flex-end;
-              margin-bottom: 30px;
-            }
-            
-            .summary-table {
-              width: 300px;
-            }
-            
-            .summary-row {
-              display: flex;
-              justify-content: space-between;
-              padding: 8px 0;
-              border-bottom: 1px solid #f0f0f0;
-            }
-            
-            .summary-row:last-child {
-              border-bottom: 2px solid #333;
+            .net-row {
+              background: #f5f5f5;
               font-weight: bold;
-              font-size: 16px;
-              padding-top: 12px;
             }
             
-            .terms {
-              border-top: 1px solid #e5e5e5;
-              padding-top: 20px;
+            .amount-words {
+              padding: 15px;
+              border-top: 1px solid #999;
+              font-size: 12px;
             }
             
-            .terms h4 {
-              font-size: 14px;
-              font-weight: 600;
-              margin-bottom: 8px;
+            .signatures {
+              display: grid;
+              grid-template-columns: 1fr 1fr;
+              padding: 15px;
+              border-top: 2px solid #999;
+              text-align: center;
             }
             
-            .terms p {
-              font-size: 14px;
-              color: #666;
+            .signature-box {
+              padding: 10px;
+            }
+            
+            .signature-line {
+              border-top: 1px solid #333;
+              margin-top: 50px;
+              padding-top: 8px;
+              font-weight: bold;
+              font-size: 12px;
+            }
+            
+            .footer {
+              background: #D4AF37;
+              text-align: center;
+              padding: 15px 12px;
+              font-size: 11px;
+              line-height: 1.6;
             }
             
             @media print {
-              body { margin: 0; padding: 10px; }
-              .invoice-container { margin: 0; padding: 0; }
+              body { margin: 0; padding: 5px; }
+              .invoice-container { border: none; }
             }
           </style>
         </head>
         <body>
           <div class="invoice-container">
-            <div class="company-header">
-              <div class="company-info">
-                <img src="${Logo}" alt="Company Logo" class="company-logo">
-                <div class="company-details">
-                  <h2>A Rauf Brother Textile</h2>
-                  <p>Room No.205 Floor Saleha Chamber, Plot No. 8-9/C-1 Site, Karachi</p>
-                  <p>contact@araufbrothe.com</p>
-                  <p><strong>S.T. Reg.No:</strong> 3253255666541</p>
-                  <p>Telephone No: 021-36404043</p>
-                  <p><strong>NTN No:</strong> 7755266214-8</p>
-                </div>
-              </div>
-              <div class="invoice-meta">
-                <div class="invoice-number">#${invoice.bill_date ? new Date(invoice.bill_date).toISOString().split('T')[0] : 'N/A'}</div>
-                <div class="total-label">Total Amount</div>
-                <div class="total-amount">${invoice.currency || 'PKR'} ${parseFloat(invoice.total_amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</div>
-              </div>
-            </div>
+            <!-- Watermark image placed as a fixed element so it appears on every printed page -->
+            <img class="print-watermark" src="${Logo}" alt="Watermark" />
             
-            <div style="text-align: center; margin-bottom: 30px;">
-              <h1 style="font-size: 24px; font-weight: bold; color: #333843;">
-                ${isPOInvoice ? `PO Invoice #${invoice.invoice_number || id}` : `Invoice #${invoice.invoice_number || id}`}
-              </h1>
-              <p style="color: #667085; margin-top: 8px;">Invoice Date: ${invoice.bill_date ? new Date(invoice.bill_date).toLocaleDateString('en-GB', { 
-                day: 'numeric',
-                month: 'short', 
-                year: 'numeric'
-              }).toUpperCase() : 'N/A'}</p>
-              ${isPOInvoice && invoice.po_number ? `<p style="color: #1976D2; margin-top: 4px;">From PO: ${invoice.po_number}</p>` : ''}
-            </div>
-            
-            <div class="billing-section">
-              <div class="bill-dates">
-                <div>
-                  <div class="label">Bill Date</div>
-                  <div class="value">${invoice.bill_date ? new Date(invoice.bill_date).toLocaleDateString('en-GB') : 'N/A'}</div>
-                </div>
-                <div>
-                  <div class="label">Delivery Date</div>
-                  <div class="value">${invoice.delivery_date ? new Date(invoice.delivery_date).toLocaleDateString('en-GB') : 'N/A'}</div>
-                </div>
-                <div>
-                  <div class="label">Terms of Payment</div>
-                  <div class="value">${invoice.terms_of_payment || 'N/A'}</div>
-                </div>
-                <div>
-                  <div class="label">Payment Deadline</div>
-                  <div class="value">${invoice.payment_deadline ? new Date(invoice.payment_deadline).toLocaleDateString('en-GB') : 'N/A'}</div>
+            <div class="content">
+              <!-- Company Header -->
+              <div style="text-align: center; padding: 15px; border-bottom: 1px solid #999;">
+                <img src="${Logo}" alt="A Rauf Textile" style="height: 90px; width: auto; max-width: 280px; margin: 0 auto 10px;">
+                <div style="font-size: 11px; color: #333;">
+                  <p style="margin: 2px 0; font-size: 10px;">Deals in all kind of Greige & Dyed Fabric</p>
+                  <p style="margin: 3px 0; font-size: 10px;"><strong>STRN #</strong> 32-77-8761-279-54</p>
+                  <p style="margin: 2px 0; font-size: 10px;"><strong>NTN #</strong> 7225539-1</p>
                 </div>
               </div>
               
-              <div class="billing-address">
-                <h3>Billing Address</h3>
-                <div class="customer-name">${invoice.customer_name || 'N/A'}</div>
-                <p>${invoice.address || 'N/A'}</p>
-                <p>${invoice.customer_email || 'N/A'}</p>
-                ${invoice.st_reg_no ? `<p><strong>S.T. Reg.No:</strong> ${invoice.st_reg_no}</p>` : ''}
-                ${invoice.p_number ? `<p><strong>Telephone No:</strong> ${invoice.p_number}</p>` : ''}
-                ${invoice.ntn_number ? `<p><strong>NTN No:</strong> ${invoice.ntn_number}</p>` : ''}
-                
-                <div class="note-section">
-                  <h4>Note</h4>
-                  <p>${invoice.note || 'No additional notes'}</p>
+              <div class="title-section">
+                <h1>PAYMENT INVOICE</h1>
+              </div>
+            
+              <div class="invoice-info">
+                <div class="invoice-info-left">
+                  <div><span class="label">Invoice No :</span> ${invoice.invoice_number || id}</div>
+                  <div><span class="label">Contract No :</span> ${invoice.po_number || 'ATC / 03678'}</div>
+                </div>
+                <div class="invoice-info-right">
+                  <div><span class="label">Invoice Date:</span> ${invoice.bill_date ? new Date(invoice.bill_date).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' }) : 'N/A'}</div>
+                  <div style="border: 2px solid #333; display: inline-block; padding: 6px 16px; margin-top: 8px; font-size: 10px;">
+                    <div style="font-weight: bold;">ORIGINAL ✓</div>
+                    <div style="border-top: 1px solid #666; margin-top: 4px; padding-top: 4px;">DUPLICATE</div>
+                  </div>
                 </div>
               </div>
-            </div>
+            
+              <div class="buyer-section">
+                <h3 style="text-decoration: underline;">Buyer's Particulars :</h3>
+                <div class="buyer-grid">
+                  <div><span class="label">Name :</span> <strong>${invoice.customer_name || 'MH'}</strong></div>
+                  <div><span class="label">Sales Tax Reg No :</span> ${invoice.st_reg_no || '32-77-8761-411-88'}</div>
+                  <div><span class="label">Address :</span> ${invoice.address || 'Floor Shan Residency SB-44 Block-K North Nazimabad karachi'}</div>
+                  <div><span class="label">National Tax No :</span> ${invoice.ntn_number || '7555850-8'}</div>
+                  <div><span class="label">Due Date :</span> ${invoice.payment_deadline || invoice.due_date ? new Date(invoice.payment_deadline || invoice.due_date).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' }) : 'N/A'}</div>
+                  <div><span class="label">Business Nature:</span> Textile Trading</div>
+                  <div style="grid-column: 1 / -1;"><span class="label">Terms of Sale:</span> ${invoice.terms_of_payment || 'Within 15 days'}</div>
+                </div>
+              </div>
             
             <table class="invoice-table">
               <thead>
                 <tr>
-                  <th>NO.</th>
-                  <th>DESCRIPTION OF GOODS</th>
-                  <th>QUANTITY</th>
-                  ${!isPOInvoice ? '<th>NET WEIGHT IN KG</th>' : ''}
-                  <th>UNIT PRICE</th>
-                  ${!isPOInvoice ? '<th>AMOUNT OF SALES TAX</th>' : ''}
-                  ${isPOInvoice ? '<th>SPECIFICATIONS</th>' : ''}
-                  <th>FINAL AMOUNT</th>
+                  <th>S.No</th>
+                  <th>Description of Goods</th>
+                  <th>Quantity</th>
+                  <th>Unit</th>
+                  <th>Price</th>
+                  <th>Value Ex-Sales Tax</th>
+                  <th>Sales Tax %</th>
+                  <th>Sales Tax Amount</th>
+                  <th>Value Inc Sales tax</th>
                 </tr>
               </thead>
               <tbody>
                 ${invoice.items && invoice.items.length > 0 ? 
                   invoice.items.map((item, index) => `
                     <tr>
-                      <td>${item.item_no || (index + 1)}</td>
-                      <td>${item.description || 'N/A'}</td>
-                      <td>${parseFloat(item.quantity || 0).toLocaleString()}</td>
-                      ${!isPOInvoice ? '<td>-</td>' : ''}
-                      <td>${parseFloat(item.rate || 0).toLocaleString()}</td>
-                      ${!isPOInvoice ? '<td>-</td>' : ''}
-                      ${isPOInvoice ? `<td>${item.specifications || '-'}</td>` : ''}
-                      <td><strong>${parseFloat(item.amount || 0).toLocaleString()}</strong></td>
+                      <td class="text-center"><strong>${index + 1}</strong></td>
+                      <td class="text-left">${item.description || 'N/A'}${item.specifications ? '<br><small>' + item.specifications + '</small>' : ''}</td>
+                      <td class="text-center">${parseFloat(item.quantity || 0).toLocaleString()}</td>
+                      <td class="text-center">${item.unit || 'MTR'}</td>
+                      <td class="text-right">${parseFloat(item.rate || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+                      <td class="text-right">${parseFloat(item.amount / (1 + (invoice.tax_rate || 0) / 100) || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+                      <td class="text-center">${invoice.tax_rate || 0}%</td>
+                      <td class="text-right">${parseFloat((item.amount * (invoice.tax_rate || 0) / 100) / (1 + (invoice.tax_rate || 0) / 100) || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+                      <td class="text-right"><strong>${parseFloat(item.amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</strong></td>
                     </tr>
                   `).join('') : `
                     <tr>
-                      <td>1</td>
-                      <td>${invoice.item_name || 'N/A'}</td>
-                      <td>${parseFloat(invoice.quantity || 0).toLocaleString()}</td>
-                      ${!isPOInvoice ? '<td>-</td>' : ''}
-                      <td>${parseFloat(invoice.rate || 0).toLocaleString()}</td>
-                      ${!isPOInvoice ? `<td>${parseFloat(invoice.tax_amount || 0).toLocaleString()}</td>` : ''}
-                      ${isPOInvoice ? '<td>-</td>' : ''}
-                      <td><strong>${parseFloat(invoice.item_amount || 0).toLocaleString()}</strong></td>
+                      <td class="text-center"><strong>1</strong></td>
+                      <td class="text-left">${invoice.item_name || 'N/A'}</td>
+                      <td class="text-center">${parseFloat(invoice.quantity || 0).toLocaleString()}</td>
+                      <td class="text-center">${invoice.unit || 'MTR'}</td>
+                      <td class="text-right">${parseFloat(invoice.rate || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+                      <td class="text-right">${parseFloat(invoice.subtotal || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+                      <td class="text-center">${invoice.tax_rate || 0}%</td>
+                      <td class="text-right">${parseFloat(invoice.salesTax || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+                      <td class="text-right"><strong>${parseFloat(invoice.total_amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</strong></td>
                     </tr>
                   `
                 }
+                <tr class="net-row">
+                  <td></td>
+                  <td class="text-left">NET AMOUNT RECEIVABLE</td>
+                  <td class="text-center">${invoice.items ? invoice.items.reduce((sum, item) => sum + parseFloat(item.quantity || 0), 0).toLocaleString() : parseFloat(invoice.quantity || 0).toLocaleString()}</td>
+                  <td></td>
+                  <td></td>
+                  <td class="text-right"><strong>${parseFloat(invoice.subtotal || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</strong></td>
+                  <td></td>
+                  <td class="text-right"><strong>${parseFloat(invoice.salesTax || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</strong></td>
+                  <td class="text-right"><strong>${parseFloat(invoice.total_amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</strong></td>
+                </tr>
               </tbody>
             </table>
             
-            <div class="summary-section">
-              <div class="summary-table">
-                <div class="summary-row">
-                  <span>Subtotal:</span>
-                  <span>${parseFloat(invoice.subtotal || 0).toLocaleString()}</span>
-                </div>
-                <div class="summary-row">
-                  <span>Tax Rate:</span>
-                  <span>${invoice.tax_rate || 0}%</span>
-                </div>
-                <div class="summary-row">
-                  <span>Sales Tax:</span>
-                  <span>${parseFloat(invoice.salesTax || 0).toLocaleString()}</span>
-                </div>
-                <div class="summary-row">
-                  <span>Total Price:</span>
-                  <span>${parseFloat(invoice.total_amount || 0).toLocaleString()}</span>
-                </div>
+            <div class="amount-words">
+              <strong>Amount in words:</strong> <em style="text-transform: uppercase;">PKR ${numberToWords(invoice.total_amount || 0)} ONLY </em>
+            </div>
+            
+            <div class="signatures">
+              <div class="signature-box">
+                <div class="signature-line">Prepared By</div>
+              </div>
+              <div class="signature-box">
+                <div class="signature-line">Authorized By</div>
               </div>
             </div>
             
-            <div class="terms">
-              <h4>Terms & Conditions</h4>
-              <p>${invoice.terms_of_payment ? `Please pay ${invoice.terms_of_payment.toLowerCase()}.` : 'Please pay within 15 days of receiving this invoice.'}</p>
+              <div class="footer">
+                
+                <div style="margin-top: 4px; font-size: 10px;">Deals in all kind of Greige & Dyed Fabric</div>
+                <div style="font-size: 10px;">STRN # 32-77-8761-279-54 | NTN # 7225539-1</div>
+              </div>
             </div>
           </div>
         </body>
@@ -599,11 +577,9 @@ This action cannot be undone.`;
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col md:ml-64 relative">
-        {/* Header */}
-        <Header name="A RAUF TEXTILE" />
-
-        {/* Main Container - Better Layout */}
+    <div className="flex-1 flex flex-col md:ml-64 relative">
+      {/* Header */}
+      <Header />        {/* Main Container - Better Layout */}
         <div className="flex-1 p-6">
           {/* Enhanced Invoice Header with better spacing */}
           <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 mb-6 bg-white rounded-lg shadow-sm p-6">
@@ -632,14 +608,7 @@ This action cannot be undone.`;
             </div>
 
             {/* Right Side: Action Buttons */}
-            <div className="flex items-center gap-3">
-              <button 
-                onClick={() => setShowPaymentHistory(!showPaymentHistory)}
-                className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
-              >
-                {showPaymentHistory ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                <span>{showPaymentHistory ? 'Hide' : 'Show'} History</span>
-              </button>
+              <div className="flex items-center gap-3">
               <button 
                 onClick={generatePDF}
                 className="flex flex-row justify-center items-center px-5 py-2 gap-[10px] bg-[#1976D2] rounded-lg hover:bg-[#1565C0] transition-colors"
@@ -657,169 +626,195 @@ This action cannot be undone.`;
             <div className="xl:col-span-3">
               <div ref={invoiceRef} className="bg-white rounded-lg shadow-sm overflow-hidden">
                 
-                {/* Company Header - Improved layout */}
-                <div className="flex justify-between items-center gap-6 px-8 py-6 border-b border-gray-200">
-                  {/* Company Info */}
-                  <div className="flex flex-col gap-5">
-                    <div className="w-[15rem] flex-shrink-0">
-                      <img src={Logo} alt="Company Logo" className="w-full h-full object-contain" />
+                {/* Company Header - Matching Reference Layout */}
+                <div className="relative px-8 py-6 border-b border-gray-400">
+                  {/* no on-screen watermark - watermark only appears in downloaded PDF */}
+
+                  {/* Company Logo and Info - Centered */}
+                  <div className="relative z-10 text-center mb-4">
+                    <div className="flex justify-center mb-3">
+                      <img src={Logo} alt="A Rauf Textile" className="h-32 w-auto object-contain" style={{ maxWidth: '280px' }} />
                     </div>
-                    <div>
-                      <h2 className="text-lg font-semibold text-[#333843] mb-2">A Rauf Brother Textile</h2>
-                      <div className="space-y-1 text-sm text-[#667085]">
-                        <p>Room No.205 Floor Saleha Chamber, Plot No. 8-9/C-1 Site, Karachi</p>
-                        <p>contact@araufbrothe.com</p>
-                        <p><strong>S.T. Reg.No:</strong> 3253255666541 | Telephone No: 021-36404043</p>
-                        <p><strong>NTN No:</strong> 7755266214-8</p>
+                    <div className="text-sm text-gray-700">
+                      <p className="text-xs">Deals in all kind of Greige & Dyed Fabric</p>
+                      <p className="text-xs mt-1"><strong>STRN #</strong> 32-77-8761-279-54</p>
+                      <p className="text-xs"><strong>NTN #</strong> 7225539-1</p>
+                    </div>
+                  </div>
+
+                  {/* Title Section */}
+                  <div className="relative z-10 text-center mb-4 border-t border-gray-300 pt-4">
+                    <h1 className="text-xl font-bold text-gray-800 uppercase tracking-wide">PAYMENT INVOICE</h1>
+                  </div>
+
+                  {/* Invoice Info Grid */}
+                  <div className="relative z-10 border-t border-gray-400 pt-4">
+                    <div className="grid grid-cols-2 gap-8 mb-4">
+                      {/* Left Column - Invoice Details */}
+                      <div className="space-y-1 text-sm">
+                        <div className="flex">
+                          <span className="font-semibold text-gray-700 w-32">Invoice No :</span>
+                          <span className="text-gray-800">{invoice.invoice_number || id}</span>
+                        </div>
+                        <div className="flex">
+                          <span className="font-semibold text-gray-700 w-32">Contract No :</span>
+                          <span className="text-gray-800">{invoice.po_number || 'ATC / 03678'}</span>
+                        </div>
+                      </div>
+
+                      {/* Right Column - Date & Type */}
+                      <div className="text-right space-y-1">
+                        <div className="text-sm">
+                          <span className="font-semibold text-gray-700">Invoice Date: </span>
+                          <span className="text-gray-800">{invoice.bill_date ? new Date(invoice.bill_date).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' }) : 'N/A'}</span>
+                        </div>
+
                       </div>
                     </div>
                   </div>
 
-                  {/* Invoice Number and Total Amount */}
-                  <div className="text-right">
-                    <div className="bg-[#F4F5F6] px-3 py-2 rounded-lg mb-4">
-                      <span className="text-sm font-semibold text-[#333843]">
-                        #{invoice.bill_date ? new Date(invoice.bill_date).toISOString().split('T')[0] : 'N/A'}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-sm font-medium text-[#667085] block mb-1">Total Amount</span>
-                      <span className="text-xl font-bold text-[#333843]">
-                        {invoice.currency || 'PKR'} {parseFloat(invoice.total_amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}
-                      </span>
+                  {/* Buyer's Particulars Section */}
+                  <div className="relative z-10 border border-gray-400 p-4 mb-4">
+                    <h3 className="font-bold text-gray-800 mb-3 underline text-sm">Buyer's Particulars :</h3>
+                    <div className="grid grid-cols-2 gap-x-12 gap-y-2 text-sm">
+                      <div className="flex">
+                        <span className="font-semibold text-gray-700 w-40">Name :</span>
+                        <span className="text-gray-800 font-bold">{invoice.customer_name || 'MH'}</span>
+                      </div>
+                      <div className="flex">
+                        <span className="font-semibold text-gray-700 w-48">Sales Tax Reg No :</span>
+                        <span className="text-gray-800">{invoice.st_reg_no || '32-77-8761-411-88'}</span>
+                      </div>
+                      <div className="flex">
+                        <span className="font-semibold text-gray-700 w-40">Address :</span>
+                        <span className="text-gray-800">{invoice.address || 'Floor Shan Residency SB-44 Block-K North Nazimabad karachi'}</span>
+                      </div>
+                      <div className="flex">
+                        <span className="font-semibold text-gray-700 w-48">National Tax No :</span>
+                        <span className="text-gray-800">{invoice.ntn_number || '7555850-8'}</span>
+                      </div>
+                      <div className="flex">
+                        <span className="font-semibold text-gray-700 w-40">Business Nature:</span>
+                        <span className="text-gray-800">Textile Trading</span>
+                      </div>
+                      <div className="flex">
+                        <span className="font-semibold text-gray-700 w-48">Due Date :</span>
+                        <span className="text-gray-800">{invoice.payment_deadline || invoice.due_date ? new Date(invoice.payment_deadline || invoice.due_date).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' }) : 'N/A'}</span>
+                      </div>
+                      <div className="flex col-span-2">
+                        <span className="font-semibold text-gray-700 w-40">Terms of Sale:</span>
+                        <span className="text-gray-800">{invoice.terms_of_payment || 'Within 15 days'}</span>
+                      </div>
                     </div>
                   </div>
                 </div>
 
-                {/* Billing Information Section - Better Grid Layout */}
-                <div className="p-6">
-                  <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 mb-6">
-                    {/* Bill Dates - Blue section */}
-                    <div className="lg:col-span-2 bg-[#1976D2] rounded-lg text-white p-6">
-                      <div className="space-y-4">
-                        <div>
-                          <p className="text-sm opacity-90 mb-1">Bill Date</p>
-                          <p className="font-semibold">{invoice.bill_date ? new Date(invoice.bill_date).toLocaleDateString('en-GB') : 'N/A'}</p>
-                        </div>
-                        <div>
-                          <p className="text-sm opacity-90 mb-1">Delivery Date</p>
-                          <p className="font-semibold">{invoice.delivery_date ? new Date(invoice.delivery_date).toLocaleDateString('en-GB') : 'N/A'}</p>
-                        </div>
-                        <div>
-                          <p className="text-sm opacity-90 mb-1">Terms of Payment</p>
-                          <p className="font-semibold">{invoice.terms_of_payment || 'N/A'}</p>
-                        </div>
-                        <div>
-                          <p className="text-sm opacity-90 mb-1">Payment Deadline</p>
-                          <p className="font-semibold">{invoice.payment_deadline ? new Date(invoice.payment_deadline).toLocaleDateString('en-GB') : 'N/A'}</p>
-                        </div>
-                      </div>
-                    </div>
+                {/* Items Table Section */}
+                <div className="px-8 py-6">
 
-                    {/* Billing Address */}
-                    <div className="lg:col-span-3">
-                      <h3 className="text-lg font-semibold text-[#333] mb-4">
-                        {isPOInvoice ? 'Customer Information' : 'Billing Address'}
-                      </h3>
-                      <div className="space-y-2">
-                        <h4 className="text-lg font-semibold text-[#333]">{invoice.customer_name || 'N/A'}</h4>
-                        <div className="text-sm text-[#666] space-y-1">
-                          <p>{invoice.address || 'N/A'}</p>
-                          <p>{invoice.customer_email || 'N/A'}</p>
-                          {(invoice.st_reg_no || !isPOInvoice) && <p><strong>S.T. Reg.No:</strong> {invoice.st_reg_no || 'N/A'}</p>}
-                          {invoice.p_number && <p><strong>Telephone No:</strong> {invoice.p_number}</p>}
-                          {(invoice.ntn_number || !isPOInvoice) && <p><strong>NTN No:</strong> {invoice.ntn_number || 'N/A'}</p>}
-                        </div>
-                        
-                        {invoice.note && (
-                          <div className="mt-4 p-3 bg-gray-50 rounded-lg">
-                            <h5 className="font-medium text-[#333] mb-2">
-                              {isPOInvoice ? 'Notes' : 'Note'}
-                            </h5>
-                            <p className="text-sm text-[#666]">{invoice.note}</p>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Invoice Table */}
+                  {/* Invoice Table - Reference Style */}
                   <div className="mb-6">
-                    <div className="overflow-x-auto">
+                    <div className="overflow-x-auto border-2 border-gray-400">
                       <table className="w-full border-collapse">
                         <thead>
-                          <tr className="bg-gray-50 border-b border-gray-200">
-                            <th className="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">NO.</th>
-                            <th className="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">DESCRIPTION OF GOODS</th>
-                            <th className="py-3 px-4 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">QUANTITY</th>
-                            {!isPOInvoice && <th className="py-3 px-4 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">NET WEIGHT IN KG</th>}
-                            <th className="py-3 px-4 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">UNIT PRICE</th>
-                            {!isPOInvoice && <th className="py-3 px-4 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">AMOUNT OF SALES TAX</th>}
-                            {isPOInvoice && <th className="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">SPECIFICATIONS</th>}
-                            <th className="py-3 px-4 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">FINAL AMOUNT</th>
+                          <tr className="bg-gray-200 border-b-2 border-gray-400">
+                            <th className="py-3 px-2 text-center text-xs font-bold text-gray-800 border-r border-gray-400">S.No</th>
+                            <th className="py-3 px-3 text-center text-xs font-bold text-gray-800 border-r border-gray-400">Description of Goods</th>
+                            <th className="py-3 px-3 text-center text-xs font-bold text-gray-800 border-r border-gray-400">Quantity</th>
+                            <th className="py-3 px-3 text-center text-xs font-bold text-gray-800 border-r border-gray-400">Unit</th>
+                            <th className="py-3 px-3 text-center text-xs font-bold text-gray-800 border-r border-gray-400">Price</th>
+                            <th className="py-3 px-3 text-center text-xs font-bold text-gray-800 border-r border-gray-400">Value Ex-Sales Tax</th>
+                            <th className="py-3 px-3 text-center text-xs font-bold text-gray-800 border-r border-gray-400">Sales Tax %</th>
+                            <th className="py-3 px-3 text-center text-xs font-bold text-gray-800 border-r border-gray-400">Sales Tax Amount</th>
+                            <th className="py-3 px-3 text-center text-xs font-bold text-gray-800">Value Inc Sales tax</th>
                           </tr>
                         </thead>
                         <tbody>
                           {invoice.items && invoice.items.length > 0 ? (
                             invoice.items.map((item, index) => (
-                              <tr key={item.id || index} className="border-b border-gray-100">
-                                <td className="py-4 px-4 text-sm text-gray-600">{item.item_no || (index + 1)}</td>
-                                <td className="py-4 px-4 text-sm text-gray-600">{item.description || 'N/A'}</td>
-                                <td className="py-4 px-4 text-sm text-gray-600 text-right">{parseFloat(item.quantity || 0).toLocaleString()}</td>
-                                {!isPOInvoice && <td className="py-4 px-4 text-sm text-gray-600 text-right">-</td>}
-                                <td className="py-4 px-4 text-sm text-gray-600 text-right">{parseFloat(item.rate || 0).toLocaleString()}</td>
-                                {!isPOInvoice && <td className="py-4 px-4 text-sm text-gray-600 text-right">-</td>}
-                                {isPOInvoice && <td className="py-4 px-4 text-sm text-gray-600">{item.specifications || '-'}</td>}
-                                <td className="py-4 px-4 text-sm font-semibold text-gray-900 text-right">{parseFloat(item.amount || 0).toLocaleString()}</td>
+                              <tr key={item.id || index} className="border-b border-gray-300">
+                                <td className="py-4 px-2 text-sm text-gray-800 text-center border-r border-gray-300 font-semibold">{index + 1}</td>
+                                <td className="py-4 px-3 text-sm text-gray-800 border-r border-gray-300">
+                                  <div className="font-medium">{item.description || 'N/A'}</div>
+                                  {item.specifications && <div className="text-xs text-gray-600 mt-1">{item.specifications}</div>}
+                                </td>
+                                <td className="py-4 px-3 text-sm text-gray-800 text-center border-r border-gray-300">{parseFloat(item.quantity || 0).toLocaleString()}</td>
+                                <td className="py-4 px-3 text-sm text-gray-800 text-center border-r border-gray-300">{item.unit || 'MTR'}</td>
+                                <td className="py-4 px-3 text-sm text-gray-800 text-right border-r border-gray-300">{parseFloat(item.rate || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+                                <td className="py-4 px-3 text-sm text-gray-800 text-right border-r border-gray-300">{parseFloat(item.amount / (1 + (invoice.tax_rate || 0) / 100) || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+                                <td className="py-4 px-3 text-sm text-gray-800 text-center border-r border-gray-300">{invoice.tax_rate || 0}%</td>
+                                <td className="py-4 px-3 text-sm text-gray-800 text-right border-r border-gray-300">{parseFloat((item.amount * (invoice.tax_rate || 0) / 100) / (1 + (invoice.tax_rate || 0) / 100) || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+                                <td className="py-4 px-3 text-sm font-semibold text-gray-900 text-right">{parseFloat(item.amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
                               </tr>
                             ))
                           ) : (
-                            // Fallback to old single item structure if no items array
-                            <tr className="border-b border-gray-100">
-                              <td className="py-4 px-4 text-sm text-gray-600">1</td>
-                              <td className="py-4 px-4 text-sm text-gray-600">{invoice.item_name || 'N/A'}</td>
-                              <td className="py-4 px-4 text-sm text-gray-600 text-right">{parseFloat(invoice.quantity || 0).toLocaleString()}</td>
-                              {!isPOInvoice && <td className="py-4 px-4 text-sm text-gray-600 text-right">-</td>}
-                              <td className="py-4 px-4 text-sm text-gray-600 text-right">{parseFloat(invoice.rate || 0).toLocaleString()}</td>
-                              {!isPOInvoice && <td className="py-4 px-4 text-sm text-gray-600 text-right">{parseFloat(invoice.tax_amount || 0).toLocaleString()}</td>}
-                              {isPOInvoice && <td className="py-4 px-4 text-sm text-gray-600">-</td>}
-                              <td className="py-4 px-4 text-sm font-semibold text-gray-900 text-right">{parseFloat(invoice.item_amount || 0).toLocaleString()}</td>
+                            <tr className="border-b border-gray-300">
+                              <td className="py-4 px-2 text-sm text-gray-800 text-center border-r border-gray-300 font-semibold">1</td>
+                              <td className="py-4 px-3 text-sm text-gray-800 border-r border-gray-300">
+                                <div className="font-medium">{invoice.item_name || 'N/A'}</div>
+                              </td>
+                              <td className="py-4 px-3 text-sm text-gray-800 text-center border-r border-gray-300">{parseFloat(invoice.quantity || 0).toLocaleString()}</td>
+                              <td className="py-4 px-3 text-sm text-gray-800 text-center border-r border-gray-300">{invoice.unit || 'MTR'}</td>
+                              <td className="py-4 px-3 text-sm text-gray-800 text-right border-r border-gray-300">{parseFloat(invoice.rate || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+                              <td className="py-4 px-3 text-sm text-gray-800 text-right border-r border-gray-300">{parseFloat(invoice.subtotal || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+                              <td className="py-4 px-3 text-sm text-gray-800 text-center border-r border-gray-300">{invoice.tax_rate || 0}%</td>
+                              <td className="py-4 px-3 text-sm text-gray-800 text-right border-r border-gray-300">{parseFloat(invoice.salesTax || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+                              <td className="py-4 px-3 text-sm font-semibold text-gray-900 text-right">{parseFloat(invoice.total_amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
                             </tr>
                           )}
+                          {/* Net Amount Row */}
+                          <tr className="bg-gray-100 border-t-2 border-gray-400">
+                            <td className="py-3 px-2 border-r border-gray-300"></td>
+                            <td className="py-3 px-3 text-sm font-bold text-gray-800 border-r border-gray-300">NET AMOUNT RECEIVABLE</td>
+                            <td className="py-3 px-3 text-sm text-gray-800 text-center border-r border-gray-300">{invoice.items ? invoice.items.reduce((sum, item) => sum + parseFloat(item.quantity || 0), 0).toLocaleString() : parseFloat(invoice.quantity || 0).toLocaleString()}</td>
+                            <td className="py-3 px-3 border-r border-gray-300"></td>
+                            <td className="py-3 px-3 border-r border-gray-300"></td>
+                            <td className="py-3 px-3 text-sm font-bold text-gray-900 text-right border-r border-gray-300">{parseFloat(invoice.subtotal || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+                            <td className="py-3 px-3 border-r border-gray-300"></td>
+                            <td className="py-3 px-3 text-sm font-bold text-gray-900 text-right border-r border-gray-300">{parseFloat(invoice.salesTax || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+                            <td className="py-3 px-3 text-sm font-bold text-gray-900 text-right">{parseFloat(invoice.total_amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+                          </tr>
                         </tbody>
                       </table>
                     </div>
                   </div>
 
-                  {/* Summary Section */}
-                  <div className="flex justify-end mb-6">
-                    <div className="w-full max-w-sm">
-                      <div className="space-y-3">
-                        <div className="flex justify-between py-2 border-b border-gray-200">
-                          <span className="text-sm font-medium text-gray-700">Subtotal</span>
-                          <span className="text-sm font-semibold text-gray-900">{parseFloat(invoice.subtotal || 0).toLocaleString()}</span>
-                        </div>
-                        <div className="flex justify-between py-2 border-b border-gray-200">
-                          <span className="text-sm font-medium text-gray-700">Tax Rate</span>
-                          <span className="text-sm font-semibold text-gray-900">{invoice.tax_rate || 0}%</span>
-                        </div>
-                        <div className="flex justify-between py-2 border-b border-gray-200">
-                          <span className="text-sm font-medium text-gray-700">Sales Tax</span>
-                          <span className="text-sm font-semibold text-gray-900">{parseFloat(invoice.salesTax || 0).toLocaleString()}</span>
-                        </div>
-                        <div className="flex justify-between py-3 pt-4 border-t-2 border-gray-800">
-                          <span className="text-lg font-bold text-gray-900">Total Price</span>
-                          <span className="text-lg font-bold text-gray-900">{parseFloat(invoice.total_amount || 0).toLocaleString()}</span>
-                        </div>
-                      </div>
+                  {/* Amount in Words */}
+                  <div className="mb-6 border border-gray-300 p-4">
+                    <div className="flex items-start gap-2">
+                      <span className="font-semibold text-gray-800">Amount in words:</span>
+                      <span className="text-gray-700 italic uppercase">
+                        PKR {numberToWords(invoice.total_amount || 0)} ONLY
+                      </span>
                     </div>
                   </div>
 
-                  {/* Terms and Conditions */}
-                  <div className="border-t border-gray-200 pt-4">
-                    <h4 className="text-sm font-medium text-gray-600 mb-2">Terms & Conditions</h4>
-                    <p className="text-sm text-gray-600">{invoice.terms_of_payment ? `Please pay ${invoice.terms_of_payment.toLowerCase()}.` : 'Please pay within 15 days of receiving this invoice.'}</p>
+                  {/* Signature Section */}
+                  <div className="grid grid-cols-2 gap-8 border-t-2 border-gray-300 pt-6">
+                    <div className="text-center">
+                      <div className="h-16 mb-2"></div>
+                      <div className="border-t border-gray-400 pt-2">
+                        <span className="text-sm font-semibold text-gray-800">Prepared By</span>
+                      </div>
+                    </div>
+                    <div className="text-center">
+                      <div className="h-16 mb-2"></div>
+                      <div className="border-t border-gray-400 pt-2">
+                        <span className="text-sm font-semibold text-gray-800">Authorized By</span>
+                      </div>
+                    </div>
                   </div>
+                </div>
+
+                {/* Footer - Company Info */}
+                <div className="relative z-10 bg-[#E8D5A8] text-center py-3 rounded-b-lg border-t-2 border-gray-400">
+
+                  <p className="text-xs text-gray-700 mt-1">
+                    Deals in all kind of Greige & Dyed Fabric
+                  </p>
+                  <p className="text-xs text-gray-700 mt-1">
+                    STRN # 32-77-8761-279-54 | NTN # 7225539-1
+                  </p>
                 </div>
               </div>
             </div>
@@ -836,15 +831,15 @@ This action cannot be undone.`;
                     invoice.status === 'Paid' 
                       ? 'bg-green-100 text-green-800'
                       : invoice.status === 'Sent'
-                      ? 'bg-green-100 text-green-800'
+                      ? 'bg-yellow-100 text-yellow-800'
                       : invoice.status === 'Not Sent'
                       ? 'bg-orange-100 text-orange-800'
                       : invoice.status === 'Overdue'
                       ? 'bg-red-100 text-red-800'
-                      : invoice.status === 'Cancelled'
-                      ? 'bg-gray-100 text-gray-800'
                       : invoice.status === 'Pending'
                       ? 'bg-yellow-100 text-yellow-800'
+                      : invoice.status === 'Draft'
+                      ? 'bg-gray-100 text-gray-800'
                       : 'bg-gray-100 text-gray-800'
                   }`}>
                     {invoice.status || 'Not Sent'}
@@ -866,7 +861,6 @@ This action cannot be undone.`;
                         <option value="Sent">Sent</option>
                         <option value="Paid">Paid</option>
                         <option value="Overdue">Overdue</option>
-                        <option value="Cancelled">Cancelled</option>
                       </select>
                     </div>
                   )}

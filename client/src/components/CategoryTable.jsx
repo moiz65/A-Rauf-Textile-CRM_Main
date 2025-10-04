@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Search, Filter, FileDown, Ellipsis, Edit, Trash2, Printer, Download, Plus, Tag, FolderOpen } from 'lucide-react';
+import { useClickOutside } from '../hooks/useClickOutside';
 
 const ITEMS_PER_PAGE = 10;
 
@@ -23,6 +24,14 @@ const CategoryTable = () => {
   const [error, setError] = useState(null);
   const [notification, setNotification] = useState(null);
   const dropdownRef = useRef(null);
+
+  // Add click outside handler for edit modal
+  const editModalRef = useClickOutside(() => {
+    if (showEditModal) {
+      setShowEditModal(false);
+      setEditingCategory(null);
+    }
+  }, showEditModal);
 
   const categoryTypes = ['All', 'Expense', 'Income', 'Asset', 'Liability'];
   const statusOptions = ['All', 'Active', 'Inactive'];
@@ -319,7 +328,7 @@ const CategoryTable = () => {
 
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-        <div className="bg-white rounded-lg p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
+        <div ref={editModalRef} className="bg-white rounded-lg p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
           <h2 className="text-xl font-semibold mb-4">
             {formData.id ? 'Edit Category' : 'Create New Category'}
           </h2>
@@ -617,13 +626,13 @@ const CategoryTable = () => {
                     <td className="px-4 py-4 text-sm text-gray-500 whitespace-nowrap max-w-xs">
                       <div className="truncate">{category.description}</div>
                     </td>
-                    <td className="px-4 py-4 text-sm whitespace-nowrap">
-                      <span className={`px-2 py-1 inline-flex text-xs font-semibold rounded-full ${getTypeClass(category.type)}`}>
+                    <td className="px-4 py-4 text-sm whitespace-nowrap text-center">
+                      <span className={`px-2 py-1 inline-flex items-center justify-center text-xs font-semibold rounded-full ${getTypeClass(category.type)}`}>
                         {category.type}
                       </span>
                     </td>
-                    <td className="px-4 py-4 text-sm whitespace-nowrap">
-                      <span className={`px-2 py-1 inline-flex text-xs font-semibold rounded-full ${getStatusClass(category.status)}`}>
+                    <td className="px-4 py-4 text-sm whitespace-nowrap text-center">
+                      <span className={`px-2 py-1 inline-flex items-center justify-center text-xs font-semibold rounded-full ${getStatusClass(category.status)}`}>
                         {category.status}
                       </span>
                     </td>

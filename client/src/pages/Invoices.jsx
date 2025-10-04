@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import Sidebar from '../components/Sidebar';
 import Header from '../components/Header';
+import Footer from '../components/Footer';
 import SummaryCard from '../components/SummaryCard';
 import InvoiceTable from '../components/InvoiceTable';
 import TransactionHistory from '../components/TransactionHistory';
@@ -67,17 +68,17 @@ const Invoices = () => {
       };
       
       // Calculate statistics
-      // All paid invoices
+      // All paid invoices (only Paid status)
       const paidInvoices = allInvoices.filter(inv => inv.status === 'Paid');
       const paidAmount = paidInvoices.reduce((sum, inv) => sum + (parseFloat(inv.total_amount) || 0), 0);
       
-      // Outstanding invoices (Sent, Pending, Draft - awaiting payment)
+      // Outstanding invoices (Not Sent, Draft, Sent, Pending - awaiting payment, excludes Paid and Overdue)
       const outstandingInvoices = allInvoices.filter(inv => 
-        inv.status === 'Sent' || inv.status === 'Pending' || inv.status === 'Draft'
+        inv.status === 'Not Sent' || inv.status === 'Draft' || inv.status === 'Sent' || inv.status === 'Pending'
       );
       const outstandingAmount = outstandingInvoices.reduce((sum, inv) => sum + (parseFloat(inv.total_amount) || 0), 0);
       
-      // Overdue invoices (need immediate attention)
+      // Overdue invoices (need immediate attention - separate category)
       const overdueInvoices = allInvoices.filter(inv => inv.status === 'Overdue');
       const overdueAmount = overdueInvoices.reduce((sum, inv) => sum + (parseFloat(inv.total_amount) || 0), 0);
       
@@ -92,7 +93,7 @@ const Invoices = () => {
           },
         },
         {
-          title: "Pending Payment", 
+          title: "Pending Invoice Payment", 
           amount: formatCurrency(outstandingAmount),
           currency: "PKR",
           indicator: { 
@@ -101,7 +102,7 @@ const Invoices = () => {
           },
         },
         {
-          title: "Overdue Amount",
+          title: "Overdue Invoice Amount",
           amount: formatCurrency(overdueAmount),
           currency: "PKR",
           indicator: { 
@@ -110,7 +111,7 @@ const Invoices = () => {
           },
         },
         {
-          title: "Paid Invoices",
+          title: "Paid Invoice Invoices",
           amount: formatCurrency(paidAmount),
           currency: "PKR",
           indicator: { 
@@ -151,7 +152,7 @@ const Invoices = () => {
         <div className="flex justify-between items-center mb-6">
         
         </div>
-  <Header name="A RAUF TEXTILE" />
+  <Header />
         {/* Summary Cards */}
         <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 mb-6">
           {summaryData.map((item, index) => (
@@ -174,7 +175,12 @@ const Invoices = () => {
         <section className="mt-5">
           <TransactionHistory />
         </section>
+
+      {/* Footer */}
+      <Footer />
       </main>
+      
+
     </div>
   );
 };

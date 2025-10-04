@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import Sidebar from '../components/Sidebar';
 import Header from '../components/Header';
+import Footer from '../components/Footer';
 import ReportsTable from '../components/ReportsTable';
 
 const Report = () => {
@@ -15,7 +16,7 @@ const Report = () => {
       {/* Main Content */}
       <div className="flex-1 p-6 bg-[#F5F5F5] md:ml-64">
         {/* Header */}
-        <Header name="A RAUF TEXTILE" />
+        <Header />
         
         {/* Reports Table - Full Width */}
         <section className="w-full">
@@ -24,6 +25,9 @@ const Report = () => {
             setActiveTab={setActiveTab}
           />
         </section>
+        
+        {/* Footer */}
+        <Footer />
       </div>
     </div>
   );

@@ -1,13 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
 import {
   Search,
-  Filter,
   FileDown,
   Ellipsis,
   Edit,
   Trash2,
-  Printer,
-  Download,
   Plus,
   User,
   Mail,
@@ -16,6 +13,7 @@ import {
   Calendar,
   Building
 } from 'lucide-react';
+import { useClickOutside } from '../hooks/useClickOutside';
 
 const ITEMS_PER_PAGE = 10;
 
@@ -24,14 +22,6 @@ const CustomersTable = () => {
   const [selectedRows, setSelectedRows] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState('');
-  const [activeTab, setActiveTab] = useState('All');
-  const [filters, setFilters] = useState({
-    customerName: '',
-    dateFrom: '',
-    dateTo: '',
-    address: ''
-  });
-  const [showFilters, setShowFilters] = useState(false);
   const [activeDropdown, setActiveDropdown] = useState(null);
   const [editingCustomer, setEditingCustomer] = useState(null);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -40,6 +30,14 @@ const CustomersTable = () => {
   const [notification, setNotification] = useState(null);
   const [isBulkDeleting, setIsBulkDeleting] = useState(false);
   const dropdownRef = useRef(null);
+
+  // Add click outside handler for edit modal
+  const editModalRef = useClickOutside(() => {
+    if (showEditModal) {
+      setShowEditModal(false);
+      setEditingCustomer(null);
+    }
+  }, showEditModal);
 
   // Fetch customers data from API
   useEffect(() => {
@@ -85,19 +83,16 @@ const CustomersTable = () => {
       (customer?.phone || '').includes(searchTerm) ||
       (customer?.company || '').toLowerCase().includes(searchTerm.toLowerCase())
     )
-    .filter(customer =>
-      activeTab === 'All' || true // placeholder for future tab filtering
-    )
-    .filter(customer =>
-      (!filters.customerName || (customer?.customer || '').toLowerCase().includes(filters.customerName.toLowerCase())) &&
-      (!filters.dateFrom || new Date(customer?.date) >= new Date(filters.dateFrom)) &&
-      (!filters.dateTo || new Date(customer?.date) <= new Date(filters.dateTo)) &&
-      (!filters.address || (customer?.address || '').toLowerCase().includes(filters.address.toLowerCase()))
-    );
+    ;
 
   const totalPages = Math.ceil(filteredCustomers.length / ITEMS_PER_PAGE) || 1;
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
   const visibleCustomers = filteredCustomers.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+
+  // Clamp currentPage if filters reduce totalPages
+  useEffect(() => {
+    if (currentPage > totalPages) setCurrentPage(totalPages);
+  }, [totalPages]);
 
   const toggleSelectAll = () => {
     if (selectedRows.length === visibleCustomers.length && visibleCustomers.length > 0) {
@@ -120,24 +115,20 @@ const CustomersTable = () => {
     }
   };
 
-  const handleFilterChange = (e) => {
-    const { name, value } = e.target;
-    setFilters(prev => ({
-      ...prev,
-      [name]: value
-    }));
+  // ...existing code...
+
+  const formatDate = (iso) => {
+    if (!iso) return 'N/A';
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return iso;
+    // dd/mm/yyyy
+    const day = String(d.getDate()).padStart(2, '0');
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const year = d.getFullYear();
+    return `${day}/${month}/${year}`;
   };
 
-  const resetFilters = () => {
-    setFilters({
-      customerName: '',
-      dateFrom: '',
-      dateTo: '',
-      address: ''
-    });
-    setSearchTerm('');
-    setActiveTab('All');
-  };
+  // filters removed: searchTerm controls client-side filtering
 
   const toggleDropdown = (customerId, e) => {
     e.stopPropagation();
@@ -212,16 +203,61 @@ const CustomersTable = () => {
       date: new Date().toISOString().split('T')[0],
       phone: '',
       address: '',
-      email: ''
+      email: '',
+      stn: '',
+      ntn: ''
     };
 
     setEditingCustomer(newCustomer);
     setShowEditModal(true);
   };
 
-  // FIXED: send keys that match backend: customer, company, date, phone, address, email
+  // FIXED: send keys that match backend: customer, company, date, phone, address, email, stn, ntn
   const handleSaveCustomer = async (updatedCustomer) => {
     try {
+      // Check for duplicate email, phone, STN, or NTN (excluding current customer when editing)
+      const duplicateCheck = customersData.find(customer => {
+        // Skip the current customer when editing
+        if (updatedCustomer.customer_id && customer.customer_id === updatedCustomer.customer_id) {
+          return false;
+        }
+
+        // Check if any unique identifier matches
+        const emailMatch = customer.email && updatedCustomer.email && 
+                          customer.email.toLowerCase() === updatedCustomer.email.toLowerCase();
+        const phoneMatch = customer.phone && updatedCustomer.phone && 
+                          customer.phone === updatedCustomer.phone;
+        const stnMatch = customer.stn && updatedCustomer.stn && 
+                        customer.stn === updatedCustomer.stn;
+        const ntnMatch = customer.ntn && updatedCustomer.ntn && 
+                        customer.ntn === updatedCustomer.ntn;
+
+        return emailMatch || phoneMatch || stnMatch || ntnMatch;
+      });
+
+      if (duplicateCheck) {
+        // Determine which field is duplicate
+        let duplicateFields = [];
+        if (duplicateCheck.email.toLowerCase() === updatedCustomer.email.toLowerCase()) {
+          duplicateFields.push('Email');
+        }
+        if (duplicateCheck.phone === updatedCustomer.phone) {
+          duplicateFields.push('Phone Number');
+        }
+        if (duplicateCheck.stn === updatedCustomer.stn) {
+          duplicateFields.push('STN');
+        }
+        if (duplicateCheck.ntn === updatedCustomer.ntn) {
+          duplicateFields.push('NTN');
+        }
+
+        showNotification(
+          "Duplicate Customer",
+          `A customer with the same ${duplicateFields.join(', ')} already exists: "${duplicateCheck.customer}"`
+        );
+        return;
+      }
+
       let response;
 
       const payload = {
@@ -230,7 +266,9 @@ const CustomersTable = () => {
         date: updatedCustomer.date,
         phone: updatedCustomer.phone,
         address: updatedCustomer.address,
-        email: updatedCustomer.email
+        email: updatedCustomer.email,
+        stn: updatedCustomer.stn,
+        ntn: updatedCustomer.ntn
       };
 
       if (updatedCustomer.customer_id) {
@@ -271,7 +309,7 @@ const CustomersTable = () => {
       );
     } catch (err) {
       console.error('Error saving customer:', err);
-      showNotification("Error", "Failed to save customer. Please try again.");
+      showNotification("Error", err.message || "Failed to save customer. Please try again.");
     }
   };
 
@@ -310,8 +348,8 @@ const CustomersTable = () => {
       e.preventDefault();
 
       // Basic validation: ensure required fields exist
-      if (!formData.customer || !formData.email || !formData.phone || !formData.address || !formData.date) {
-        showNotification('Validation', 'Please fill required fields.');
+      if (!formData.customer || !formData.email || !formData.phone || !formData.address || !formData.date || !formData.stn || !formData.ntn) {
+        showNotification('Validation', 'Please fill all required fields including STN and NTN.');
         return;
       }
 
@@ -320,7 +358,7 @@ const CustomersTable = () => {
 
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-        <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+        <div ref={editModalRef} className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
           <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
             <User className="w-5 h-5" />
             {formData.customer_id ? 'Edit Customer' : 'Add New Customer'}
@@ -367,15 +405,25 @@ const CustomersTable = () => {
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Phone Number *</label>
               <input
-                type="text"
+                type="tel"
                 name="phone"
                 value={formData.phone || ''}
-                onChange={handleChange}
+                onChange={(e) => {
+                  // Allow only numeric values, spaces, parentheses, and + or -
+                  const filteredValue = e.target.value.replace(/[^0-9\-\+\(\)\s]/g, '');
+                  handleChange({
+                    target: {
+                      name: 'phone',
+                      value: filteredValue,
+                    },
+                  });
+                }}
                 className="w-full p-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 required
-                placeholder="+1 (555) 123-4567"
+                placeholder="Enter phone number"
               />
             </div>
+
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
@@ -399,6 +447,32 @@ const CustomersTable = () => {
                 className="w-full p-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 required
                 placeholder="Enter full address"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">STN Number *</label>
+              <input
+                type="text"
+                name="stn"
+                value={formData.stn || ''}
+                onChange={handleChange}
+                className="w-full p-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                required
+                placeholder="Sales Tax Number"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">NTN Number *</label>
+              <input
+                type="text"
+                name="ntn"
+                value={formData.ntn || ''}
+                onChange={handleChange}
+                className="w-full p-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                required
+                placeholder="National Tax Number"
               />
             </div>
 
@@ -517,13 +591,6 @@ const CustomersTable = () => {
               <Plus className="w-4 h-4" />
               <span>Add Customer</span>
             </button>
-            <button
-              className="flex items-center gap-2 bg-white border rounded-lg px-3 py-2.5 text-sm hover:bg-gray-50 transition-colors"
-              onClick={() => setShowFilters(!showFilters)}
-            >
-              <Filter className="w-4 h-4" />
-              <span className="hidden xs:inline">Filters</span>
-            </button>
             <button className="flex items-center gap-2 bg-white border rounded-lg px-3 py-2.5 text-sm hover:bg-gray-50 transition-colors">
               <FileDown className="w-4 h-4" />
               <span className="hidden xs:inline">Export</span>
@@ -532,60 +599,7 @@ const CustomersTable = () => {
         </div>
       </div>
 
-      {/* Filter Panel */}
-      {showFilters && (
-        <div className="bg-gray-50 p-4 rounded-lg mb-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Customer Name</label>
-            <input
-              type="text"
-              name="customerName"
-              className="w-full p-2 border rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              value={filters.customerName}
-              onChange={handleFilterChange}
-              placeholder="Filter by name"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Date Range</label>
-            <div className="flex gap-2">
-              <input
-                type="date"
-                name="dateFrom"
-                className="w-full p-2 border rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                value={filters.dateFrom}
-                onChange={handleFilterChange}
-              />
-              <input
-                type="date"
-                name="dateTo"
-                className="w-full p-2 border rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                value={filters.dateTo}
-                onChange={handleFilterChange}
-              />
-            </div>
-          </div>
-          <div className="md:col-span-2">
-            <label className="block text-sm font-medium text-gray-700 mb-1">Address</label>
-            <input
-              type="text"
-              name="address"
-              className="w-full p-2 border rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              value={filters.address}
-              onChange={handleFilterChange}
-              placeholder="Filter by address"
-            />
-          </div>
-          <div className="md:col-span-4 flex justify-end gap-2">
-            <button
-              onClick={resetFilters}
-              className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 text-sm transition-colors"
-            >
-              Reset Filters
-            </button>
-          </div>
-        </div>
-      )}
+      {/* Filters removed - search input remains */}
 
       {/* Table */}
       <div className="overflow-x-auto rounded-lg border border-gray-200">
@@ -669,7 +683,7 @@ const CustomersTable = () => {
                   <td className="px-6 py-4 text-sm text-gray-500 whitespace-nowrap hidden lg:table-cell">
                     <div className="flex items-center gap-1">
                       <Calendar className="w-3 h-3" />
-                      {customer.date}
+                      {formatDate(customer.date)}
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium relative">

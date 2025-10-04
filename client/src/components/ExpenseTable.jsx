@@ -2,8 +2,9 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Search, Filter, FileDown, Ellipsis, Edit, Trash2, Printer, Download, Plus } from 'lucide-react';
 import SimpleCategoryStats from './SimpleCategoryStats';
 import CategoryAutocomplete from './CategoryAutocomplete';
+import { useClickOutside } from '../hooks/useClickOutside';
 
-const ITEMS_PER_PAGE = 4;
+const ITEMS_PER_PAGE = 5;
 
 const ExpenseTable = () => {
   const [expensesData, setExpensesData] = useState([]);
@@ -31,6 +32,14 @@ const ExpenseTable = () => {
   const [categoriesLoading, setCategoriesLoading] = useState(true);
   const dropdownRef = useRef(null);
   const filterPanelRef = useRef(null);
+
+  // Add click outside handler for edit modal
+  const editModalRef = useClickOutside(() => {
+    if (showEditModal) {
+      setShowEditModal(false);
+      setEditingExpense(null);
+    }
+  }, showEditModal);
 
   // Tab categories - only 4 main types
   const tabCategories = ['All', 'Expense', 'Income', 'Asset', 'Liability'];
@@ -127,6 +136,34 @@ const ExpenseTable = () => {
   const totalPages = Math.ceil(filteredExpenses.length / ITEMS_PER_PAGE);
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
   const visibleExpenses = filteredExpenses.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+
+  // Compute pages to display in pagination (max 5 visible pages, with ellipses)
+  const maxVisiblePages = 5;
+  const pages = [];
+  if (totalPages <= maxVisiblePages) {
+    for (let i = 1; i <= totalPages; i++) pages.push(i);
+  } else {
+    const half = Math.floor(maxVisiblePages / 2);
+    let startPage = Math.max(1, currentPage - half);
+    let endPage = startPage + maxVisiblePages - 1;
+
+    if (endPage > totalPages) {
+      endPage = totalPages;
+      startPage = endPage - maxVisiblePages + 1;
+    }
+
+    if (startPage > 1) {
+      pages.push(1);
+      if (startPage > 2) pages.push('...');
+    }
+
+    for (let i = startPage; i <= endPage; i++) pages.push(i);
+
+    if (endPage < totalPages) {
+      if (endPage < totalPages - 1) pages.push('...');
+      pages.push(totalPages);
+    }
+  }
 
   const toggleSelectAll = () => {
     if (selectedRows.length === visibleExpenses.length) {
@@ -472,7 +509,7 @@ const ExpenseTable = () => {
 
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-        <div className="bg-white rounded-lg p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+        <div ref={editModalRef} className="bg-white rounded-lg p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto">
           <h2 className="text-xl font-semibold mb-4">
             {formData.id ? 'Edit Expense' : 'Add New Expense'}
           </h2>
@@ -602,7 +639,7 @@ const ExpenseTable = () => {
                       <th className="px-3 py-2 text-right text-sm font-medium text-gray-700">Qty</th>
                       <th className="px-3 py-2 text-right text-sm font-medium text-gray-700">Unit Price</th>
                       <th className="px-3 py-2 text-right text-sm font-medium text-gray-700">Amount</th>
-                      <th className="px-3 py-2 text-center text-sm font-medium text-gray-700">Action</th>
+                      <th className="px-3 py-2 text-center text-sm font-medium text-gray-700"></th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200">
@@ -910,7 +947,7 @@ const ExpenseTable = () => {
                 <th className="pb-3 px-2 whitespace-nowrap hidden md:table-cell">Payment Method</th>
                 <th className="pb-3 px-2 whitespace-nowrap">Status</th>
                 <th className="pb-3 px-2 whitespace-nowrap hidden lg:table-cell">Description</th>
-                <th className="pb-3 px-2 whitespace-nowrap">Action</th>
+                <th className="pb-3 px-2 whitespace-nowrap"></th>
               </tr>
             </thead>
             <tbody className="text-center divide-y divide-gray-100">
@@ -943,16 +980,16 @@ const ExpenseTable = () => {
                     <td className="px-4 py-4 text-sm font-medium text-gray-900 whitespace-nowrap">
                       PKR {expense.amount.toLocaleString()}
                     </td>
-                    <td className="px-4 py-4 text-sm whitespace-nowrap">
-                      <span className={`px-2 py-1 inline-flex text-xs font-semibold rounded-full ${getCategoryClass(expense.category)}`}>
+                    <td className="px-4 py-4 text-sm whitespace-nowrap text-center">
+                      <span className={`px-2 py-1 inline-flex items-center justify-center text-xs font-semibold rounded-full ${getCategoryClass(expense.category)}`}>
                         {expense.category}
                       </span>
                     </td>
                     <td className="px-4 py-4 text-sm text-gray-500 whitespace-nowrap hidden md:table-cell">
                       {expense.paymentMethod}
                     </td>
-                    <td className="px-4 py-4 text-sm whitespace-nowrap">
-                      <span className={`px-2 py-1 inline-flex text-xs font-semibold rounded-full ${getStatusClass(expense.status)}`}>
+                    <td className="px-4 py-4 text-sm whitespace-nowrap text-center">
+                      <span className={`px-2 py-1 inline-flex items-center justify-center text-xs font-semibold rounded-full ${getStatusClass(expense.status)}`}>
                         {expense.status}
                       </span>
                     </td>
@@ -998,6 +1035,17 @@ const ExpenseTable = () => {
                 ))
               )}
             </tbody>
+            <tfoot>
+              <tr className="bg-blue-50 border-t-2 border-blue-200">
+                <td colSpan="3" className="px-4 py-3 text-right text-sm font-bold text-gray-900">
+                  Total Expenditures:
+                </td>
+                <td className="px-4 py-3 text-sm font-bold text-blue-600">
+                  PKR {filteredExpenses.reduce((sum, expense) => sum + (parseFloat(expense.amount) || 0), 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </td>
+                <td colSpan="6"></td>
+              </tr>
+            </tfoot>
           </table>
         </div>
       </div>
@@ -1016,50 +1064,23 @@ const ExpenseTable = () => {
             >
               Previous
             </button>
-            {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-              // Show pages around current page
-              let pageNum;
-              if (totalPages <= 5) {
-                pageNum = i + 1;
-              } else if (currentPage <= 3) {
-                pageNum = i + 1;
-              } else if (currentPage >= totalPages - 2) {
-                pageNum = totalPages - 4 + i;
-              } else {
-                pageNum = currentPage - 2 + i;
-              }
-              
-              return (
-                <button
-                  key={pageNum}
-                  onClick={() => handlePageChange(pageNum)}
-                  className={`px-3 py-1 text-sm rounded-md ${
-                    currentPage === pageNum
-                      ? "bg-blue-500 text-white border-blue-500"
-                      : "bg-white text-gray-700 border-gray-300 hover:bg-gray-100"
-                  } border`}
-                >
-                  {pageNum}
-                </button>
-              );
-            })}
-            
-            {totalPages > 5 && currentPage < totalPages - 2 && (
-              <span className="px-2 text-gray-500">...</span>
-            )}
-            
-            {totalPages > 5 && currentPage < totalPages - 2 && (
-              <button
-                onClick={() => handlePageChange(totalPages)}
-                className={`px-3 py-1 text-sm rounded-md ${
-                  currentPage === totalPages
-                    ? "bg-blue-500 text-white border-blue-500"
-                    : "bg-white text-gray-700 border-gray-300 hover:bg-gray-100"
-                } border`}
-              >
-                {totalPages}
-              </button>
-            )}
+              {pages.map((p, idx) => (
+                p === '...' ? (
+                  <div key={`dots-${idx}`} className="px-3 py-1 text-sm rounded-md min-w-[36px] flex items-center justify-center">...</div>
+                ) : (
+                  <button
+                    key={p}
+                    onClick={() => handlePageChange(p)}
+                    className={`px-3 py-1 text-sm rounded-md min-w-[36px] ${
+                      currentPage === p
+                        ? "bg-blue-500 text-white border-blue-500"
+                        : "bg-white text-gray-700 border-gray-300 hover:bg-gray-100"
+                    } border`}
+                  >
+                    {p}
+                  </button>
+                )
+              ))}
             
             <button
               onClick={() => handlePageChange(currentPage + 1)}

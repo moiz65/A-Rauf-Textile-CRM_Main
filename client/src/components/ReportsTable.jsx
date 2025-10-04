@@ -739,7 +739,7 @@ const ReportsTable = ({
             <div>
               <h3 className="text-sm font-medium text-gray-500">Status</h3>
               <p className="mt-1">
-                <span className={`px-2 py-1 inline-flex text-xs font-semibold rounded-full ${getStatusClass(data.status)}`}>
+                <span className={`px-2 py-1 inline-flex items-center justify-center text-xs font-semibold rounded-full ${getStatusClass(data.status)}`}>
                   {data.status}
                 </span>
               </p>
@@ -1200,9 +1200,9 @@ const ReportsTable = ({
                       <td className="px-4 py-4 text-sm font-medium text-gray-900 whitespace-nowrap">
                         PKR {Number(report.price).toLocaleString()}
                       </td>
-                      <td className="px-4 py-4 text-sm whitespace-nowrap">
+                      <td className="px-4 py-4 text-sm whitespace-nowrap text-center">
                         <span
-                          className={`px-2 py-1 inline-flex text-xs font-semibold rounded-full ${getStatusClass(
+                          className={`px-2 py-1 inline-flex items-center justify-center text-xs font-semibold rounded-full ${getStatusClass(
                             report.status
                           )}`}
                         >

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import Header from '../components/Header';
 import Sidebar from '../components/Sidebar';
+import Footer from '../components/Footer';
 import ExpenseChart from '../components/ExpenseChart';
 import FinancialOverview from '../components/FinancialOverview';
 import StatsCard from '../components/StatsCard';
@@ -140,7 +141,7 @@ const Dashboard = () => {
           <Sidebar />
         </div>
         <div className="flex-1 p-6 bg-[#F5F5F5] md:ml-64">
-          <Header name="A RAUF TEXTILE" />
+          <Header />
           <div className="flex items-center justify-center h-64">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
             <span className="ml-4 text-gray-600">Loading dashboard...</span>
@@ -158,7 +159,7 @@ const Dashboard = () => {
           <Sidebar />
         </div>
         <div className="flex-1 p-6 bg-[#F5F5F5] md:ml-64">
-          <Header name="A RAUF TEXTILE" />
+          <Header />
           <div className="flex items-center justify-center h-64">
             <div className="text-center">
               <div className="text-red-500 mb-4">{error}</div>
@@ -188,7 +189,7 @@ const Dashboard = () => {
         <div className="flex justify-between items-center mb-6">
           
         </div>
-        <Header name="A RAUF TEXTILE" />
+        <Header />
         {/* Dashboard Content */}
         <main className="p-4 md:p-6 space-y-6">
           {/* Quick Actions */}
@@ -248,6 +249,9 @@ const Dashboard = () => {
             <TransactionHistory />
           </div>
         </main>
+        
+        {/* Footer */}
+        <Footer />
       </div>
     </div>
   );
