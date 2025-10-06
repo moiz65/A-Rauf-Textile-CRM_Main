@@ -754,7 +754,6 @@ const PurchaseOrderDetails = ({ poId, onBack }) => {
                         <th style="padding: 12px 8px; text-align: center; font-size: 11px; font-weight: bold; color: #1f2937; border-right: 1px solid #9ca3af;">S.No</th>
                         <th style="padding: 12px 12px; text-align: center; font-size: 11px; font-weight: bold; color: #1f2937; border-right: 1px solid #9ca3af;">Description</th>
                         <th style="padding: 12px 12px; text-align: center; font-size: 11px; font-weight: bold; color: #1f2937; border-right: 1px solid #9ca3af;">Quantity</th>
-                        <th style="padding: 12px 12px; text-align: center; font-size: 11px; font-weight: bold; color: #1f2937; border-right: 1px solid #9ca3af;">Unit</th>
                         <th style="padding: 12px 12px; text-align: center; font-size: 11px; font-weight: bold; color: #1f2937; border-right: 1px solid #9ca3af;">Unit Price</th>
                         <th style="padding: 12px 12px; text-align: center; font-size: 11px; font-weight: bold; color: #1f2937;">Total Amount</th>
                       </tr>
@@ -768,12 +767,11 @@ const PurchaseOrderDetails = ({ poId, onBack }) => {
                               <div style="font-weight: 500;">${item.description || 'N/A'}</div>
                             </td>
                             <td style="padding: 16px 12px; font-size: 13px; color: #1f2937; text-align: center; border-right: 1px solid #d1d5db;">${parseFloat(item.quantity || 0).toLocaleString()}</td>
-                            <td style="padding: 16px 12px; font-size: 13px; color: #1f2937; text-align: center; border-right: 1px solid #d1d5db;">${item.unit || 'pcs'}</td>
                             <td style="padding: 16px 12px; font-size: 13px; color: #1f2937; text-align: right; border-right: 1px solid #d1d5db;">${purchaseOrder.currency} ${parseFloat(item.unitPrice || item.unit_price || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
                             <td style="padding: 16px 12px; font-size: 13px; font-weight: 600; color: #111827; text-align: right;">${purchaseOrder.currency} ${parseFloat(item.total || item.amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
                           </tr>
                         `).join('') :
-                        '<tr style="border-bottom: 1px solid #d1d5db;"><td colspan="6" style="padding: 32px 16px; text-align: center; font-size: 13px; color: #6b7280;">No items found for this purchase order</td></tr>'
+                        '<tr style="border-bottom: 1px solid #d1d5db;"><td colspan="5" style="padding: 32px 16px; text-align: center; font-size: 13px; color: #6b7280;">No items found for this purchase order</td></tr>'
                       }
                       <!-- Total Row -->
                       <tr style="background: #f3f4f6; border-top: 2px solid #9ca3af;">
@@ -782,7 +780,6 @@ const PurchaseOrderDetails = ({ poId, onBack }) => {
                         <td style="padding: 12px 12px; font-size: 13px; color: #1f2937; text-align: center; border-right: 1px solid #d1d5db;">
                           ${purchaseOrder.items ? purchaseOrder.items.reduce((sum, item) => sum + parseFloat(item.quantity || 0), 0).toLocaleString() : 0}
                         </td>
-                        <td style="padding: 12px 12px; border-right: 1px solid #d1d5db;"></td>
                         <td style="padding: 12px 12px; border-right: 1px solid #d1d5db;"></td>
                         <td style="padding: 12px 12px; font-size: 13px; font-weight: bold; color: #111827; text-align: right;">${purchaseOrder.currency} ${parseFloat(purchaseOrder.totalAmount || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
                       </tr>
@@ -1614,7 +1611,6 @@ const PurchaseOrderDetails = ({ poId, onBack }) => {
                     <th className="py-3 px-2 text-center text-xs font-bold text-gray-800 border-r border-gray-400">S.No</th>
                     <th className="py-3 px-3 text-center text-xs font-bold text-gray-800 border-r border-gray-400">Description</th>
                     <th className="py-3 px-3 text-center text-xs font-bold text-gray-800 border-r border-gray-400">Quantity</th>
-                    <th className="py-3 px-3 text-center text-xs font-bold text-gray-800 border-r border-gray-400">Unit</th>
                     <th className="py-3 px-3 text-center text-xs font-bold text-gray-800 border-r border-gray-400">Unit Price</th>
                     <th className="py-3 px-3 text-center text-xs font-bold text-gray-800">Total Amount</th>
                   </tr>
@@ -1628,14 +1624,13 @@ const PurchaseOrderDetails = ({ poId, onBack }) => {
                           <div className="font-medium">{item.description || 'N/A'}</div>
                         </td>
                         <td className="py-4 px-3 text-sm text-gray-800 text-center border-r border-gray-300">{parseFloat(item.quantity || 0).toLocaleString()}</td>
-                        <td className="py-4 px-3 text-sm text-gray-800 text-center border-r border-gray-300">{item.unit || 'pcs'}</td>
                         <td className="py-4 px-3 text-sm text-gray-800 text-right border-r border-gray-300">{purchaseOrder.currency} {parseFloat(item.unitPrice || item.unit_price || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
                         <td className="py-4 px-3 text-sm font-semibold text-gray-900 text-right">{purchaseOrder.currency} {parseFloat(item.total || item.amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
                       </tr>
                     ))
                   ) : (
                     <tr className="border-b border-gray-300">
-                      <td colSpan="6" className="py-8 px-4 text-center text-sm text-gray-500">
+                      <td colSpan="5" className="py-8 px-4 text-center text-sm text-gray-500">
                         No items found for this purchase order
                       </td>
                     </tr>
@@ -1647,7 +1642,6 @@ const PurchaseOrderDetails = ({ poId, onBack }) => {
                     <td className="py-3 px-3 text-sm text-gray-800 text-center border-r border-gray-300">
                       {purchaseOrder.items ? purchaseOrder.items.reduce((sum, item) => sum + parseFloat(item.quantity || 0), 0).toLocaleString() : 0}
                     </td>
-                    <td className="py-3 px-3 border-r border-gray-300"></td>
                     <td className="py-3 px-3 border-r border-gray-300"></td>
                     <td className="py-3 px-3 text-sm font-bold text-gray-900 text-right">{purchaseOrder.currency} {parseFloat(purchaseOrder.totalAmount || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
                   </tr>

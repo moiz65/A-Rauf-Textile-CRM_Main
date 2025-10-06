@@ -4,10 +4,8 @@
 function filterInvoices(invoicesData = [], activeTab = 'All', filters = {}, searchTerm = '') {
   let filtered = Array.isArray(invoicesData) ? invoicesData.slice() : [];
 
-  // If we're not in the Overdue tab, exclude any invoices that are Overdue
-  if (activeTab !== 'Overdue') {
-    filtered = filtered.filter(inv => inv.status !== 'Overdue');
-  }
+  // Do not exclude Overdue invoices from other tabs — we will prioritize them via sorting
+  // (This allows Overdue invoices to appear at the top of lists unless a tab explicitly scopes results)
 
   // Tab-based filtering
   if (activeTab === 'PO Invoices') {
@@ -97,29 +95,43 @@ function filterInvoices(invoicesData = [], activeTab = 'All', filters = {}, sear
     }
   }
 
-  // Sorting: status priority then date (latest first)
-  const getStatusPriority = (status) => {
-    switch (status) {
-      case 'Sent': return 1;
-      case 'Paid': return 1;
-      case 'Overdue': return 2;
-      case 'Pending': return 3;
-      case 'Not Sent': return 4;
-      case 'Draft': return 5;
-      case 'Cancelled': return 6;
-      default: return 7;
-    }
+  // Sorting behaviour changed: Put Paid invoices after all other invoices.
+  // For non-paid invoices, show the most recently created invoices first (newest first).
+  // For paid invoices, show most recently updated/payments first (newest first), but
+  // they should appear after non-paid invoices in the overall list.
+  const safeDate = (val) => {
+    const d = new Date(val);
+    return isNaN(d.getTime()) ? null : d;
   };
 
-  const getDateForSorting = (invoice) => invoice.updated_at || invoice.created_at || invoice.bill_date || invoice.invoice_date || '';
+  const getCreatedDate = (inv) => safeDate(inv.created_at) || safeDate(inv.bill_date) || safeDate(inv.invoice_date) || null;
+  const getUpdatedDate = (inv) => safeDate(inv.updated_at) || getCreatedDate(inv);
 
   filtered.sort((a, b) => {
-    const aP = getStatusPriority(a.status);
-    const bP = getStatusPriority(b.status);
-    if (aP !== bP) return aP - bP;
-    const aDate = new Date(getDateForSorting(a));
-    const bDate = new Date(getDateForSorting(b));
-    return bDate - aDate;
+    const aPaid = String(a.status || '').toLowerCase() === 'paid';
+    const bPaid = String(b.status || '').toLowerCase() === 'paid';
+
+    // Put non-paid before paid
+    if (aPaid !== bPaid) return aPaid ? 1 : -1;
+
+    // Both are paid OR both are non-paid
+    if (!aPaid) {
+      // Non-paid: newest created first
+      const ac = getCreatedDate(a);
+      const bc = getCreatedDate(b);
+      if (ac && bc) return bc - ac;
+      if (ac && !bc) return -1;
+      if (!ac && bc) return 1;
+      return 0;
+    }
+
+    // Both paid: newest updated first
+    const au = getUpdatedDate(a);
+    const bu = getUpdatedDate(b);
+    if (au && bu) return bu - au;
+    if (au && !bu) return -1;
+    if (!au && bu) return 1;
+    return 0;
   });
 
   return filtered;

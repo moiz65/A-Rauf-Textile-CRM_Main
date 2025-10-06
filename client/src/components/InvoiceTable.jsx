@@ -65,7 +65,7 @@ const InvoiceForm = ({ onSubmit, onCancel, initialData = null }) => {
     stRegNo: "",
     ntnNumber: "",
     currency: "PKR",
-    salesTax: 17,
+    salesTax: 0 ,
     subtotal: 0,
     taxAmount: 0,
     totalAmount: 0,
@@ -191,7 +191,7 @@ const InvoiceForm = ({ onSubmit, onCancel, initialData = null }) => {
         stRegNo: initialData.st_reg_no || "",
         ntnNumber: initialData.ntn_number || "",
         currency: initialData.currency || "PKR",
-        salesTax: parseFloat(initialData.tax_rate || initialData.salesTax || 17),
+        salesTax: parseFloat(initialData.tax_rate || initialData.salesTax || 0),
         subtotal: parseFloat(initialData.subtotal || 0),
         taxAmount: parseFloat(initialData.tax_amount || 0),
         totalAmount: parseFloat(initialData.total_amount || 0),
@@ -261,12 +261,6 @@ const InvoiceForm = ({ onSubmit, onCancel, initialData = null }) => {
     }));
   };
 
-  const handleCurrencyChange = (e) => {
-    setFormData((prev) => ({
-      ...prev,
-      currency: e.target.value,
-    }));
-  };
 
   // Handle invoice item changes
   const handleItemChange = (index, field, value) => {
@@ -442,10 +436,11 @@ const InvoiceForm = ({ onSubmit, onCancel, initialData = null }) => {
       a_p_number: formData.a_p_Name,
       address: formData.address,
       st_reg_no: formData.stRegNo,
-      ntn_number: formData.ntnNumber,
-      currency: formData.currency,
+  ntn_number: formData.ntnNumber,
+  // Currency is fixed to PKR per requirement
+  currency: 'PKR',
       subtotal: parseFloat(formData.subtotal) || 0,
-      tax_rate: parseFloat(formData.salesTax) || 17,
+      tax_rate: parseFloat(formData.salesTax) || 0,
       tax_amount: parseFloat(formData.taxAmount) || 0,
       total_amount: parseFloat(formData.totalAmount) || 0,
       bill_date: formData.billDate,
@@ -684,9 +679,6 @@ const InvoiceForm = ({ onSubmit, onCancel, initialData = null }) => {
                     Quantity *
                   </th>
                   <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 border-b">
-                    Unit
-                  </th>
-                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 border-b">
                     Rate *
                   </th>
                   <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 border-b">
@@ -717,15 +709,6 @@ const InvoiceForm = ({ onSubmit, onCancel, initialData = null }) => {
                         min="0"
                         step="0.01"
                         required
-                      />
-                    </td>
-                    <td className="px-4 py-3">
-                      <input
-                        type="text"
-                        value={item.unit || ''}
-                        onChange={(e) => handleItemChange(index, 'unit', e.target.value)}
-                        className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
-                        placeholder="Unit (e.g., MTR)"
                       />
                     </td>
                     <td className="px-4 py-3">
@@ -762,13 +745,12 @@ const InvoiceForm = ({ onSubmit, onCancel, initialData = null }) => {
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
                   Currency
                 </label>
-                <select
-                  className="w-full rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-300 transition"
-                  value={formData.currency}
-                  onChange={handleCurrencyChange}
-                >
-                  <option value="PKR">PKR</option>
-                </select>
+                <input
+                  type="text"
+                  readOnly
+                  value="PKR"
+                  className="w-full rounded-xl border border-gray-300 bg-gray-50 px-4 py-2 text-sm shadow-sm focus:outline-none transition"
+                />
               </div>
 
               <Input
@@ -777,7 +759,7 @@ const InvoiceForm = ({ onSubmit, onCancel, initialData = null }) => {
                 name="salesTax"
                 value={formData.salesTax}
                 onChange={handleChange}
-                step="0.01"
+                step="0.5"
                 min="0"
               />
 
@@ -1286,6 +1268,10 @@ const InvoiceManagement = () => {
         counts['Not Sent']++;
       }
     });
+
+    // Ensure 'All' definitely includes both regular and PO invoices: compute from status sums + PO invoices
+    const statusSum = (counts['Paid'] || 0) + (counts['Pending'] || 0) + (counts['Overdue'] || 0) + (counts['Sent'] || 0) + (counts['Not Sent'] || 0);
+    counts['All'] = statusSum + (counts['PO Invoices'] || 0);
 
     // Use fetched counts if they're more reliable (not zero)
     Object.keys(counts).forEach(key => {

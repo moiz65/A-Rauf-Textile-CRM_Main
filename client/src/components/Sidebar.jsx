@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import Logo from "../assets/Logo/rauf textile png.png"; // updated to user's logo
 import Logo2 from "../assets/Logo/Logo-2.png"; // Ensure this path is correct
 
@@ -13,13 +13,13 @@ const NavItem = ({
   return (
     <Link
       to={to}
-      className={`flex items-center gap-3 px-3 sm:px-4 py-2 sm:py-3 cursor-pointer hover:bg-gray-100 transition-colors ${
-        isActive ? "bg-blue-50 text-blue-500" : "text-gray-700"
+      className={`flex items-center gap-3 px-4 sm:px-5 py-3 sm:py-4 rounded-md cursor-pointer hover:bg-gray-100 transition-colors ${
+        isActive ? "bg-blue-50 text-blue-600" : "text-gray-700 hover:text-gray-900"
       }`}
       title={isCollapsed ? label : undefined}
     >
-      <div className={isActive ? "text-blue-500" : "text-gray-500"}>
-        {React.cloneElement(icon, { className: "w-5 h-5" })}
+      <div className={isActive ? "text-blue-600" : "text-gray-500"}>
+        {React.cloneElement(icon, { className: "w-6 h-6" })}
       </div>
       {!isCollapsed && (
         <span className="font-semibold text-sm sm:text-base whitespace-nowrap">
@@ -200,6 +200,18 @@ const Sidebar = () => {
     },
   ];
 
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    // Clear auth and other local storage items and redirect to login
+    try {
+      localStorage.clear();
+    } catch (e) {
+      console.warn('Failed to clear localStorage during logout', e);
+    }
+    navigate('/login');
+  };
+
   return (
     <>
       {/* Mobile menu button */}
@@ -231,20 +243,23 @@ const Sidebar = () => {
         fixed sm:relative z-20
         ${isCollapsed ? "w-16" : "w-56 sm:w-64"}
         ${isMobileOpen ? "left-0" : "-left-full sm:left-0"}
-        min-w-[80px] bg-white border-r border-gray-200 p-2 sm:p-4
-        flex flex-col h-[920px] transition-all duration-300 ease-in-out
+        min-w-[80px] bg-white border-r border-gray-200 p-3 sm:p-6
+        flex flex-col min-h-screen transition-all duration-300 ease-in-out
         shadow-lg sm:shadow-none rounded-[30px]
       `}
       >
         {/* Logo and Collapse button */}
         <div className="flex items-center justify-between mb-4 p-2">
           {!isCollapsed ? (
-            <div className="flex items-center">
+            <div className="flex items-center gap-3">
               <img
                 src={Logo}
-                alt="A rauf Textile"
-                className="h-10 w-auto object-contain"
+                alt="A Rauf Textile"
+                className="h-14 w-auto object-contain"
               />
+              <div className="hidden sm:block">
+                <div className="text-lg font-bold text-gray-800">A Rauf Textile</div>
+              </div>
             </div>
           ) : (
             <div className="w-10 h-10 flex items-center justify-center">
@@ -283,7 +298,7 @@ const Sidebar = () => {
         </div>
 
         {/* Navigation items */}
-        <div className="space-y-1 overflow-y-auto flex-grow">
+        <div className="space-y-3 overflow-y-auto flex-grow">
           {navItems.filter(item => !item.hidden).map((item) => (
             <NavItem
               key={item.to}
@@ -320,6 +335,22 @@ const Sidebar = () => {
             Close Menu
           </button>
         )}
+
+        {/* Logout area pinned to bottom */}
+        <div className="mt-auto pt-4 border-t border-gray-100">
+          <button
+            onClick={handleLogout}
+            aria-label="Logout"
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 ${isCollapsed ? 'justify-center bg-transparent text-gray-700 hover:bg-red-50 hover:text-red-600' : 'bg-red-600 text-white hover:bg-red-700 shadow-sm'}`}
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+              <polyline points="16 17 21 12 16 7" />
+              <line x1="21" y1="12" x2="9" y2="12" />
+            </svg>
+            {!isCollapsed && <span className="font-medium">Logout</span>}
+          </button>
+        </div>
       </div>
 
       {/* Overlay for mobile */}

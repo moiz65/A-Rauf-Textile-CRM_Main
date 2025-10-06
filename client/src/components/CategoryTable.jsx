@@ -9,12 +9,9 @@ const CategoryTable = () => {
   const [selectedRows, setSelectedRows] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState('');
-  const [activeTab, setActiveTab] = useState('All');
   const [filters, setFilters] = useState({
     name: '',
-    description: '',
-    type: '',
-    status: ''
+    description: ''
   });
   const [showFilters, setShowFilters] = useState(false);
   const [activeDropdown, setActiveDropdown] = useState(null);
@@ -32,9 +29,6 @@ const CategoryTable = () => {
       setEditingCategory(null);
     }
   }, showEditModal);
-
-  const categoryTypes = ['All', 'Expense', 'Income', 'Asset', 'Liability'];
-  const statusOptions = ['All', 'Active', 'Inactive'];
 
   // Show notification
   const showNotification = (title, description, duration = 3000) => {
@@ -98,17 +92,11 @@ const CategoryTable = () => {
   const filteredCategories = categoriesData
     .filter(category =>
       category.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      category.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      category.type.toLowerCase().includes(searchTerm.toLowerCase())
-    )
-    .filter(category =>
-      activeTab === 'All' || category.type === activeTab
+      category.description.toLowerCase().includes(searchTerm.toLowerCase())
     )
     .filter(category =>
       (!filters.name || category.name.toLowerCase().includes(filters.name.toLowerCase())) &&
-      (!filters.description || category.description.toLowerCase().includes(filters.description.toLowerCase())) &&
-      (!filters.type || category.type === filters.type) &&
-      (!filters.status || category.status === filters.status)
+      (!filters.description || category.description.toLowerCase().includes(filters.description.toLowerCase()))
     );
 
   const totalPages = Math.ceil(filteredCategories.length / ITEMS_PER_PAGE);
@@ -165,12 +153,9 @@ const CategoryTable = () => {
   const resetFilters = () => {
     setFilters({
       name: '',
-      description: '',
-      type: '',
-      status: ''
+      description: ''
     });
     setSearchTerm('');
-    setActiveTab('All');
     showNotification('Filters Reset', 'All filters have been cleared');
   };
 
@@ -241,9 +226,9 @@ const CategoryTable = () => {
           },
           body: JSON.stringify({
             name: updatedCategory.name,
-            description: updatedCategory.description,
-            type: updatedCategory.type,
-            status: updatedCategory.status
+            description: updatedCategory.description || '',
+            type: updatedCategory.type || 'Expense',
+            status: updatedCategory.status || 'Active'
           }),
         });
 
@@ -254,7 +239,7 @@ const CategoryTable = () => {
 
         showNotification('Category Updated', `Category "${updatedCategory.name}" has been updated successfully`);
       } else {
-        // Add new category
+        // Add new category with default type and status
         const response = await fetch('http://localhost:5000/api/categories', {
           method: 'POST',
           headers: {
@@ -262,9 +247,9 @@ const CategoryTable = () => {
           },
           body: JSON.stringify({
             name: updatedCategory.name,
-            description: updatedCategory.description,
-            type: updatedCategory.type,
-            status: updatedCategory.status
+            description: updatedCategory.description || '',
+            type: 'Expense', // Default type
+            status: 'Active' // Default status
           }),
         });
 
@@ -354,41 +339,9 @@ const CategoryTable = () => {
                 onChange={handleChange}
                 className="w-full p-2 border rounded-md"
                 rows="3"
-                placeholder="Enter category description"
+                placeholder="Enter category description (optional)"
               />
             </div>
-            
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Type *</label>
-              <select
-                name="type"
-                value={formData.type || 'Expense'}
-                onChange={handleChange}
-                className="w-full p-2 border rounded-md"
-                required
-              >
-                {categoryTypes.filter(type => type !== 'All').map(type => (
-                  <option key={type} value={type}>{type}</option>
-                ))}
-              </select>
-            </div>
-            
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
-              <select
-                name="status"
-                value={formData.status || 'Active'}
-                onChange={handleChange}
-                className="w-full p-2 border rounded-md"
-                required
-              >
-                {statusOptions.filter(status => status !== 'All').map(status => (
-                  <option key={status} value={status}>{status}</option>
-                ))}
-              </select>
-            </div>
-            
-
             
             <div className="flex justify-end gap-3">
               <button
@@ -491,7 +444,7 @@ const CategoryTable = () => {
 
       {/* Filter Panel */}
       {showFilters && (
-        <div className="bg-gray-50 p-4 rounded-lg mb-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="bg-gray-50 p-4 rounded-lg mb-4 grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label className="block text-xs font-medium text-gray-700 mb-1">Category Name</label>
             <input
@@ -514,35 +467,7 @@ const CategoryTable = () => {
               placeholder="Filter by description"
             />
           </div>
-          <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">Type</label>
-            <select
-              name="type"
-              className="w-full p-2 border rounded-md text-xs"
-              value={filters.type}
-              onChange={handleFilterChange}
-            >
-              <option value="">All Types</option>
-              {categoryTypes.filter(type => type !== 'All').map(type => (
-                <option key={type} value={type}>{type}</option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">Status</label>
-            <select
-              name="status"
-              className="w-full p-2 border rounded-md text-xs"
-              value={filters.status}
-              onChange={handleFilterChange}
-            >
-              <option value="">All Status</option>
-              {statusOptions.filter(status => status !== 'All').map(status => (
-                <option key={status} value={status}>{status}</option>
-              ))}
-            </select>
-          </div>
-          <div className="md:col-span-4 flex justify-end gap-2">
+          <div className="md:col-span-2 flex justify-end gap-2">
             <button
               onClick={resetFilters}
               className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 text-sm"
@@ -552,28 +477,6 @@ const CategoryTable = () => {
           </div>
         </div>
       )}
-
-      {/* Tab Navigation */}
-      <div className="overflow-x-auto mb-4">
-        <div className="flex border-b w-max min-w-full">
-          {categoryTypes.map(type => (
-            <button
-              key={type}
-              className={`px-3 py-2 text-xs sm:text-sm font-medium whitespace-nowrap border-b-2 ${
-                activeTab === type
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              }`}
-              onClick={() => {
-                setActiveTab(type);
-                setCurrentPage(1);
-              }}
-            >
-              {type}
-            </button>
-          ))}
-        </div>
-      </div>
       
       {/* Table */}
       <div className="overflow-x-auto">
@@ -594,8 +497,6 @@ const CategoryTable = () => {
                 </th>
                 <th className="pb-3 px-2 whitespace-nowrap text-left">Category</th>
                 <th className="pb-3 px-2 whitespace-nowrap">Description</th>
-                <th className="pb-3 px-2 whitespace-nowrap">Type</th>
-                <th className="pb-3 px-2 whitespace-nowrap">Status</th>
                 <th className="pb-3 px-2 whitespace-nowrap hidden md:table-cell">Created Date</th>
                 <th className="pb-3 px-2 whitespace-nowrap">Action</th>
               </tr>
@@ -603,7 +504,7 @@ const CategoryTable = () => {
             <tbody className="text-center divide-y divide-gray-100">
               {filteredCategories.length === 0 ? (
                 <tr>
-                  <td colSpan="7" className="py-4 text-center text-sm text-gray-500">
+                  <td colSpan="5" className="py-4 text-center text-sm text-gray-500">
                     No categories found matching your criteria
                   </td>
                 </tr>
@@ -625,16 +526,6 @@ const CategoryTable = () => {
                     </td>
                     <td className="px-4 py-4 text-sm text-gray-500 whitespace-nowrap max-w-xs">
                       <div className="truncate">{category.description}</div>
-                    </td>
-                    <td className="px-4 py-4 text-sm whitespace-nowrap text-center">
-                      <span className={`px-2 py-1 inline-flex items-center justify-center text-xs font-semibold rounded-full ${getTypeClass(category.type)}`}>
-                        {category.type}
-                      </span>
-                    </td>
-                    <td className="px-4 py-4 text-sm whitespace-nowrap text-center">
-                      <span className={`px-2 py-1 inline-flex items-center justify-center text-xs font-semibold rounded-full ${getStatusClass(category.status)}`}>
-                        {category.status}
-                      </span>
                     </td>
                     <td className="px-4 py-4 text-sm text-gray-500 whitespace-nowrap hidden md:table-cell">
                       {new Date(category.createdDate).toLocaleDateString()}
