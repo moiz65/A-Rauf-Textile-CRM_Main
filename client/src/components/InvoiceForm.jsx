@@ -28,7 +28,7 @@ const InvoiceForm = ({ initialData, onSubmit, onCancel }) => {
     stRegNo: "",
     ntnNumber: "",
     currency: "PKR",
-    salesTax: 17,
+    salesTax: 0,
     subtotal: 0,
     taxAmount: 0,
     totalAmount: 0,
@@ -99,7 +99,7 @@ const InvoiceForm = ({ initialData, onSubmit, onCancel }) => {
         stRegNo: initialData.stRegNo || '',
         ntnNumber: initialData.ntnNumber || '',
         currency: initialData.currency || 'PKR',
-        salesTax: initialData.tax_rate || initialData.salesTax || 17,
+        salesTax: initialData.tax_rate || initialData.salesTax,
         subtotal: initialData.subtotal || 0,
         taxAmount: initialData.tax_amount || initialData.taxAmount || 0,
         totalAmount: initialData.total_amount || initialData.totalAmount || 0,
@@ -203,12 +203,7 @@ const InvoiceForm = ({ initialData, onSubmit, onCancel }) => {
     }));
   };
 
-  const handleCurrencyChange = (e) => {
-    setFormData((prev) => ({
-      ...prev,
-      currency: e.target.value,
-    }));
-  };
+  // Currency is fixed to PKR; no select or change handler required
 
   // Handle invoice item changes
   const handleItemChange = (index, field, value) => {
@@ -296,9 +291,10 @@ const InvoiceForm = ({ initialData, onSubmit, onCancel }) => {
         address: formData.address,
         st_reg_no: formData.stRegNo,
         ntn_number: formData.ntnNumber,
-        currency: formData.currency,
+  // Currency is fixed to PKR (no dropdown)
+  currency: 'PKR',
         subtotal: parseFloat(formData.subtotal) || 0,
-        tax_rate: parseFloat(formData.salesTax) || 17,
+        tax_rate: parseFloat(formData.salesTax) ,
         tax_amount: parseFloat(formData.taxAmount) || 0,
         total_amount: parseFloat(formData.totalAmount) || 0,
         bill_date: formData.billDate,
@@ -349,7 +345,7 @@ const InvoiceForm = ({ initialData, onSubmit, onCancel }) => {
           stRegNo: "",
           ntnNumber: "",
           currency: "PKR",
-          salesTax: 17,
+          salesTax: 0,
           subtotal: 0,
           taxAmount: 0,
           totalAmount: 0,
@@ -622,33 +618,31 @@ const InvoiceForm = ({ initialData, onSubmit, onCancel }) => {
 
           {/* Invoice Totals */}
           <div className="mt-6 border-t pt-4">
-            <div className="grid sm:grid-cols-3 gap-6">
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Currency
-                </label>
-                <select
-                  className="w-full rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-300 transition"
-                  value={formData.currency}
-                  onChange={handleCurrencyChange}
-                >
-                  <option value="PKR">PKR</option>
-                </select>
-              </div>
+            <div className="grid sm:grid-cols-2 gap-6">
+              <div className="grid gap-3">
+                <Input
+                  label="Currency"
+                  type="text"
+                  name="currency"
+                  value={'PKR'}
+                  readOnly
+                  className="bg-gray-50 border-gray-200 font-medium"
+                />
 
-              <Input
-                label="Sales Tax (%)"
-                type="number"
-                name="salesTax"
-                value={formData.salesTax}
-                onChange={handleChange}
-                step="0.01"
-                min="0"
-              />
+                <Input
+                  label="Sales Tax (%)"
+                  type="number"
+                  name="salesTax"
+                  value={formData.salesTax}
+                  onChange={handleChange}
+                  step="0.5"
+                  min="0"
+                />
+              </div>
 
               <div className="grid gap-3">
                 <Input
-                  label="Subtotal"
+                  label="Subtotal (PKR)"
                   type="text"
                   value={formData.subtotal ? formData.subtotal.toFixed(2) : '0.00'}
                   readOnly
@@ -656,7 +650,7 @@ const InvoiceForm = ({ initialData, onSubmit, onCancel }) => {
                 />
 
                 <Input
-                  label="Tax Amount"
+                  label="Tax Amount (PKR)"
                   type="text"
                   value={formData.taxAmount ? formData.taxAmount.toFixed(2) : '0.00'}
                   readOnly
@@ -664,7 +658,7 @@ const InvoiceForm = ({ initialData, onSubmit, onCancel }) => {
                 />
 
                 <Input
-                  label="Total Amount"
+                  label="Total Amount (PKR)"
                   type="text"
                   value={formData.totalAmount ? formData.totalAmount.toFixed(2) : '0.00'}
                   readOnly

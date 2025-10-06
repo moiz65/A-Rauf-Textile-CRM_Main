@@ -1,18 +1,25 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Search, Filter, FileDown, Ellipsis, Edit, Trash2, Printer, Download, Plus } from 'lucide-react';
-import SimpleCategoryStats from './SimpleCategoryStats';
-import CategoryAutocomplete from './CategoryAutocomplete';
+import { Search, Filter, FileDown, Ellipsis, Edit, Trash2, Plus } from 'lucide-react';
 import { useClickOutside } from '../hooks/useClickOutside';
 
-const ITEMS_PER_PAGE = 5;
+const ITEMS_PER_PAGE = 10;
 
-const ExpenseTable = () => {
-  const [expensesData, setExpensesData] = useState([]);
+const ExpenseTable = ({ expensesData = [], onExpensesChange }) => {
   const [selectedRows, setSelectedRows] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState('');
-  const [activeTab, setActiveTab] = useState('All');
   const [filters, setFilters] = useState({
+    title: '',
+    vendor: '',
+    minAmount: '',
+    maxAmount: '',
+    dateFrom: '',
+    dateTo: '',
+    category: '',
+    status: ''
+  });
+  // Temporary filters used in the filter panel to avoid live-fluctuation while typing
+  const [tempFilters, setTempFilters] = useState({
     title: '',
     vendor: '',
     minAmount: '',
@@ -26,7 +33,6 @@ const ExpenseTable = () => {
   const [activeDropdown, setActiveDropdown] = useState(null);
   const [editingExpense, setEditingExpense] = useState(null);
   const [showEditModal, setShowEditModal] = useState(false);
-  const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [allCategories, setAllCategories] = useState([]);
   const [categoriesLoading, setCategoriesLoading] = useState(true);
@@ -41,36 +47,13 @@ const ExpenseTable = () => {
     }
   }, showEditModal);
 
-  // Tab categories - only 4 main types
-  const tabCategories = ['All', 'Expense', 'Income', 'Asset', 'Liability'];
   const statusOptions = ['All', 'Paid', 'Pending'];
   const paymentMethods = ['Bank Transfer', 'Cash', 'Credit Card', 'Check', 'Online Payment'];
 
-  // Fetch expenses data from API
+  // Fetch categories data from API
   useEffect(() => {
-    fetchExpenses();
     fetchCategories();
   }, []);
-
-  const fetchExpenses = async () => {
-    try {
-      setLoading(true);
-      const response = await fetch('http://localhost:5000/api/expenses');
-      
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      
-      const data = await response.json();
-      setExpensesData(data);
-      setError(null);
-    } catch (err) {
-      console.error('Error fetching expenses:', err);
-      setError('Failed to fetch expenses. Please try again later.');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const fetchCategories = async () => {
     try {
@@ -82,7 +65,8 @@ const ExpenseTable = () => {
       }
       
       const result = await response.json();
-      const activeCategories = result.data.filter(cat => cat.status === 'Active' && cat.name !== 'All');
+      // Fetch all active categories regardless of type
+      const activeCategories = result.data.filter(cat => cat.status === 'Active');
       setAllCategories(activeCategories);
     } catch (err) {
       console.error('Error fetching categories:', err);
@@ -105,6 +89,13 @@ const ExpenseTable = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  // Keep tempFilters in sync when opening the panel or when filters change externally
+  useEffect(() => {
+    if (showFilters) {
+      setTempFilters({ ...filters });
+    }
+  }, [showFilters, filters]);
+
   // Helper function to get category type from category name
   const getCategoryType = (categoryName) => {
     const categoryData = allCategories.find(cat => cat.name === categoryName);
@@ -112,30 +103,72 @@ const ExpenseTable = () => {
   };
 
   const filteredExpenses = expensesData
-    .filter(expense =>
-      expense.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      expense.vendor.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      expense.description.toLowerCase().includes(searchTerm.toLowerCase())
-    )
     .filter(expense => {
-      if (activeTab === 'All') return true;
-      const categoryType = getCategoryType(expense.category);
-      return categoryType === activeTab;
+      const q = (searchTerm || '').toString().toLowerCase();
+      const title = (expense.title || '').toString().toLowerCase();
+      const vendor = (expense.vendor || '').toString().toLowerCase();
+      const desc = (expense.description || '').toString().toLowerCase();
+      return title.includes(q) || vendor.includes(q) || desc.includes(q);
     })
-    .filter(expense =>
-      (!filters.title || expense.title.toLowerCase().includes(filters.title.toLowerCase())) &&
-      (!filters.vendor || expense.vendor.toLowerCase().includes(filters.vendor.toLowerCase())) &&
-      (!filters.minAmount || expense.amount >= Number(filters.minAmount)) &&
-      (!filters.maxAmount || expense.amount <= Number(filters.maxAmount)) &&
-      (!filters.dateFrom || new Date(expense.date) >= new Date(filters.dateFrom)) &&
-      (!filters.dateTo || new Date(expense.date) <= new Date(filters.dateTo)) &&
-      (!filters.category || expense.category === filters.category) &&
-      (!filters.status || expense.status === filters.status)
-    );
+    .filter(expense => {
+      const title = (expense.title || '').toString().toLowerCase();
+      const vendor = (expense.vendor || '').toString().toLowerCase();
+      const amt = Number(expense.amount) || 0;
+      const min = filters.minAmount ? Number(filters.minAmount) : null;
+      const max = filters.maxAmount ? Number(filters.maxAmount) : null;
+      const date = expense.date ? new Date(expense.date) : null;
+      const from = filters.dateFrom ? new Date(filters.dateFrom) : null;
+      const to = filters.dateTo ? new Date(filters.dateTo) : null;
 
-  const totalPages = Math.ceil(filteredExpenses.length / ITEMS_PER_PAGE);
+      return (
+        (!filters.title || title.includes((filters.title || '').toLowerCase())) &&
+        (!filters.vendor || vendor.includes((filters.vendor || '').toLowerCase())) &&
+        (min === null || amt >= min) &&
+        (max === null || amt <= max) &&
+        (!from || (date && date >= from)) &&
+        (!to || (date && date <= to)) &&
+        (!filters.category || expense.category === filters.category) &&
+        (!filters.status || expense.status === filters.status)
+      );
+    });
+
+  // Sort logic:
+  // 1) Pending expenses first (newest created at top)
+  // 2) Paid expenses next (newest paid/date at top)
+  // 3) Others last
+  const statusPriority = (s) => {
+    if (!s) return 99;
+    const st = s.toString().toLowerCase();
+    if (st === 'pending') return 1;
+    if (st === 'paid') return 2;
+    return 3;
+  };
+
+  const parseDate = (d) => {
+    const dt = new Date(d);
+    return isNaN(dt.getTime()) ? 0 : dt.getTime();
+  };
+
+  const sortedExpenses = [...filteredExpenses].sort((a, b) => {
+    const pa = statusPriority(a.status);
+    const pb = statusPriority(b.status);
+    if (pa !== pb) return pa - pb;
+
+    // Same priority: newest first by date field
+    return parseDate(b.date) - parseDate(a.date);
+  });
+
+  const totalPages = Math.ceil(sortedExpenses.length / ITEMS_PER_PAGE);
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-  const visibleExpenses = filteredExpenses.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+  const visibleExpenses = sortedExpenses.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+
+  // Ensure current page is valid when the number of pages changes
+  useEffect(() => {
+    setCurrentPage(prev => {
+      const maxPage = totalPages || 1;
+      return prev > maxPage ? maxPage : prev;
+    });
+  }, [totalPages]);
 
   // Compute pages to display in pagination (max 5 visible pages, with ellipses)
   const maxVisiblePages = 5;
@@ -206,16 +239,17 @@ const ExpenseTable = () => {
     }
   };
 
-  const handleFilterChange = (e) => {
+  // Update temporary filter values while user edits the panel
+  const handleTempFilterChange = (e) => {
     const { name, value } = e.target;
-    setFilters(prev => ({
+    setTempFilters(prev => ({
       ...prev,
       [name]: value
     }));
   };
 
   const resetFilters = () => {
-    setFilters({
+    const cleared = {
       title: '',
       vendor: '',
       minAmount: '',
@@ -224,9 +258,10 @@ const ExpenseTable = () => {
       dateTo: '',
       category: '',
       status: ''
-    });
+    };
+    setFilters(cleared);
+    setTempFilters(cleared);
     setSearchTerm('');
-    setActiveTab('All');
   };
 
   const toggleDropdown = (expenseId, e) => {
@@ -253,7 +288,9 @@ const ExpenseTable = () => {
         }
 
         // Refresh the data after successful deletion
-        await fetchExpenses();
+        if (onExpensesChange) {
+          await onExpensesChange();
+        }
       } catch (err) {
         console.error('Error deleting expense:', err);
         alert('Failed to delete expense. Please try again.');
@@ -267,7 +304,7 @@ const ExpenseTable = () => {
 
   const handleAddExpense = () => {
     const newExpense = {
-      title: 'New Expense',
+      title: '',
       date: new Date().toISOString().split('T')[0],
       vendor: '',
       amount: 0,
@@ -320,7 +357,9 @@ const ExpenseTable = () => {
   console.debug('Expense saved successfully:', result);
 
       // Refresh the data
-      await fetchExpenses();
+      if (onExpensesChange) {
+        await onExpensesChange();
+      }
       setShowEditModal(false);
       setEditingExpense(null);
     } catch (err) {
@@ -353,12 +392,8 @@ const ExpenseTable = () => {
     
     useEffect(() => {
       if (editingExpense) {
-        // Determine the category type from the existing category
-        const existingCategoryType = getCategoryType(editingExpense.category) || 'Expense';
-        
         setFormData({
-          ...editingExpense,
-          categoryType: existingCategoryType
+          ...editingExpense
         });
         // Set the existing category name
         setSubcategory(editingExpense.category || '');
@@ -385,7 +420,6 @@ const ExpenseTable = () => {
           vendor: '',
           amount: 0,
           category: '',
-          categoryType: 'Expense',
           paymentMethod: 'Cash',
           status: 'Pending',
           description: ''
@@ -495,7 +529,6 @@ const ExpenseTable = () => {
       const expenseData = {
         ...formData,
         category: subcategory,
-        categoryType: formData.categoryType || 'Expense',
         amount: totalAmount,
         items: validItems.map((item, index) => ({
           ...item,
@@ -554,38 +587,24 @@ const ExpenseTable = () => {
               
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
-                <div className="space-y-2">
-                  {/* Type Selection */}
-                  <select
-                    value={formData.categoryType || 'Expense'}
-                    onChange={(e) => {
-                      const type = e.target.value;
-                      setFormData(prev => ({ ...prev, categoryType: type }));
-                    }}
-                    className="w-full p-2 border rounded-md text-sm"
-                    required
-                  >
-                    <option value="Expense">Expense</option>
-                    <option value="Income">Income</option>
-                    <option value="Asset">Asset</option>
-                    <option value="Liability">Liability</option>
-                  </select>
-                  
-                  {/* Category Name Input */}
-                  <CategoryAutocomplete
-                    value={subcategory}
-                    onChange={handleSubcategoryChange}
-                    placeholder="Type category name..."
-                    categoryType={formData.categoryType || 'Expense'}
-                    required
-                  />
-                </div>
+                <select
+                  value={subcategory}
+                  onChange={(e) => handleSubcategoryChange(e.target.value)}
+                  className="w-full p-2 border rounded-md"
+                  required
+                >
+                  <option value="">Select Category</option>
+                  {categoriesLoading ? (
+                    <option value="">Loading categories...</option>
+                  ) : (
+                    allCategories.map(cat => (
+                      <option key={cat.id} value={cat.name}>
+                        {cat.name}
+                      </option>
+                    ))
+                  )}
+                </select>
               </div>
-              {expenseItems.length > 1 && (
-                <p className="text-xs text-gray-500 mt-1">
-                  Category applies to all items. Create separate expenses for different categories.
-                </p>
-              )}
               
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Payment Method</label>
@@ -742,35 +761,8 @@ const ExpenseTable = () => {
     );
   };
 
-  if (loading) {
-    return (
-      <div className="bg-white rounded-xl sm:rounded-[30px] shadow-sm border border-gray-100 p-4 sm:p-5 flex justify-center items-center h-64">
-        <div className="text-gray-500">Loading expenses...</div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="bg-white rounded-xl sm:rounded-[30px] shadow-sm border border-gray-100 p-4 sm:p-5 flex justify-center items-center h-64">
-        <div className="text-red-500 text-center">
-          <div>{error}</div>
-          <button 
-            onClick={fetchExpenses}
-            className="mt-4 px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600"
-          >
-            Retry
-          </button>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="bg-white rounded-xl sm:rounded-[30px] shadow-sm border border-gray-100 p-4 sm:p-5">
-      {/* Category Statistics */}
-      <SimpleCategoryStats />
-      
       {/* Header Section */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-5">
         <div>
@@ -824,8 +816,8 @@ const ExpenseTable = () => {
               type="text"
               name="title"
               className="w-full p-2 border rounded-md text-xs"
-              value={filters.title}
-              onChange={handleFilterChange}
+              value={tempFilters.title}
+              onChange={handleTempFilterChange}
               onMouseDown={(e) => e.stopPropagation()}
               placeholder="Filter by title"
             />
@@ -836,8 +828,8 @@ const ExpenseTable = () => {
               type="text"
               name="vendor"
               className="w-full p-2 border rounded-md text-xs"
-              value={filters.vendor}
-              onChange={handleFilterChange}
+              value={tempFilters.vendor}
+              onChange={handleTempFilterChange}
               onMouseDown={(e) => e.stopPropagation()}
               placeholder="Filter by vendor"
             />
@@ -848,8 +840,8 @@ const ExpenseTable = () => {
               type="number"
               name="minAmount"
               className="w-full p-2 border rounded-md text-xs"
-              value={filters.minAmount}
-              onChange={handleFilterChange}
+              value={tempFilters.minAmount}
+              onChange={handleTempFilterChange}
               onMouseDown={(e) => e.stopPropagation()}
               placeholder="Minimum amount"
             />
@@ -860,8 +852,8 @@ const ExpenseTable = () => {
               type="number"
               name="maxAmount"
               className="w-full p-2 border rounded-md text-xs"
-              value={filters.maxAmount}
-              onChange={handleFilterChange}
+              value={tempFilters.maxAmount}
+              onChange={handleTempFilterChange}
               onMouseDown={(e) => e.stopPropagation()}
               placeholder="Maximum amount"
             />
@@ -872,8 +864,8 @@ const ExpenseTable = () => {
               type="date"
               name="dateFrom"
               className="w-full p-2 border rounded-md text-xs"
-              value={filters.dateFrom}
-              onChange={handleFilterChange}
+              value={tempFilters.dateFrom}
+              onChange={handleTempFilterChange}
               onMouseDown={(e) => e.stopPropagation()}
             />
           </div>
@@ -883,13 +875,24 @@ const ExpenseTable = () => {
               type="date"
               name="dateTo"
               className="w-full p-2 border rounded-md text-xs"
-              value={filters.dateTo}
-              onChange={handleFilterChange}
+              value={tempFilters.dateTo}
+              onChange={handleTempFilterChange}
               onMouseDown={(e) => e.stopPropagation()}
             />
           </div>
           {/* Category and Status filters intentionally hidden per user request */}
           <div className="md:col-span-5 flex justify-end gap-2">
+            <button
+              onClick={() => {
+                // Apply tempFilters to actual filters
+                setFilters({ ...tempFilters });
+                setCurrentPage(1);
+                setShowFilters(false);
+              }}
+              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm"
+            >
+              Apply Filters
+            </button>
             <button
               onClick={resetFilters}
               className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 text-sm"
@@ -900,28 +903,6 @@ const ExpenseTable = () => {
         </div>
       )}
 
-      {/* Tab Navigation */}
-      <div className="overflow-x-auto mb-4">
-        <div className="flex border-b w-max min-w-full">
-          {tabCategories.map(category => (
-            <button
-              key={category}
-              className={`px-3 py-2 text-xs sm:text-sm font-medium whitespace-nowrap border-b-2 ${
-                activeTab === category
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              }`}
-              onClick={() => {
-                setActiveTab(category);
-                setCurrentPage(1);
-              }}
-            >
-              {category}
-            </button>
-          ))}
-        </div>
-      </div>
-      
       {/* Table */}
       <div className="overflow-x-auto">
         <div className="relative min-w-full min-h-[350px]">
@@ -943,7 +924,6 @@ const ExpenseTable = () => {
                 <th className="pb-3 px-2 whitespace-nowrap">Date</th>
                 <th className="pb-3 px-2 whitespace-nowrap hidden sm:table-cell">Vendor</th>
                 <th className="pb-3 px-2 whitespace-nowrap">Amount</th>
-                <th className="pb-3 px-2 whitespace-nowrap">Category</th>
                 <th className="pb-3 px-2 whitespace-nowrap hidden md:table-cell">Payment Method</th>
                 <th className="pb-3 px-2 whitespace-nowrap">Status</th>
                 <th className="pb-3 px-2 whitespace-nowrap hidden lg:table-cell">Description</th>
@@ -951,9 +931,9 @@ const ExpenseTable = () => {
               </tr>
             </thead>
             <tbody className="text-center divide-y divide-gray-100">
-              {filteredExpenses.length === 0 ? (
+              {sortedExpenses.length === 0 ? (
                 <tr>
-                  <td colSpan="10" className="py-4 text-center text-sm text-gray-500">
+                  <td colSpan="9" className="py-4 text-center text-sm text-gray-500">
                     No expenses found matching your criteria
                   </td>
                 </tr>
@@ -979,11 +959,6 @@ const ExpenseTable = () => {
                     </td>
                     <td className="px-4 py-4 text-sm font-medium text-gray-900 whitespace-nowrap">
                       PKR {expense.amount.toLocaleString()}
-                    </td>
-                    <td className="px-4 py-4 text-sm whitespace-nowrap text-center">
-                      <span className={`px-2 py-1 inline-flex items-center justify-center text-xs font-semibold rounded-full ${getCategoryClass(expense.category)}`}>
-                        {expense.category}
-                      </span>
                     </td>
                     <td className="px-4 py-4 text-sm text-gray-500 whitespace-nowrap hidden md:table-cell">
                       {expense.paymentMethod}
@@ -1036,25 +1011,17 @@ const ExpenseTable = () => {
               )}
             </tbody>
             <tfoot>
-              <tr className="bg-blue-50 border-t-2 border-blue-200">
-                <td colSpan="3" className="px-4 py-3 text-right text-sm font-bold text-gray-900">
-                  Total Expenditures:
-                </td>
-                <td className="px-4 py-3 text-sm font-bold text-blue-600">
-                  PKR {filteredExpenses.reduce((sum, expense) => sum + (parseFloat(expense.amount) || 0), 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                </td>
-                <td colSpan="6"></td>
-              </tr>
+
             </tfoot>
           </table>
         </div>
       </div>
 
       {/* Pagination */}
-      {filteredExpenses.length > ITEMS_PER_PAGE && (
+  {sortedExpenses.length > ITEMS_PER_PAGE && (
         <div className="flex flex-col sm:flex-row justify-between items-center px-4 py-3 border-t border-gray-200 bg-white gap-3">
           <div className="text-sm text-gray-700">
-            Showing {startIndex + 1}-{Math.min(startIndex + ITEMS_PER_PAGE, filteredExpenses.length)} of {filteredExpenses.length} expenses
+            Showing {startIndex + 1}-{Math.min(startIndex + ITEMS_PER_PAGE, sortedExpenses.length)} of {sortedExpenses.length} expenses
           </div>
           <div className="flex gap-1">
             <button

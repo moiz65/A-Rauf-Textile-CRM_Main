@@ -195,19 +195,33 @@ const PurchaseOrderTable = ({ onViewDetails, openEditPOId = null }) => {
         (!filters.dateTo || new Date(po.date) <= new Date(filters.dateTo))
       );
 
-    const counts = {
-      'All': basePOs.length,
-      'Draft': basePOs.filter(po => po.status === 'Draft').length,
-      'Pending': basePOs.filter(po => po.status === 'Pending').length,
-      'Approved': basePOs.filter(po => po.status === 'Approved').length,
-      // Count Completed as either explicitly Completed OR Fully Invoiced according to PO summaries
-      'Completed': basePOs.filter(po => {
-        if (po.status === 'Completed') return true;
-        const summary = poSummaries[po.id];
-        if (!summary || !summary.po_total_amount) return false;
+    // Identify completed POs first (explicitly Completed OR fully invoiced)
+    const completedSet = new Set();
+    basePOs.forEach(po => {
+      if (po.status === 'Completed') {
+        completedSet.add(po.id);
+        return;
+      }
+      const summary = poSummaries[po.id];
+      if (summary && summary.po_total_amount) {
         const percentage = (summary.total_invoiced_amount / summary.po_total_amount) * 100;
-        return percentage >= 100;
-      }).length,
+        if (percentage >= 100) completedSet.add(po.id);
+      }
+    });
+
+    // Now compute other buckets excluding Completed items to avoid double-counting
+    const draftCount = basePOs.filter(po => !completedSet.has(po.id) && po.status === 'Draft').length;
+    const pendingCount = basePOs.filter(po => !completedSet.has(po.id) && po.status === 'Pending').length;
+    const approvedCount = basePOs.filter(po => !completedSet.has(po.id) && po.status === 'Approved').length;
+    const completedCount = basePOs.filter(po => completedSet.has(po.id)).length;
+
+    const counts = {
+      // 'All' equals the sum of our defined buckets to ensure consistency with tab counts
+      'All': draftCount + pendingCount + approvedCount + completedCount,
+      'Draft': draftCount,
+      'Pending': pendingCount,
+      'Approved': approvedCount,
+      'Completed': completedCount,
     };
     return counts;
   };
@@ -272,17 +286,66 @@ const PurchaseOrderTable = ({ onViewDetails, openEditPOId = null }) => {
       }
       return po.status === activeTab;
     })
-    .filter(po =>
-      (!filters.supplier || po.supplier.toLowerCase().includes(filters.supplier.toLowerCase())) &&
-      (!filters.minAmount || po.totalAmount >= parseFloat(filters.minAmount)) &&
-      (!filters.maxAmount || po.totalAmount <= parseFloat(filters.maxAmount)) &&
-      (!filters.dateFrom || new Date(po.date) >= new Date(filters.dateFrom)) &&
-      (!filters.dateTo || new Date(po.date) <= new Date(filters.dateTo))
-    );
+    .filter(po => {
+      // Normalize dates to start of day for proper comparison (inclusive of from/to dates)
+      const poDate = po.date ? new Date(new Date(po.date).setHours(0, 0, 0, 0)) : null;
+      const fromDate = filters.dateFrom ? new Date(new Date(filters.dateFrom).setHours(0, 0, 0, 0)) : null;
+      const toDate = filters.dateTo ? new Date(new Date(filters.dateTo).setHours(23, 59, 59, 999)) : null;
 
-  const totalPages = Math.ceil(filteredPOs.length / ITEMS_PER_PAGE);
+      return (
+        (!filters.supplier || po.supplier.toLowerCase().includes(filters.supplier.toLowerCase())) &&
+        (!filters.minAmount || po.totalAmount >= parseFloat(filters.minAmount)) &&
+        (!filters.maxAmount || po.totalAmount <= parseFloat(filters.maxAmount)) &&
+        (!fromDate || (poDate && poDate >= fromDate)) &&
+        (!toDate || (poDate && poDate <= toDate))
+      );
+    });
+
+  // Sort so that fully-invoiced / Completed POs appear at the end of the list.
+  // Among fully-invoiced POs, order by last invoice/payment date (older first, newest last).
+  // For non-fully-invoiced POs, show most recent PO date first.
+  const comparePOs = (a, b) => {
+    const summaryA = poSummaries[a.id];
+    const summaryB = poSummaries[b.id];
+
+    const getInvoiceGroup = (po, summary) => {
+      // 0 = Not Invoiced, 1 = Partially Invoiced, 2 = Fully Invoiced / Completed
+      const isCompleted = po.status === 'Completed';
+      const total = summary && summary.po_total_amount ? Number(summary.po_total_amount) : 0;
+      const invoiced = summary && summary.total_invoiced_amount ? Number(summary.total_invoiced_amount) : 0;
+
+      if (isCompleted || (total > 0 && invoiced >= total)) return 2;
+      const percentage = total > 0 ? (invoiced / total) * 100 : 0;
+      if (percentage > 0) return 1;
+      return 0;
+    };
+
+    const groupA = getInvoiceGroup(a, summaryA);
+    const groupB = getInvoiceGroup(b, summaryB);
+
+    // Primary: group order (Not -> Partially -> Fully)
+    if (groupA !== groupB) return groupA - groupB;
+
+    // Secondary: within group ordering
+    if (groupA === 2) {
+      // Fully invoiced: order by last invoice/payment date (newest first)
+      const dateA = summaryA && summaryA.last_invoice_date ? new Date(summaryA.last_invoice_date).getTime() : 0;
+      const dateB = summaryB && summaryB.last_invoice_date ? new Date(summaryB.last_invoice_date).getTime() : 0;
+      return dateB - dateA;
+    }
+
+    // Not or Partially invoiced: order by PO date (newest first)
+    const poDateA = a.date ? new Date(a.date).getTime() : 0;
+    const poDateB = b.date ? new Date(b.date).getTime() : 0;
+    return poDateB - poDateA;
+  };
+
+  // Apply the sort creating a new array to avoid mutating original purchaseOrders
+  const sortedFilteredPOs = filteredPOs.slice().sort(comparePOs);
+
+  const totalPages = Math.ceil(sortedFilteredPOs.length / ITEMS_PER_PAGE);
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-  const visiblePOs = filteredPOs.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+  const visiblePOs = sortedFilteredPOs.slice(startIndex, startIndex + ITEMS_PER_PAGE);
 
   // Compute pages to display in pagination (max 5 visible pages, with ellipses)
   const maxVisiblePages = 5;
@@ -793,7 +856,7 @@ const PurchaseOrderTable = ({ onViewDetails, openEditPOId = null }) => {
                         {invoice.invoice_number}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {new Date(invoice.invoice_date).toLocaleDateString()}
+                        {new Date(invoice.invoice_date).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' })}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                         {formatCurrency(invoice.total_amount)}
@@ -838,7 +901,7 @@ const PurchaseOrderTable = ({ onViewDetails, openEditPOId = null }) => {
     const [poItems, setPOItems] = useState([
       { item_no: 1, description: '', quantity: 1, unit: 'pcs', unit_price: 0, amount: 0, specifications: '' }
     ]);
-    const [taxRate, setTaxRate] = useState(0);
+    const [taxRate, setTaxRate] = useState();
 
     useEffect(() => {
       let cancelled = false;
@@ -880,8 +943,16 @@ const PurchaseOrderTable = ({ onViewDetails, openEditPOId = null }) => {
       (async () => {
         if (editingPO) {
           console.debug('EditPOModal: Setting up for editing PO:', editingPO);
-          setFormData(editingPO);
-          setTaxRate(editingPO.tax_rate || 0);
+          // Ensure all numeric fields are parsed as numbers to prevent string concatenation
+          const normalizedFormData = {
+            ...editingPO,
+            subtotal: parseFloat(editingPO.subtotal) || 0,
+            tax_rate: parseFloat(editingPO.tax_rate) || 0,
+            tax_amount: parseFloat(editingPO.tax_amount) || 0,
+            total_amount: parseFloat(editingPO.total_amount) || parseFloat(editingPO.totalAmount) || 0
+          };
+          setFormData(normalizedFormData);
+          setTaxRate(parseFloat(editingPO.tax_rate) || 0);
 
           // Prefer items already present on editingPO
           console.debug('EditPOModal: editingPO.items:', editingPO.items);
@@ -957,17 +1028,17 @@ const PurchaseOrderTable = ({ onViewDetails, openEditPOId = null }) => {
       const newTaxRate = parseFloat(e.target.value) || 0;
       setTaxRate(newTaxRate);
       
-      // Recalculate totals
-      const subtotal = poItems.reduce((sum, item) => sum + (item.amount || 0), 0);
+      // Recalculate totals - ensure all values are numbers
+      const subtotal = poItems.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0);
       const taxAmount = subtotal * (newTaxRate / 100);
       const total = subtotal + taxAmount;
       
       setFormData(prev => ({
         ...prev,
         tax_rate: newTaxRate,
-        subtotal: subtotal,
-        tax_amount: taxAmount,
-        total_amount: total
+        subtotal: parseFloat(subtotal.toFixed(2)),
+        tax_amount: parseFloat(taxAmount.toFixed(2)),
+        total_amount: parseFloat(total.toFixed(2))
       }));
     };
 
@@ -985,16 +1056,16 @@ const PurchaseOrderTable = ({ onViewDetails, openEditPOId = null }) => {
       
       setPOItems(updatedItems);
       
-      // Update totals in form data
-      const subtotal = updatedItems.reduce((sum, item) => sum + (item.amount || 0), 0);
-      const taxAmount = subtotal * (taxRate / 100);
+      // Update totals in form data - ensure all values are numbers
+      const subtotal = updatedItems.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0);
+      const taxAmount = subtotal * (parseFloat(taxRate) / 100);
       const total = subtotal + taxAmount;
       
       setFormData(prev => ({
         ...prev,
-        subtotal: subtotal,
-        tax_amount: taxAmount,
-        total_amount: total,
+        subtotal: parseFloat(subtotal.toFixed(2)),
+        tax_amount: parseFloat(taxAmount.toFixed(2)),
+        total_amount: parseFloat(total.toFixed(2)),
         items: updatedItems.length // Update items count for display
       }));
     };
@@ -1023,16 +1094,16 @@ const PurchaseOrderTable = ({ onViewDetails, openEditPOId = null }) => {
         }));
         setPOItems(reorderedItems);
         
-        // Update totals
-        const subtotal = reorderedItems.reduce((sum, item) => sum + (item.amount || 0), 0);
-        const taxAmount = subtotal * (taxRate / 100);
+        // Update totals - ensure all values are numbers
+        const subtotal = reorderedItems.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0);
+        const taxAmount = subtotal * (parseFloat(taxRate) / 100);
         const total = subtotal + taxAmount;
         
         setFormData(prev => ({
           ...prev,
-          subtotal: subtotal,
-          tax_amount: taxAmount,
-          total_amount: total,
+          subtotal: parseFloat(subtotal.toFixed(2)),
+          tax_amount: parseFloat(taxAmount.toFixed(2)),
+          total_amount: parseFloat(total.toFixed(2)),
           items: reorderedItems.length
         }));
       }
@@ -1187,7 +1258,6 @@ const PurchaseOrderTable = ({ onViewDetails, openEditPOId = null }) => {
                       <th className="border border-gray-300 px-3 py-3 text-left text-sm font-medium">Item #</th>
                       <th className="border border-gray-300 px-3 py-3 text-left text-sm font-medium">Item Description & Specifications *</th>
                       <th className="border border-gray-300 px-3 py-3 text-left text-sm font-medium">Quantity</th>
-                      <th className="border border-gray-300 px-3 py-3 text-left text-sm font-medium">Unit</th>
                       <th className="border border-gray-300 px-3 py-3 text-left text-sm font-medium">Unit Price (PKR)</th>
                       <th className="border border-gray-300 px-3 py-3 text-left text-sm font-medium">Amount (PKR)</th>
                       <th className="border border-gray-300 px-3 py-3 text-center text-sm font-medium"></th>
@@ -1218,15 +1288,6 @@ const PurchaseOrderTable = ({ onViewDetails, openEditPOId = null }) => {
                             min="0"
                             step="1"
                             required
-                          />
-                        </td>
-                        <td className="border border-gray-300 px-3 py-3">
-                          <input
-                            type="text"
-                            value={item.unit || ''}
-                            onChange={(e) => handleItemChange(index, 'unit', e.target.value)}
-                            className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
-                            placeholder="Unit (e.g. pcs, MTR, Nos)"
                           />
                         </td>
                         <td className="border border-gray-300 px-3 py-3">
@@ -1289,12 +1350,12 @@ const PurchaseOrderTable = ({ onViewDetails, openEditPOId = null }) => {
                           value={taxRate}
                           onChange={handleTaxRateChange}
                           className="w-16 px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
-                          min="0"
-                          max="100"
-                          step="0.1"
+                          step="0.5"
                         />
                         <span className="text-gray-600">%</span>
                       </div>
+
+
                       <span className="font-medium">
                         PKR {(formData.tax_amount || 0).toLocaleString('en-PK', {
                           minimumFractionDigits: 2,
@@ -1638,7 +1699,7 @@ const PurchaseOrderTable = ({ onViewDetails, openEditPOId = null }) => {
                       </div>
                     </td>
                     <td className="px-4 py-4 text-sm text-gray-500 whitespace-nowrap">
-                      {new Date(po.date).toLocaleDateString()}
+                      {new Date(po.date).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' })}
                     </td>
                     <td className="px-4 py-4 text-sm text-gray-500 whitespace-nowrap text-left">
                       <div className="max-w-xs truncate">{po.supplier}</div>

@@ -66,7 +66,7 @@ const InvoiceDetailsLayoutImproved = () => {
         <html>
         <head>
           <meta charset="utf-8">
-          <title>Invoice ${invoice.invoice_number || id}</title>
+          <title>Invoice ${invoice.invoice_number}</title>
           <style>
             * {
               margin: 0;
@@ -261,8 +261,7 @@ const InvoiceDetailsLayoutImproved = () => {
             
               <div class="invoice-info">
                 <div class="invoice-info-left">
-                  <div><span class="label">Invoice No :</span> ${invoice.invoice_number || id}</div>
-                  <div><span class="label">Contract No :</span> ${invoice.po_number || 'ATC / 03678'}</div>
+                  <div><span class="label">Invoice No :</span> ${invoice.invoice_number}</div>
                 </div>
                 <div class="invoice-info-right">
                   <div><span class="label">Invoice Date:</span> ${invoice.bill_date ? new Date(invoice.bill_date).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' }) : 'N/A'}</div>
@@ -281,8 +280,7 @@ const InvoiceDetailsLayoutImproved = () => {
                   <div><span class="label">Address :</span> ${invoice.address || 'Floor Shan Residency SB-44 Block-K North Nazimabad karachi'}</div>
                   <div><span class="label">National Tax No :</span> ${invoice.ntn_number || '7555850-8'}</div>
                   <div><span class="label">Due Date :</span> ${invoice.payment_deadline || invoice.due_date ? new Date(invoice.payment_deadline || invoice.due_date).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' }) : 'N/A'}</div>
-                  <div><span class="label">Business Nature:</span> Textile Trading</div>
-                  <div style="grid-column: 1 / -1;"><span class="label">Terms of Sale:</span> ${invoice.terms_of_payment || 'Within 15 days'}</div>
+                  <div><span class="label">Terms of Sale:</span> ${invoice.terms_of_payment || 'Within 15 days'}</div>
                 </div>
               </div>
             
@@ -292,7 +290,6 @@ const InvoiceDetailsLayoutImproved = () => {
                   <th>S.No</th>
                   <th>Description of Goods</th>
                   <th>Quantity</th>
-                  <th>Unit</th>
                   <th>Price</th>
                   <th>Value Ex-Sales Tax</th>
                   <th>Sales Tax %</th>
@@ -307,7 +304,6 @@ const InvoiceDetailsLayoutImproved = () => {
                       <td class="text-center"><strong>${index + 1}</strong></td>
                       <td class="text-left">${item.description || 'N/A'}${item.specifications ? '<br><small>' + item.specifications + '</small>' : ''}</td>
                       <td class="text-center">${parseFloat(item.quantity || 0).toLocaleString()}</td>
-                      <td class="text-center">${item.unit || 'MTR'}</td>
                       <td class="text-right">${parseFloat(item.rate || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
                       <td class="text-right">${parseFloat(item.amount / (1 + (invoice.tax_rate || 0) / 100) || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
                       <td class="text-center">${invoice.tax_rate || 0}%</td>
@@ -319,7 +315,6 @@ const InvoiceDetailsLayoutImproved = () => {
                       <td class="text-center"><strong>1</strong></td>
                       <td class="text-left">${invoice.item_name || 'N/A'}</td>
                       <td class="text-center">${parseFloat(invoice.quantity || 0).toLocaleString()}</td>
-                      <td class="text-center">${invoice.unit || 'MTR'}</td>
                       <td class="text-right">${parseFloat(invoice.rate || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
                       <td class="text-right">${parseFloat(invoice.subtotal || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
                       <td class="text-center">${invoice.tax_rate || 0}%</td>
@@ -332,7 +327,6 @@ const InvoiceDetailsLayoutImproved = () => {
                   <td></td>
                   <td class="text-left">NET AMOUNT RECEIVABLE</td>
                   <td class="text-center">${invoice.items ? invoice.items.reduce((sum, item) => sum + parseFloat(item.quantity || 0), 0).toLocaleString() : parseFloat(invoice.quantity || 0).toLocaleString()}</td>
-                  <td></td>
                   <td></td>
                   <td class="text-right"><strong>${parseFloat(invoice.subtotal || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</strong></td>
                   <td></td>
@@ -594,7 +588,7 @@ This action cannot be undone.`;
               </button>
               <div className="border-l border-gray-300 pl-4">
                 <h1 className="text-[24px] font-bold text-[#333843]">
-                  {isPOInvoice ? `PO Invoice #${invoice.invoice_number || id}` : `Invoice #${invoice.invoice_number || id}`}
+                  {isPOInvoice ? `PO Invoice #${invoice.invoice_number}` : `Invoice #${invoice.invoice_number}`}
                 </h1>
                 <p className="text-[16px] text-[#667085]">Invoice Date : {invoice.bill_date ? new Date(invoice.bill_date).toLocaleDateString('en-GB', { 
                   day: 'numeric',
@@ -654,11 +648,7 @@ This action cannot be undone.`;
                       <div className="space-y-1 text-sm">
                         <div className="flex">
                           <span className="font-semibold text-gray-700 w-32">Invoice No :</span>
-                          <span className="text-gray-800">{invoice.invoice_number || id}</span>
-                        </div>
-                        <div className="flex">
-                          <span className="font-semibold text-gray-700 w-32">Contract No :</span>
-                          <span className="text-gray-800">{invoice.po_number || 'ATC / 03678'}</span>
+                          <span className="text-gray-800">{invoice.invoice_number}</span>
                         </div>
                       </div>
 
@@ -694,15 +684,11 @@ This action cannot be undone.`;
                         <span className="text-gray-800">{invoice.ntn_number || '7555850-8'}</span>
                       </div>
                       <div className="flex">
-                        <span className="font-semibold text-gray-700 w-40">Business Nature:</span>
-                        <span className="text-gray-800">Textile Trading</span>
-                      </div>
-                      <div className="flex">
-                        <span className="font-semibold text-gray-700 w-48">Due Date :</span>
+                        <span className="font-semibold text-gray-700 w-40">Due Date :</span>
                         <span className="text-gray-800">{invoice.payment_deadline || invoice.due_date ? new Date(invoice.payment_deadline || invoice.due_date).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' }) : 'N/A'}</span>
                       </div>
-                      <div className="flex col-span-2">
-                        <span className="font-semibold text-gray-700 w-40">Terms of Sale:</span>
+                      <div className="flex">
+                        <span className="font-semibold text-gray-700 w-48">Terms of Sale:</span>
                         <span className="text-gray-800">{invoice.terms_of_payment || 'Within 15 days'}</span>
                       </div>
                     </div>
@@ -721,7 +707,6 @@ This action cannot be undone.`;
                             <th className="py-3 px-2 text-center text-xs font-bold text-gray-800 border-r border-gray-400">S.No</th>
                             <th className="py-3 px-3 text-center text-xs font-bold text-gray-800 border-r border-gray-400">Description of Goods</th>
                             <th className="py-3 px-3 text-center text-xs font-bold text-gray-800 border-r border-gray-400">Quantity</th>
-                            <th className="py-3 px-3 text-center text-xs font-bold text-gray-800 border-r border-gray-400">Unit</th>
                             <th className="py-3 px-3 text-center text-xs font-bold text-gray-800 border-r border-gray-400">Price</th>
                             <th className="py-3 px-3 text-center text-xs font-bold text-gray-800 border-r border-gray-400">Value Ex-Sales Tax</th>
                             <th className="py-3 px-3 text-center text-xs font-bold text-gray-800 border-r border-gray-400">Sales Tax %</th>
@@ -739,7 +724,6 @@ This action cannot be undone.`;
                                   {item.specifications && <div className="text-xs text-gray-600 mt-1">{item.specifications}</div>}
                                 </td>
                                 <td className="py-4 px-3 text-sm text-gray-800 text-center border-r border-gray-300">{parseFloat(item.quantity || 0).toLocaleString()}</td>
-                                <td className="py-4 px-3 text-sm text-gray-800 text-center border-r border-gray-300">{item.unit || 'MTR'}</td>
                                 <td className="py-4 px-3 text-sm text-gray-800 text-right border-r border-gray-300">{parseFloat(item.rate || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
                                 <td className="py-4 px-3 text-sm text-gray-800 text-right border-r border-gray-300">{parseFloat(item.amount / (1 + (invoice.tax_rate || 0) / 100) || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
                                 <td className="py-4 px-3 text-sm text-gray-800 text-center border-r border-gray-300">{invoice.tax_rate || 0}%</td>
@@ -754,7 +738,6 @@ This action cannot be undone.`;
                                 <div className="font-medium">{invoice.item_name || 'N/A'}</div>
                               </td>
                               <td className="py-4 px-3 text-sm text-gray-800 text-center border-r border-gray-300">{parseFloat(invoice.quantity || 0).toLocaleString()}</td>
-                              <td className="py-4 px-3 text-sm text-gray-800 text-center border-r border-gray-300">{invoice.unit || 'MTR'}</td>
                               <td className="py-4 px-3 text-sm text-gray-800 text-right border-r border-gray-300">{parseFloat(invoice.rate || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
                               <td className="py-4 px-3 text-sm text-gray-800 text-right border-r border-gray-300">{parseFloat(invoice.subtotal || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
                               <td className="py-4 px-3 text-sm text-gray-800 text-center border-r border-gray-300">{invoice.tax_rate || 0}%</td>
@@ -767,7 +750,6 @@ This action cannot be undone.`;
                             <td className="py-3 px-2 border-r border-gray-300"></td>
                             <td className="py-3 px-3 text-sm font-bold text-gray-800 border-r border-gray-300">NET AMOUNT RECEIVABLE</td>
                             <td className="py-3 px-3 text-sm text-gray-800 text-center border-r border-gray-300">{invoice.items ? invoice.items.reduce((sum, item) => sum + parseFloat(item.quantity || 0), 0).toLocaleString() : parseFloat(invoice.quantity || 0).toLocaleString()}</td>
-                            <td className="py-3 px-3 border-r border-gray-300"></td>
                             <td className="py-3 px-3 border-r border-gray-300"></td>
                             <td className="py-3 px-3 text-sm font-bold text-gray-900 text-right border-r border-gray-300">{parseFloat(invoice.subtotal || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
                             <td className="py-3 px-3 border-r border-gray-300"></td>

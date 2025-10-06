@@ -57,11 +57,22 @@ const Header = () => {
       if (activeUser.profileImg) setProfileImg(activeUser.profileImg);
     }
 
-    // If AuthContext exists and is missing the user, update it to keep single source
-    if (auth && auth.user !== activeUser) {
-      try { auth.login(activeUser); } catch (e) {
-        // ignore if auth provider is read-only
+    // If AuthContext exists and is missing or out-of-date, update it to keep single source.
+    // Only call auth.login when the relevant user fields actually differ to avoid infinite loops.
+    try {
+      if (auth && typeof auth.login === 'function') {
+        const au = auth.user || null;
+        const needUpdate = (() => {
+          if (!au && activeUser) return true;
+          if (!activeUser && au) return true;
+          if (!au && !activeUser) return false;
+          // Compare by id and profileImg/email/name to detect meaningful changes
+          return (au.id !== activeUser.id) || (au.profileImg !== activeUser.profileImg) || (au.email !== activeUser.email);
+        })();
+        if (needUpdate) auth.login(activeUser);
       }
+    } catch (e) {
+      // ignore if auth provider is read-only or throws
     }
   }, [activeUser, auth]);
 
@@ -73,7 +84,23 @@ const Header = () => {
       if (s.profilePictureUrl) setProfileImg(s.profilePictureUrl.startsWith('http') ? s.profilePictureUrl : s.profilePictureUrl);
     };
     window.addEventListener('storage', onStorage);
-    return () => window.removeEventListener('storage', onStorage);
+    // Same-tab updates: listen for custom event dispatched by SettingsPage
+    const onSettingsUpdated = (e) => {
+      try {
+        const d = e?.detail || {};
+        if (d.profilePictureUrl) setProfileImg(d.profilePictureUrl);
+        if (d.companyName && d.companyName !== name) setName(d.companyName);
+        // if the AuthContext user should also be updated, keep activeUser in sync
+        if (d.profilePictureUrl) {
+          setActiveUser(prev => ({ ...(prev || {}), profileImg: d.profilePictureUrl }));
+        }
+      } catch (err) {}
+    };
+    window.addEventListener('settings:updated', onSettingsUpdated);
+    return () => {
+      window.removeEventListener('storage', onStorage);
+      window.removeEventListener('settings:updated', onSettingsUpdated);
+    };
   }, []);
 
   // Notifications permission handling (best-effort in UI-only mode)
@@ -117,7 +144,7 @@ const Header = () => {
           const url = personal.profilePictureUrl;
           // server returns a relative path like /uploads/profile-pictures/xxx.jpg
           const finalUrl = url ? (url.startsWith('http') ? url : `http://localhost:5000${url}`) : null;
-          if (finalUrl) setProfileImg(finalUrl);
+          if (finalUrl && finalUrl !== profileImg) setProfileImg(finalUrl);
 
           // Update activeUser with canonical fields from server
           try {
@@ -129,9 +156,18 @@ const Header = () => {
             const au = { ...(activeUser || {}), firstName, lastName };
             if (email) au.email = email;
             if (phone) au.phone = phone;
-            setActiveUser(au);
+            // only update if different to avoid render loops
+            try {
+              const sameAU = JSON.stringify(au) === JSON.stringify(activeUser || {});
+              if (!sameAU) setActiveUser(au);
+            } catch (e) {
+              setActiveUser(au);
+            }
             // Update displayed name to personal name if available
-            if (firstName) setName(`${firstName}${lastName ? ' ' + lastName : ''}`);
+            if (firstName) {
+              const newName = `${firstName}${lastName ? ' ' + lastName : ''}`;
+              if (newName !== name) setName(newName);
+            }
           } catch (e) {}
 
           // persist to cached settings so other components pick it up
@@ -143,7 +179,7 @@ const Header = () => {
             if (personal.phone) s.phone = personal.phone;
             localStorage.setItem('settings', JSON.stringify(s));
             // update displayed name if company provided
-            if (personal.company) setName(personal.company);
+            if (personal.company && personal.company !== name) setName(personal.company);
           } catch (e) {}
         }
       } catch (err) {
@@ -152,7 +188,7 @@ const Header = () => {
     };
 
     loadProfileFromServer();
-  }, [auth?.user]);
+  }, [auth?.user?.id]);
 
   const handleNameChange = (e) => setName(e.target.value);
   const handleNameBlur = () => {

@@ -88,6 +88,25 @@ const SettingsPage = () => {
                 ? profilePic
                 : `http://localhost:5000/uploads/profile-pictures/${profilePic}`;
               setAvatar(avatarUrl);
+              // Persist to cached settings so Header and other components can pick it up
+              try {
+                const raw = localStorage.getItem('settings');
+                const s = raw ? JSON.parse(raw) : {};
+                s.profilePictureUrl = avatarUrl;
+                localStorage.setItem('settings', JSON.stringify(s));
+              } catch (e) {}
+              // Update AuthContext user object so Header updates immediately
+              try {
+                if (auth && typeof auth.login === 'function') {
+                  const updatedUser = { ...(auth.user || {}), profileImg: avatarUrl };
+                  // Only call login if the auth user object actually needs updating.
+                  // Calling login unconditionally can trigger an auth.user change which
+                  // would re-run this effect and cause a continuous fetch loop.
+                  const authUser = auth.user || {};
+                  const same = authUser.id === userId && authUser.profileImg === updatedUser.profileImg;
+                  if (!same) auth.login(updatedUser);
+                }
+              } catch (e) {}
             }
             // Keep localInputs in sync when not currently editing
             setLocalInputs({
@@ -108,10 +127,19 @@ const SettingsPage = () => {
     };
 
     fetchUserData();
-  }, [auth.user]);
+  }, [auth.user?.id]);
 
   const handleChange = (e) => {
-    const { name, value } = e.target;
+    const { name } = e.target;
+    let { value } = e.target;
+    // For phone field, strip any non-digit characters and limit length
+    if (name === 'phone') {
+      // remove anything that's not a digit
+      value = (value || '').toString().replace(/\D+/g, '');
+      // enforce a reasonable maximum length (matches validation: up to 15)
+      if (value.length > 15) value = value.slice(0, 15);
+    }
+
     // Update the localInputs while editing so the component doesn't get
     // overwritten by async updates and to avoid mid-keystroke value swaps.
     setLocalInputs(prev => ({ ...prev, [name]: value }));
@@ -143,19 +171,80 @@ const SettingsPage = () => {
     setIsUploading(true);
     setErrors(prev => ({ ...prev, avatar: '' }));
 
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      setAvatar(event.target.result);
-      setIsUploading(false);
-      showSuccess('Profile picture updated successfully');
-    };
-    reader.onerror = () => {
-      const readErr = reader.error || new Error('Unknown FileReader error');
-      console.error('Error reading image file:', readErr);
-      setErrors(prev => ({ ...prev, avatar: 'Error reading image file' }));
-      setIsUploading(false);
-    };
-    reader.readAsDataURL(file);
+    // Show an immediate preview using an object URL
+    const previewUrl = URL.createObjectURL(file);
+    setAvatar(previewUrl);
+
+    // Upload the file to the server
+    (async () => {
+      const userId = (auth && auth.user && auth.user.id) || userData.id || 1;
+      try {
+        const formData = new FormData();
+        formData.append('profilePicture', file);
+
+        const res = await fetch(`http://localhost:5000/api/profile-picture/upload/${userId}`, {
+          method: 'POST',
+          body: formData
+        });
+
+        const result = await res.json();
+        if (!res.ok || !result.success) {
+          // Restore to default or previous avatar (if available)
+          setErrors(prev => ({ ...prev, avatar: result.message || 'Failed to upload profile picture' }));
+          showError(result.message || 'Failed to upload profile picture');
+          // revoke preview
+          try { URL.revokeObjectURL(previewUrl); } catch (e) {}
+          setIsUploading(false);
+          return;
+        }
+
+        // Server returns a profilePictureUrl like /api/profile-picture/view/<filename>
+        const serverUrl = result.data && result.data.profilePictureUrl ? result.data.profilePictureUrl : null;
+        const finalUrl = serverUrl ? (serverUrl.startsWith('http') ? serverUrl : `http://localhost:5000${serverUrl}`) : previewUrl;
+
+        // Update avatar with the server-hosted URL
+        setAvatar(finalUrl);
+        showSuccess('Profile picture uploaded successfully');
+
+        // Persist to cached settings so other components (Header) can pick it up
+        try {
+          const raw = localStorage.getItem('settings');
+          const s = raw ? JSON.parse(raw) : {};
+          s.profilePictureUrl = finalUrl;
+          localStorage.setItem('settings', JSON.stringify(s));
+        } catch (e) {
+          // ignore localStorage errors
+        }
+
+        // Update AuthContext user if available so Header updates immediately
+        try {
+          if (auth && typeof auth.login === 'function') {
+            const updatedUser = { ...(auth.user || {}), profileImg: finalUrl };
+            // only call login if different to avoid loops
+            const authUser = auth.user || {};
+            const same = authUser.profileImg === updatedUser.profileImg && authUser.id === updatedUser.id;
+            if (!same) auth.login(updatedUser);
+          }
+        } catch (e) {
+          // ignore if auth provider is read-only
+        }
+
+        // Notify other components in the same tab that settings changed
+        try {
+          window.dispatchEvent(new CustomEvent('settings:updated', { detail: { profilePictureUrl: finalUrl } }));
+        } catch (e) {}
+
+        // revoke preview object URL now that server URL is used
+        try { URL.revokeObjectURL(previewUrl); } catch (e) {}
+
+      } catch (err) {
+        console.error('Upload error', err);
+        setErrors(prev => ({ ...prev, avatar: 'Error uploading image' }));
+        showError('Error uploading image');
+      } finally {
+        setIsUploading(false);
+      }
+    })();
   };
 
   const validateField = (name, value) => {
@@ -168,11 +257,12 @@ const SettingsPage = () => {
         else delete newErrors.email;
         break;
       
-      case 'phone':
-        if (!value.trim()) newErrors.phone = 'Phone is required';
-        else if (!/^\+?\d{10,15}$/.test(value)) newErrors.phone = 'Invalid phone number';
-        else delete newErrors.phone;
-        break;
+        case 'phone':
+          if (!value.trim()) newErrors.phone = 'Phone is required';
+          else if (!/^\d{10,15}$/.test(value)) newErrors.phone = 'Invalid phone number';
+          else delete newErrors.phone;
+          break;
+
       
       case 'newPassword':
         if (value && value.length < 8) newErrors.newPassword = 'Password must be at least 8 characters';
@@ -309,6 +399,7 @@ const SettingsPage = () => {
 
   const renderEditableField = (field, label, icon, type = 'text', options = null) => {
     const isEditingSection = isEditing === activeTab;
+    const isPhoneField = field === 'phone';
     
     return (
       <div className="space-y-1">
@@ -339,7 +430,29 @@ const SettingsPage = () => {
                   name={field}
                   value={localInputs[field] !== undefined ? localInputs[field] : (userData[field] || '')}
                   onChange={(e) => { handleChange(e); logInput(field, e.target.value, type); }}
-                  onKeyDown={(e) => logKeyEvent(field, e)}
+                  onKeyDown={(e) => {
+                    // If this is the phone field, restrict key input to digits and
+                    // allow navigation/editing keys (Backspace, Delete, arrows, Tab, Enter, Ctrl/Cmd combos)
+                    if (isPhoneField) {
+                      const allowedKeys = [
+                        'Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Tab', 'Enter',
+                      ];
+                      const ctrlCmd = e.ctrlKey || e.metaKey;
+                      const isNumberKey = /[0-9]/.test(e.key);
+                      const isCtrlCmdKey = ctrlCmd && ['a', 'c', 'v', 'x', 'A', 'C', 'V', 'X'].includes(e.key);
+
+                      if (allowedKeys.includes(e.key) || isNumberKey || isCtrlCmdKey) {
+                        // allow
+                      } else {
+                        e.preventDefault();
+                      }
+                    }
+                    // Call generic logger
+                    logKeyEvent(field, e);
+                  }}
+                  inputMode={isPhoneField ? 'numeric' : undefined}
+                  pattern={isPhoneField ? "[0-9]*" : undefined}
+                  maxLength={isPhoneField ? 15 : undefined}
                   onFocus={() => {}}
                   // autofocus the primary field in a section to make editing smoother
                   autoFocus={isEditingSection && activeTab === 'profile' && field === 'name'}

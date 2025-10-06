@@ -43,21 +43,88 @@ const Invoices = () => {
     try {
       setLoading(true);
       
-      // Fetch all invoices data (both regular and PO invoices)
-      const [regularResponse, poResponse] = await Promise.all([
-        fetch(`${API_BASE_URL}/invoices?exclude_po=true&limit=1000`),
-        fetch(`${API_BASE_URL}/invoices?invoice_type=po_invoice&limit=1000`)
-      ]);
+      // Fetch ALL invoices in a single call (no filters) to get accurate counts
+      const response = await fetch(`${API_BASE_URL}/invoices?limit=1000&_t=${Date.now()}`);
       
-      const [regularData, poData] = await Promise.all([
-        regularResponse.ok ? regularResponse.json() : { data: [] },
-        poResponse.ok ? poResponse.json() : { data: [] }
-      ]);
+      if (!response.ok) {
+        throw new Error('Failed to fetch invoices');
+      }
       
-      const regularInvoices = regularData.data || [];
-      const poInvoices = poData.data || [];
-      const allInvoices = [...regularInvoices, ...poInvoices];
+      const data = await response.json();
+      const allInvoices = data.data || data || [];
       
+      // Separate invoices by type based on invoice_type field
+      const poInvoices = allInvoices.filter(inv => inv && inv.invoice_type === 'po_invoice');
+      const regularInvoices = allInvoices.filter(inv => inv && inv.invoice_type !== 'po_invoice');
+      
+      const totalInvoiceCount = allInvoices.length;
+      const poCount = allInvoices.filter(inv => inv && inv.invoice_type === 'po_invoice').length;
+      const regularCount = allInvoices.filter(inv => inv && inv.invoice_type !== 'po_invoice').length;
+
+      // Derive counts by status similar to InvoiceTable.getTabCounts to avoid mismatches
+      const counts = {
+        'All': 0,
+        'Paid': 0,
+        'Pending': 0,
+        'Overdue': 0,
+        'Sent': 0,
+        'Not Sent': 0,
+        'PO Invoices': 0
+      };
+
+      allInvoices.forEach(inv => {
+        if (!inv) return;
+        // Count PO invoices separately
+        if (inv.invoice_type === 'po_invoice') {
+          counts['PO Invoices']++;
+        }
+
+        // Count by status for all invoices (both regular and PO)
+        if (inv.status === 'Paid') {
+          counts['Paid']++;
+        } else if (inv.status === 'Pending') {
+          counts['Pending']++;
+        } else if (inv.status === 'Overdue') {
+          counts['Overdue']++;
+        } else if (inv.status === 'Sent') {
+          counts['Sent']++;
+        } else if (inv.status === 'Not Sent' || inv.status === 'Draft') {
+          counts['Not Sent']++;
+        }
+      });
+
+      // Ensure 'All' includes non-PO status-sum + PO invoices, same as InvoiceTable logic
+      const statusSum = (counts['Paid'] || 0) + (counts['Pending'] || 0) + (counts['Overdue'] || 0) + (counts['Sent'] || 0) + (counts['Not Sent'] || 0);
+      counts['All'] = statusSum + (counts['PO Invoices'] || 0);
+
+      // Use derived counts to display totals (keeps consistency with InvoiceTable)
+      const displayTotal = counts['All'];
+      const displayPo = counts['PO Invoices'];
+      const displayRegular = displayTotal - displayPo;
+
+      console.log('Invoices.jsx - Derived counts from statuses:', counts, 'DisplayTotal:', displayTotal, 'Regular:', displayRegular, 'PO:', displayPo);
+
+      // Helper to safely extract numeric amount from different API shapes
+      const extractAmount = (inv) => {
+        if (!inv) return 0;
+        // Common field names used across endpoints
+        const candidates = [
+          inv.total_amount,
+          inv.totalAmount,
+          inv.total,
+          inv.amount,
+          inv.subtotal,
+          inv.invoice_amount,
+          inv.invoiceTotal,
+          inv.final_amount
+        ];
+        for (const c of candidates) {
+          const v = parseFloat(c);
+          if (!isNaN(v)) return v;
+        }
+        return 0;
+      };
+
       // Helper function to format currency
       const formatCurrency = (value) => {
         if (!value || isNaN(value)) return '0';
@@ -67,29 +134,28 @@ const Invoices = () => {
         }).format(value);
       };
       
-      // Calculate statistics
+      // Calculate statistics from ALL invoices (regular + PO combined)
       // All paid invoices (only Paid status)
-      const paidInvoices = allInvoices.filter(inv => inv.status === 'Paid');
-      const paidAmount = paidInvoices.reduce((sum, inv) => sum + (parseFloat(inv.total_amount) || 0), 0);
+      const paidInvoices = allInvoices.filter(inv => inv && inv.status === 'Paid');
+      const paidAmount = paidInvoices.reduce((sum, inv) => sum + extractAmount(inv), 0);
       
       // Outstanding invoices (Not Sent, Draft, Sent, Pending - awaiting payment, excludes Paid and Overdue)
-      const outstandingInvoices = allInvoices.filter(inv => 
-        inv.status === 'Not Sent' || inv.status === 'Draft' || inv.status === 'Sent' || inv.status === 'Pending'
-      );
-      const outstandingAmount = outstandingInvoices.reduce((sum, inv) => sum + (parseFloat(inv.total_amount) || 0), 0);
+      const outstandingStatuses = ['Not Sent', 'Draft', 'Sent', 'Pending'];
+      const outstandingInvoices = allInvoices.filter(inv => inv && outstandingStatuses.includes(inv.status));
+      const outstandingAmount = outstandingInvoices.reduce((sum, inv) => sum + extractAmount(inv), 0);
       
       // Overdue invoices (need immediate attention - separate category)
-      const overdueInvoices = allInvoices.filter(inv => inv.status === 'Overdue');
-      const overdueAmount = overdueInvoices.reduce((sum, inv) => sum + (parseFloat(inv.total_amount) || 0), 0);
-      
+      const overdueInvoices = allInvoices.filter(inv => inv && inv.status === 'Overdue');
+      const overdueAmount = overdueInvoices.reduce((sum, inv) => sum + extractAmount(inv), 0);
+
       setSummaryData([
         {
           title: "Total Invoices",
-          amount: allInvoices.length.toString(),
+          amount: displayTotal.toString(),
           currency: "",
           indicator: { 
-            text: `${regularInvoices.length} Regular + ${poInvoices.length} PO`,
-            color: allInvoices.length > 0 ? "blue" : "gray" 
+            text: `${displayRegular} Regular + ${displayPo} PO`,
+            color: displayTotal > 0 ? "blue" : "gray" 
           },
         },
         {

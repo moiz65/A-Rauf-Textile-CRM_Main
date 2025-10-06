@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { DollarSign, CheckCircle, Clock } from 'lucide-react';
 import Sidebar from '../components/Sidebar';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
@@ -7,6 +8,39 @@ import CategoryTable from '../components/CategoryTable';
 
 const Expense = () => {
   const [activeView, setActiveView] = useState('expenses'); // 'expenses' or 'categories'
+  const [expensesData, setExpensesData] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  // Fetch expenses data from API
+  useEffect(() => {
+    fetchExpenses();
+  }, []);
+
+  const fetchExpenses = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch('http://localhost:5000/api/expenses');
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      setExpensesData(data);
+    } catch (err) {
+      console.error('Error fetching expenses:', err);
+      setExpensesData([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Calculate statistics
+  const totalExpenditure = expensesData.reduce((sum, expense) => sum + (parseFloat(expense.amount) || 0), 0);
+  const paidExpenses = expensesData.filter(expense => expense.status === 'Paid');
+  const pendingExpenses = expensesData.filter(expense => expense.status === 'Pending');
+  const totalPaid = paidExpenses.reduce((sum, expense) => sum + (parseFloat(expense.amount) || 0), 0);
+  const totalPending = pendingExpenses.reduce((sum, expense) => sum + (parseFloat(expense.amount) || 0), 0);
 
   return (
     <div className="flex bg-[#F5F5F5] min-h-screen p-4">
@@ -44,8 +78,68 @@ const Expense = () => {
           </div>
         </div>
 
+        {/* Statistics Cards - Only show for Expenses view */}
+        {activeView === 'expenses' && !loading && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+            {/* Total Expenditure Card */}
+            <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-4 border border-blue-200">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs sm:text-sm text-blue-600 font-medium mb-1">Total Expenditure</p>
+                  <p className="text-xl sm:text-2xl font-bold text-blue-900">
+                    PKR {totalExpenditure.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </p>
+                  <p className="text-xs text-blue-600 mt-1">{expensesData.length} expenses</p>
+                </div>
+                <div className="bg-blue-500 rounded-full p-3">
+                  <DollarSign className="w-6 h-6 text-white" />
+                </div>
+              </div>
+            </div>
+
+            {/* Paid Expenses Card */}
+            <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-lg p-4 border border-green-200">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs sm:text-sm text-green-600 font-medium mb-1">Paid Expenses</p>
+                  <p className="text-xl sm:text-2xl font-bold text-green-900">
+                    PKR {totalPaid.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </p>
+                  <p className="text-xs text-green-600 mt-1">{paidExpenses.length} paid</p>
+                </div>
+                <div className="bg-green-500 rounded-full p-3">
+                  <CheckCircle className="w-6 h-6 text-white" />
+                </div>
+              </div>
+            </div>
+
+            {/* Pending Expenses Card */}
+            <div className="bg-gradient-to-br from-yellow-50 to-yellow-100 rounded-lg p-4 border border-yellow-200">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs sm:text-sm text-yellow-600 font-medium mb-1">Pending Expenses</p>
+                  <p className="text-xl sm:text-2xl font-bold text-yellow-900">
+                    PKR {totalPending.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </p>
+                  <p className="text-xs text-yellow-600 mt-1">{pendingExpenses.length} pending</p>
+                </div>
+                <div className="bg-yellow-500 rounded-full p-3">
+                  <Clock className="w-6 h-6 text-white" />
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Content Based on Active View */}
-        {activeView === 'expenses' ? <ExpenseTable /> : <CategoryTable />}
+        {activeView === 'expenses' ? (
+          <ExpenseTable 
+            expensesData={expensesData} 
+            onExpensesChange={fetchExpenses}
+          />
+        ) : (
+          <CategoryTable />
+        )}
         
         {/* Footer */}
         <Footer />
