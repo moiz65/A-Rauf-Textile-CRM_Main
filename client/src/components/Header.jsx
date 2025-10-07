@@ -35,7 +35,42 @@ const Header = () => {
   // Read settings cached by SettingsPage (company, phone, email, profilePictureUrl)
   const cachedSettings = readJSON('settings', {});
 
-  const initialName = cachedSettings.companyName || (activeUser ? ((activeUser.firstName || activeUser.name) + (activeUser.lastName ? ' ' + activeUser.lastName : '')) : 'Company');
+  // Prefer showing the active user's name when available; otherwise fall back to company name
+  // Smart name parsing: if user has firstName/lastName use them; else if name exists, split on first space
+  const getUserDisplayName = () => {
+    if (!activeUser) return '';
+    
+    // If firstName exists, build full name from firstName + lastName (only if lastName is non-empty)
+    if (activeUser.firstName) {
+      const last = (activeUser.lastName || '').trim();
+      return last ? `${activeUser.firstName.trim()} ${last}` : activeUser.firstName.trim();
+    }
+    
+    // If name exists, split on first space: "Muhammad Hunain Khan" -> firstName="Muhammad", lastName="Hunain Khan"
+    if (activeUser.name) {
+      const nameParts = activeUser.name.trim().split(' ');
+      if (nameParts.length === 1) {
+        return nameParts[0]; // single word name
+      }
+      // First word is firstName, rest is lastName
+      const firstName = nameParts[0];
+      const lastName = nameParts.slice(1).join(' ');
+      // Store parsed values back to activeUser for consistency (optional, helps with future renders)
+      activeUser.firstName = firstName;
+      activeUser.lastName = lastName;
+      return `${firstName} ${lastName}`.trim();
+    }
+    
+    // Fallback to lastName only if it exists
+    if (activeUser.lastName) {
+      return activeUser.lastName.trim();
+    }
+    
+    return '';
+  };
+  
+  const userDisplayName = getUserDisplayName();
+  const initialName = userDisplayName || cachedSettings.companyName || 'Company';
 
   const [name, setName] = useState(initialName);
   const [isEditing, setIsEditing] = useState(false);
@@ -80,7 +115,9 @@ const Header = () => {
   useEffect(() => {
     const onStorage = () => {
       const s = readJSON('settings', {});
-      if (s.companyName) setName(s.companyName);
+      // Only update to company name if user doesn't have a personal name
+      const userHasName = !!(activeUser && (activeUser.firstName || activeUser.name));
+      if (!userHasName && s.companyName) setName(s.companyName);
       if (s.profilePictureUrl) setProfileImg(s.profilePictureUrl.startsWith('http') ? s.profilePictureUrl : s.profilePictureUrl);
     };
     window.addEventListener('storage', onStorage);
@@ -89,7 +126,9 @@ const Header = () => {
       try {
         const d = e?.detail || {};
         if (d.profilePictureUrl) setProfileImg(d.profilePictureUrl);
-        if (d.companyName && d.companyName !== name) setName(d.companyName);
+        // Only update displayed name to company name if there's no user display name available
+        const userHasName = !!(activeUser && (activeUser.firstName || activeUser.name));
+        if (!userHasName && d.companyName && d.companyName !== name) setName(d.companyName);
         // if the AuthContext user should also be updated, keep activeUser in sync
         if (d.profilePictureUrl) {
           setActiveUser(prev => ({ ...(prev || {}), profileImg: d.profilePictureUrl }));
@@ -146,12 +185,19 @@ const Header = () => {
           const finalUrl = url ? (url.startsWith('http') ? url : `http://localhost:5000${url}`) : null;
           if (finalUrl && finalUrl !== profileImg) setProfileImg(finalUrl);
 
+          // declare variables in this outer scope so later blocks (outside the inner try) can reference them
+          let firstName = activeUser?.firstName || '';
+          let lastName = activeUser?.lastName || '';
+          let email = activeUser?.email || null;
+          let phone = activeUser?.phone || null;
+
           // Update activeUser with canonical fields from server
           try {
-            const firstName = personal.firstName || personal.name || activeUser?.firstName || '';
-            const lastName = personal.lastName || activeUser?.lastName || '';
-            const email = personal.email || activeUser?.email || null;
-            const phone = personal.phone || activeUser?.phone || null;
+            // populate variables from server-provided personal object when available
+            firstName = personal.firstName || personal.name || firstName || '';
+            lastName = personal.lastName || lastName || '';
+            email = personal.email || email || null;
+            phone = personal.phone || phone || null;
 
             const au = { ...(activeUser || {}), firstName, lastName };
             if (email) au.email = email;
@@ -178,8 +224,11 @@ const Header = () => {
             if (personal.email) s.email = personal.email;
             if (personal.phone) s.phone = personal.phone;
             localStorage.setItem('settings', JSON.stringify(s));
-            // update displayed name if company provided
-            if (personal.company && personal.company !== name) setName(personal.company);
+            // DO NOT overwrite displayed name with company name if user has a personal name
+            // Only set company name as display name if there's no user name (firstName is empty)
+            if (!firstName && personal.company && personal.company !== name) {
+              setName(personal.company);
+            }
           } catch (e) {}
         }
       } catch (err) {
