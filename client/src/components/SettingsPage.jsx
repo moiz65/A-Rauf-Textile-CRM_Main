@@ -88,11 +88,20 @@ const SettingsPage = () => {
                 ? profilePic
                 : `http://localhost:5000/uploads/profile-pictures/${profilePic}`;
               setAvatar(avatarUrl);
-              // Persist to cached settings so Header and other components can pick it up
+              // Persist to cached settings so Header, Sidebar and other components can pick it up
               try {
                 const raw = localStorage.getItem('settings');
                 const s = raw ? JSON.parse(raw) : {};
                 s.profilePictureUrl = avatarUrl;
+                // also persist company name and company logo if available
+                s.companyName = s.companyName || (personal && personal.company) || s.companyName || 'A Rauf Textile';
+                const companyLogoRaw = personal && (personal.company_logo || personal.companyLogo || personal.companyLogoUrl) ? (personal.company_logo || personal.companyLogo || personal.companyLogoUrl) : null;
+                if (companyLogoRaw) {
+                  const companyLogoUrl = /^https?:\/\//.test(companyLogoRaw)
+                    ? companyLogoRaw
+                    : `http://localhost:5000/uploads/company-logos/${companyLogoRaw}`;
+                  s.companyLogoUrl = companyLogoUrl;
+                }
                 localStorage.setItem('settings', JSON.stringify(s));
               } catch (e) {}
               // Update AuthContext user object so Header updates immediately
@@ -106,6 +115,12 @@ const SettingsPage = () => {
                   const same = authUser.id === userId && authUser.profileImg === updatedUser.profileImg;
                   if (!same) auth.login(updatedUser);
                 }
+              } catch (e) {}
+              // Notify other components in the same tab that settings changed (include company data)
+              try {
+                const raw = localStorage.getItem('settings');
+                const s = raw ? JSON.parse(raw) : {};
+                window.dispatchEvent(new CustomEvent('settings:updated', { detail: { profilePictureUrl: s.profilePictureUrl, companyName: s.companyName, companyLogoUrl: s.companyLogoUrl } }));
               } catch (e) {}
             }
             // Keep localInputs in sync when not currently editing
@@ -350,6 +365,93 @@ const SettingsPage = () => {
           showSuccess('Profile updated successfully');
           // clear localInputs since the save worked
           setLocalInputs({});
+
+          // If server returned updated personal info, apply it immediately
+          try {
+            const personal = data.data && data.data.personal ? data.data.personal : null;
+            let avatarUrl = null;
+            if (personal) {
+              const newName = `${personal.firstName || ''}${personal.lastName ? ' ' + personal.lastName : ''}`.trim();
+              setUserData(prev => ({
+                ...prev,
+                name: newName || prev.name,
+                email: personal.email || prev.email,
+                phone: personal.phone || prev.phone,
+                company: personal.company || prev.company,
+                address: personal.address || prev.address
+              }));
+
+              const profilePic = personal.profile_picture_url || personal.profilePicture || personal.avatar || personal.profilePictureUrl || null;
+              if (profilePic) {
+                avatarUrl = /^https?:\/\//.test(profilePic) ? profilePic : `http://localhost:5000/uploads/profile-pictures/${profilePic}`;
+                setAvatar(avatarUrl);
+              }
+
+              // Persist company/profile to cached settings so other components pick up immediately
+              try {
+                const raw = localStorage.getItem('settings');
+                const s = raw ? JSON.parse(raw) : {};
+                if (personal.company) s.companyName = personal.company;
+                if (avatarUrl) s.profilePictureUrl = avatarUrl;
+                localStorage.setItem('settings', JSON.stringify(s));
+
+                // Emit same-tab event so Header/Sidebar update immediately
+                try {
+                  window.dispatchEvent(new CustomEvent('settings:updated', { detail: { profilePictureUrl: s.profilePictureUrl, companyName: s.companyName, companyLogoUrl: s.companyLogoUrl } }));
+                } catch (e) {}
+              } catch (e) {}
+
+              // Update AuthContext user object to reflect the canonical profile (but only if it actually changes)
+              try {
+                if (auth && typeof auth.login === 'function') {
+                  const authUser = auth.user || {};
+                  const updatedUser = { ...(authUser || {}), profileImg: avatarUrl || authUser.profileImg };
+                  if (personal.email) updatedUser.email = personal.email;
+                  // Only call login if meaningful fields changed
+                  const needUpdate = (authUser.id !== userData.id) || (updatedUser.profileImg && authUser.profileImg !== updatedUser.profileImg) || (updatedUser.email && authUser.email !== updatedUser.email);
+                  if (needUpdate) auth.login(updatedUser);
+                }
+              } catch (e) {}
+            } else {
+              // Server didn't echo personal data; apply the local edits (merged) so the UI updates immediately
+              try {
+                // 'merged' is the combined object of userData and localInputs defined earlier
+                setUserData(prev => ({
+                  ...prev,
+                  name: merged.name || prev.name,
+                  email: merged.email || prev.email,
+                  phone: merged.phone || prev.phone,
+                  company: merged.company || prev.company,
+                  address: merged.address || prev.address
+                }));
+
+                // Persist to localStorage settings so other components pick up
+                try {
+                  const raw = localStorage.getItem('settings');
+                  const s = raw ? JSON.parse(raw) : {};
+                  if (merged.company) s.companyName = merged.company;
+                  if (avatar) s.profilePictureUrl = avatar;
+                  localStorage.setItem('settings', JSON.stringify(s));
+                  try {
+                    window.dispatchEvent(new CustomEvent('settings:updated', { detail: { profilePictureUrl: s.profilePictureUrl, companyName: s.companyName, companyLogoUrl: s.companyLogoUrl } }));
+                  } catch (e) {}
+                } catch (e) {}
+
+                // Update AuthContext if necessary
+                try {
+                  if (auth && typeof auth.login === 'function') {
+                    const authUser = auth.user || {};
+                    const updatedUser = { ...(authUser || {}), profileImg: avatar || authUser.profileImg };
+                    if (merged.email) updatedUser.email = merged.email;
+                    const needUpdate = (authUser.id !== userData.id) || (updatedUser.profileImg && authUser.profileImg !== updatedUser.profileImg) || (updatedUser.email && authUser.email !== updatedUser.email);
+                    if (needUpdate) auth.login(updatedUser);
+                  }
+                } catch (e) {}
+              } catch (err) {}
+            }
+          } catch (err) {
+            // harmless if server shape is different
+          }
         } else {
           showError(data.message || 'Failed to update profile');
         }

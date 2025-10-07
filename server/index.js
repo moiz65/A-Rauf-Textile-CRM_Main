@@ -1854,7 +1854,8 @@ app.post("/api/invoices", (req, res) => {
 
       const invoiceValues = [
         invoice_number, customer_id, customer_name, customer_email, p_number || '', a_p_number || '', address || '',
-        st_reg_no || '', ntn_number || '', currency || 'PKR', subtotal || 0, tax_rate || 17,
+        st_reg_no || '', ntn_number || '', currency || 'PKR', subtotal || 0, 
+        (tax_rate !== null && tax_rate !== undefined) ? tax_rate : 0,
         tax_amount || 0, total_amount || 0, bill_date, payment_deadline, note || '', status
       ];
 

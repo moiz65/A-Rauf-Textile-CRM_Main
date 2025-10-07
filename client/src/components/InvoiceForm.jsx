@@ -294,7 +294,7 @@ const InvoiceForm = ({ initialData, onSubmit, onCancel }) => {
   // Currency is fixed to PKR (no dropdown)
   currency: 'PKR',
         subtotal: parseFloat(formData.subtotal) || 0,
-        tax_rate: parseFloat(formData.salesTax) ,
+        tax_rate: parseFloat(formData.salesTax) || 0,
         tax_amount: parseFloat(formData.taxAmount) || 0,
         total_amount: parseFloat(formData.totalAmount) || 0,
         bill_date: formData.billDate,

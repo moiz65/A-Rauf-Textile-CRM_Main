@@ -1,5 +1,6 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
+import { useAuth } from '../context/AuthContext';
 import Logo from "../assets/Logo/rauf textile png.png"; // updated to user's logo
 import Logo2 from "../assets/Logo/Logo-2.png"; // Ensure this path is correct
 
@@ -32,11 +33,117 @@ const NavItem = ({
 
 const Sidebar = () => {
   const location = useLocation();
+  const auth = useAuth();
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
+  // read dynamic company settings from localStorage if present
+  const [companyName, setCompanyName] = useState(() => {
+    try {
+      const raw = localStorage.getItem('settings');
+      const s = raw ? JSON.parse(raw) : {};
+      return s.companyName || 'A Rauf Textile';
+    } catch (e) {
+      return 'A Rauf Textile';
+    }
+  });
+  const [companyLogo, setCompanyLogo] = useState(() => {
+    try {
+      const raw = localStorage.getItem('settings');
+      const s = raw ? JSON.parse(raw) : {};
+      // prefer explicit company logo, fall back to profile picture (some installs store logo there)
+      return s.companyLogoUrl || s.profilePictureUrl || Logo;
+    } catch (e) {
+      return Logo;
+    }
+  });
 
   const toggleSidebar = () => setIsCollapsed(!isCollapsed);
   const toggleMobileMenu = () => setIsMobileOpen(!isMobileOpen);
+
+  // Fetch company logo and name from the database on mount
+  useEffect(() => {
+    const fetchCompanySettings = async () => {
+      try {
+        const currentUser = auth?.user || (() => {
+          try { 
+            return JSON.parse(localStorage.getItem('currentUser') || localStorage.getItem('activeUser') || 'null'); 
+          } catch { 
+            return null; 
+          }
+        })();
+        const userId = currentUser?.id;
+        if (!userId) return;
+
+        const res = await fetch(`http://localhost:5000/api/settings/${userId}`);
+        if (!res.ok) return;
+        const data = await res.json();
+        
+        if (data && data.success && data.data && data.data.personal) {
+          const personal = data.data.personal || {};
+          
+          // Update company name if available
+          if (personal.company) {
+            setCompanyName(personal.company);
+          }
+          
+          // Use profilePictureUrl as the company logo (stored in profile_picture_url column)
+          // The server returns it as /api/profile-picture/view/filename
+          const logoUrl = personal.profilePictureUrl;
+          if (logoUrl) {
+            const companyLogoUrl = logoUrl.startsWith('http') 
+              ? logoUrl 
+              : `http://localhost:5000${logoUrl}`;
+            setCompanyLogo(companyLogoUrl);
+            
+            // Persist to localStorage for other components
+            try {
+              const raw = localStorage.getItem('settings');
+              const s = raw ? JSON.parse(raw) : {};
+              s.companyName = personal.company || s.companyName;
+              s.companyLogoUrl = companyLogoUrl;
+              localStorage.setItem('settings', JSON.stringify(s));
+            } catch (e) {}
+          }
+        }
+      } catch (err) {
+        // Silently fail and use default logo
+        console.warn('Failed to fetch company settings:', err);
+      }
+    };
+
+    fetchCompanySettings();
+  }, [auth?.user?.id]);
+
+  // Listen for settings updates from SettingsPage
+  useEffect(() => {
+    const onSettings = (e) => {
+      const detail = e && e.detail ? e.detail : {};
+      try {
+        // Update displayed company name if provided
+        if (detail.companyName) setCompanyName(detail.companyName);
+
+        // Prefer explicit companyLogoUrl, but accept profilePictureUrl as a fallback
+        const logo = detail.companyLogoUrl || detail.profilePictureUrl;
+        if (logo) {
+          setCompanyLogo(logo);
+          // persist to localStorage so other components and reloads pick it up
+          try {
+            const raw = localStorage.getItem('settings');
+            const s = raw ? JSON.parse(raw) : {};
+            s.companyLogoUrl = logo;
+            if (detail.companyName) s.companyName = detail.companyName;
+            // also keep profilePictureUrl for compatibility
+            if (detail.profilePictureUrl) s.profilePictureUrl = detail.profilePictureUrl;
+            localStorage.setItem('settings', JSON.stringify(s));
+          } catch (err) {}
+        }
+      } catch (err) {
+        // ignore
+      }
+    };
+    window.addEventListener('settings:updated', onSettings);
+    return () => window.removeEventListener('settings:updated', onSettings);
+  }, []);
 
   const navItems = [
     {
@@ -250,21 +357,21 @@ const Sidebar = () => {
       >
         {/* Logo and Collapse button */}
         <div className="flex items-center justify-between mb-4 p-2">
-          {!isCollapsed ? (
+              {!isCollapsed ? (
             <div className="flex items-center gap-3">
               <img
-                src={Logo}
-                alt="A Rauf Textile"
+                src={companyLogo}
+                alt={companyName}
                 className="h-14 w-auto object-contain"
               />
               <div className="hidden sm:block">
-                <div className="text-lg font-bold text-gray-800">A Rauf Textile</div>
+                <div className="text-lg font-bold text-gray-800">{companyName}</div>
               </div>
             </div>
           ) : (
             <div className="w-10 h-10 flex items-center justify-center">
               <img
-                src={Logo2}
+                src={companyLogo || Logo2}
                 alt="Company Logo"
                 className="h-10 w-15 object-contain"
               />
