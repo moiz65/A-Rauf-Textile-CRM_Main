@@ -33,19 +33,45 @@ const ExpenseTable = ({ expensesData = [], onExpensesChange }) => {
   const [activeDropdown, setActiveDropdown] = useState(null);
   const [editingExpense, setEditingExpense] = useState(null);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [error, setError] = useState(null);
   const [allCategories, setAllCategories] = useState([]);
   const [categoriesLoading, setCategoriesLoading] = useState(true);
   const dropdownRef = useRef(null);
   const filterPanelRef = useRef(null);
 
-  // Add click outside handler for edit modal
+  // Add click outside handler for edit modal (disabled when category modal is open)
   const editModalRef = useClickOutside(() => {
-    if (showEditModal) {
+    if (showEditModal && !showCategoryModal) {
       setShowEditModal(false);
       setEditingExpense(null);
     }
-  }, showEditModal);
+  }, showEditModal && !showCategoryModal);
+
+  // Add click outside handler for category modal
+  const categoryModalRef = useClickOutside(() => {
+    if (showCategoryModal) {
+      setShowCategoryModal(false);
+    }
+  }, showCategoryModal);
+
+  // Close modals when user presses Escape
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape' || e.key === 'Esc') {
+        if (showEditModal) {
+          setShowEditModal(false);
+          setEditingExpense(null);
+        }
+        if (showCategoryModal) {
+          setShowCategoryModal(false);
+        }
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [showEditModal, showCategoryModal]);
 
   const statusOptions = ['All', 'Paid', 'Pending'];
   const paymentMethods = ['Bank Transfer', 'Cash', 'Credit Card', 'Check', 'Online Payment'];
@@ -96,11 +122,7 @@ const ExpenseTable = ({ expensesData = [], onExpensesChange }) => {
     }
   }, [showFilters, filters]);
 
-  // Helper function to get category type from category name
-  const getCategoryType = (categoryName) => {
-    const categoryData = allCategories.find(cat => cat.name === categoryName);
-    return categoryData ? categoryData.type : 'Expense'; // Default to 'Expense' if not found
-  };
+
 
   const filteredExpenses = expensesData
     .filter(expense => {
@@ -227,17 +249,7 @@ const ExpenseTable = ({ expensesData = [], onExpensesChange }) => {
     }
   };
 
-  const getCategoryClass = (category) => {
-    // Get the category type to determine color
-    const categoryType = getCategoryType(category);
-    switch(categoryType) {
-      case 'Expense': return 'bg-red-100 text-red-800';
-      case 'Income': return 'bg-green-100 text-green-800';
-      case 'Asset': return 'bg-blue-100 text-blue-800';
-      case 'Liability': return 'bg-yellow-100 text-yellow-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
-  };
+
 
   // Update temporary filter values while user edits the panel
   const handleTempFilterChange = (e) => {
@@ -360,6 +372,11 @@ const ExpenseTable = ({ expensesData = [], onExpensesChange }) => {
       if (onExpensesChange) {
         await onExpensesChange();
       }
+      
+      // Show success message
+      const isNewExpense = !updatedExpense.id;
+      alert(isNewExpense ? 'Expense created successfully!' : 'Expense updated successfully!');
+      
       setShowEditModal(false);
       setEditingExpense(null);
     } catch (err) {
@@ -380,6 +397,140 @@ const ExpenseTable = ({ expensesData = [], onExpensesChange }) => {
       default:
         break;
     }
+  };
+
+  // Create Category Modal Component
+  const CreateCategoryModal = () => {
+    const [categoryData, setCategoryData] = useState({
+      name: '',
+      type: 'Expense',
+      description: '',
+      status: 'Active'
+    });
+    const [saving, setSaving] = useState(false);
+
+    const categoryTypes = ['Expense', 'Income', 'Asset', 'Liability'];
+
+    const handleCategoryChange = (e) => {
+      const { name, value } = e.target;
+      setCategoryData(prev => ({
+        ...prev,
+        [name]: value
+      }));
+    };
+
+    const handleSubmitCategory = async (e) => {
+      e.preventDefault();
+      
+      if (!categoryData.name.trim()) {
+        alert('Please enter a category name');
+        return;
+      }
+
+      setSaving(true);
+      try {
+        const response = await fetch('http://localhost:5000/api/categories', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(categoryData)
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(errorData.message || 'Failed to create category');
+        }
+
+        const result = await response.json();
+        console.debug('Category created successfully:', result);
+
+        // Refresh categories list
+        await fetchCategories();
+        
+        // Close modal
+        setShowCategoryModal(false);
+        
+        // Reset form
+        setCategoryData({
+          name: '',
+          type: 'Expense',
+          description: '',
+          status: 'Active'
+        });
+
+        alert('Category created successfully!');
+      } catch (err) {
+        console.error('Error creating category:', err);
+        alert(`Failed to create category: ${err.message}`);
+      } finally {
+        setSaving(false);
+      }
+    };
+
+    return (
+      <div 
+        className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60]"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div ref={categoryModalRef} className="bg-white rounded-lg p-6 w-full max-w-md">
+          <h2 className="text-xl font-semibold mb-4">Create New Category</h2>
+          <form onSubmit={handleSubmitCategory}>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Category Name <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  name="name"
+                  value={categoryData.name}
+                  onChange={handleCategoryChange}
+                  className="w-full p-2 border rounded-md focus:ring-2 focus:ring-blue-500"
+                  placeholder="Enter category name"
+                  required
+                />
+              </div>
+
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Description
+                </label>
+                <textarea
+                  name="description"
+                  value={categoryData.description}
+                  onChange={handleCategoryChange}
+                  className="w-full p-2 border rounded-md focus:ring-2 focus:ring-blue-500"
+                  rows="3"
+                  placeholder="Optional description"
+                />
+              </div>
+
+              
+            </div>
+
+            <div className="flex justify-end gap-3 mt-6">
+              <button
+                type="button"
+                onClick={() => setShowCategoryModal(false)}
+                className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300"
+                disabled={saving}
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 disabled:opacity-50"
+                disabled={saving}
+              >
+                {saving ? 'Creating...' : 'Create Category'}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    );
   };
 
   // Edit Modal Component
@@ -587,23 +738,33 @@ const ExpenseTable = ({ expensesData = [], onExpensesChange }) => {
               
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
-                <select
-                  value={subcategory}
-                  onChange={(e) => handleSubcategoryChange(e.target.value)}
-                  className="w-full p-2 border rounded-md"
-                  required
-                >
-                  <option value="">Select Category</option>
-                  {categoriesLoading ? (
-                    <option value="">Loading categories...</option>
-                  ) : (
-                    allCategories.map(cat => (
-                      <option key={cat.id} value={cat.name}>
-                        {cat.name}
-                      </option>
-                    ))
-                  )}
-                </select>
+                <div className="flex gap-2">
+                  <select
+                    value={subcategory}
+                    onChange={(e) => handleSubcategoryChange(e.target.value)}
+                    className="flex-1 p-2 border rounded-md"
+                    required
+                  >
+                    <option value="">Select Category</option>
+                    {categoriesLoading ? (
+                      <option value="">Loading categories...</option>
+                    ) : (
+                      allCategories.map(cat => (
+                        <option key={cat.id} value={cat.name}>
+                          {cat.name}
+                        </option>
+                      ))
+                    )}
+                  </select>
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); setShowCategoryModal(true); }}
+                    className="px-3 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 whitespace-nowrap text-sm"
+                    title="Create new category"
+                  >
+                    + New
+                  </button>
+                </div>
               </div>
               
               <div>
@@ -644,7 +805,7 @@ const ExpenseTable = ({ expensesData = [], onExpensesChange }) => {
                 <button
                   type="button"
                   onClick={addNewItem}
-                  className="px-3 py-1 bg-green-500 text-white text-sm rounded-md hover:bg-green-600"
+                  className="px-3 py-1 bg-blue-500 text-white text-sm rounded-md hover:bg-blue-600"
                 >
                   + Add Item
                 </button>
@@ -829,7 +990,11 @@ const ExpenseTable = ({ expensesData = [], onExpensesChange }) => {
               name="vendor"
               className="w-full p-2 border rounded-md text-xs"
               value={tempFilters.vendor}
-              onChange={handleTempFilterChange}
+              onChange={(e) => {
+                // Allow alphabetic characters and spaces only
+                const sanitized = e.target.value.replace(/[^A-Za-z\s]/g, '');
+                setTempFilters(prev => ({ ...prev, vendor: sanitized }));
+              }}
               onMouseDown={(e) => e.stopPropagation()}
               placeholder="Filter by vendor"
             />
@@ -1062,6 +1227,9 @@ const ExpenseTable = ({ expensesData = [], onExpensesChange }) => {
 
       {/* Edit Modal */}
       {showEditModal && <EditExpenseModal />}
+
+      {/* Create Category Modal */}
+      {showCategoryModal && <CreateCategoryModal />}
     </div>
   );
 };

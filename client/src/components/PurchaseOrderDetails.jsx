@@ -767,8 +767,8 @@ const PurchaseOrderDetails = ({ poId, onBack }) => {
                               <div style="font-weight: 500;">${item.description || 'N/A'}</div>
                             </td>
                             <td style="padding: 16px 12px; font-size: 13px; color: #1f2937; text-align: center; border-right: 1px solid #d1d5db;">${parseFloat(item.quantity || 0).toLocaleString()}</td>
-                            <td style="padding: 16px 12px; font-size: 13px; color: #1f2937; text-align: right; border-right: 1px solid #d1d5db;">${purchaseOrder.currency} ${parseFloat(item.unitPrice || item.unit_price || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
-                            <td style="padding: 16px 12px; font-size: 13px; font-weight: 600; color: #111827; text-align: right;">${purchaseOrder.currency} ${parseFloat(item.total || item.amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+                            <td style="padding: 16px 12px; font-size: 13px; color: #1f2937; text-align: center; border-right: 1px solid #d1d5db;">${purchaseOrder.currency} ${parseFloat(item.unitPrice || item.unit_price || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+                            <td style="padding: 16px 12px; font-size: 13px; font-weight: 600; color: #111827; text-align: center;">${purchaseOrder.currency} ${parseFloat(item.total || item.amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
                           </tr>
                         `).join('') :
                         '<tr style="border-bottom: 1px solid #d1d5db;"><td colspan="5" style="padding: 32px 16px; text-align: center; font-size: 13px; color: #6b7280;">No items found for this purchase order</td></tr>'
@@ -781,7 +781,7 @@ const PurchaseOrderDetails = ({ poId, onBack }) => {
                           ${purchaseOrder.items ? purchaseOrder.items.reduce((sum, item) => sum + parseFloat(item.quantity || 0), 0).toLocaleString() : 0}
                         </td>
                         <td style="padding: 12px 12px; border-right: 1px solid #d1d5db;"></td>
-                        <td style="padding: 12px 12px; font-size: 13px; font-weight: bold; color: #111827; text-align: right;">${purchaseOrder.currency} ${parseFloat(purchaseOrder.totalAmount || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+                        <td style="padding: 12px 12px; font-size: 13px; font-weight: bold; color: #111827; text-align: center;">${purchaseOrder.currency} ${parseFloat(purchaseOrder.totalAmount || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
                       </tr>
                     </tbody>
                   </table>
@@ -1311,8 +1311,8 @@ const PurchaseOrderDetails = ({ poId, onBack }) => {
                     <tr className="bg-gray-200">
                       <th className="border border-gray-300 px-3 py-2 text-left text-sm font-medium">Description</th>
                       <th className="border border-gray-300 px-3 py-2 text-center text-sm font-medium">Quantity</th>
-                      <th className="border border-gray-300 px-3 py-2 text-right text-sm font-medium">Unit Price</th>
-                      <th className="border border-gray-300 px-3 py-2 text-right text-sm font-medium">Amount</th>
+                      <th className="border border-gray-300 px-3 py-2 text-center text-sm font-medium">Unit Price</th>
+                      <th className="border border-gray-300 px-3 py-2 text-center text-sm font-medium">Amount</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1328,19 +1328,21 @@ const PurchaseOrderDetails = ({ poId, onBack }) => {
                             {item.quantity}
                           </div>
                         </td>
-                        <td className="border border-gray-300 px-3 py-2 text-right">
-                          <div className="px-2 py-1 text-gray-700 bg-gray-100 rounded text-right">
+                        <td className="border border-gray-300 px-3 py-2 text-center print:text-center">
+                          <div className="px-2 py-1 text-gray-700 bg-gray-100 rounded text-center">
                             {(item.unitPrice || 0).toLocaleString('en-PK', {
                               minimumFractionDigits: 2,
                               maximumFractionDigits: 2
                             })}
                           </div>
                         </td>
-                        <td className="border border-gray-300 px-3 py-2 text-right font-medium">
-                          PKR {(item.amount || 0).toLocaleString('en-PK', {
-                            minimumFractionDigits: 2,
-                            maximumFractionDigits: 2
-                          })}
+                        <td className="border border-gray-300 px-3 py-2 text-center font-medium print:text-center">
+                          <div className="px-2 py-1 text-gray-700 bg-gray-100 rounded text-center font-medium">
+                            PKR {(item.amount || 0).toLocaleString('en-PK', {
+                              minimumFractionDigits: 2,
+                              maximumFractionDigits: 2
+                            })}
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -1624,8 +1626,8 @@ const PurchaseOrderDetails = ({ poId, onBack }) => {
                           <div className="font-medium">{item.description || 'N/A'}</div>
                         </td>
                         <td className="py-4 px-3 text-sm text-gray-800 text-center border-r border-gray-300">{parseFloat(item.quantity || 0).toLocaleString()}</td>
-                        <td className="py-4 px-3 text-sm text-gray-800 text-right border-r border-gray-300">{purchaseOrder.currency} {parseFloat(item.unitPrice || item.unit_price || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
-                        <td className="py-4 px-3 text-sm font-semibold text-gray-900 text-right">{purchaseOrder.currency} {parseFloat(item.total || item.amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+                        <td className="py-4 px-3 text-sm text-gray-800 text-center border-r border-gray-300">{purchaseOrder.currency} {parseFloat(item.unitPrice || item.unit_price || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+                        <td className="py-4 px-3 text-sm font-semibold text-gray-900 text-center">{purchaseOrder.currency} {parseFloat(item.total || item.amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
                       </tr>
                     ))
                   ) : (
@@ -1643,7 +1645,7 @@ const PurchaseOrderDetails = ({ poId, onBack }) => {
                       {purchaseOrder.items ? purchaseOrder.items.reduce((sum, item) => sum + parseFloat(item.quantity || 0), 0).toLocaleString() : 0}
                     </td>
                     <td className="py-3 px-3 border-r border-gray-300"></td>
-                    <td className="py-3 px-3 text-sm font-bold text-gray-900 text-right">{purchaseOrder.currency} {parseFloat(purchaseOrder.totalAmount || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+                    <td className="py-3 px-3 text-sm font-bold text-gray-900 text-center">{purchaseOrder.currency} {parseFloat(purchaseOrder.totalAmount || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
                   </tr>
                 </tbody>
               </table>
@@ -1781,7 +1783,7 @@ const PurchaseOrderDetails = ({ poId, onBack }) => {
                           </div>
                           <div>
                             <p className="font-medium">Supplier:</p>
-                            <p>{invoice.supplier_name || 'N/A'}</p>
+                            <p>{purchaseOrder.supplier.name || 'N/A'}</p>
                           </div>
                         </div>
                       </div>
@@ -1901,9 +1903,6 @@ const PurchaseOrderDetails = ({ poId, onBack }) => {
         <div className="relative z-10 bg-[#E8D5A8] text-center py-3 rounded-b-lg border-t-2 border-gray-400">
           <p className="text-xs text-gray-700 mt-1">
             Deals in all kind of Greige & Dyed Fabric
-          </p>
-          <p className="text-xs text-gray-700 mt-1">
-            STRN # 32-77-8761-279-54 | NTN # 7225539-1
           </p>
           <p className="text-xs text-gray-500 mt-2">
             Generated on {new Date().toLocaleDateString()} | Created by {purchaseOrder.createdBy}

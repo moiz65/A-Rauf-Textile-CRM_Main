@@ -161,9 +161,13 @@ const InvoiceForm = ({ initialData, onSubmit, onCancel }) => {
 
   // Handle input change for search
   const handleSearchChange = (e) => {
-    const value = e.target.value;
+    // Allow letters and spaces only for customer name search
+    let value = e.target.value || '';
+    value = value.toString().replace(/[^A-Za-z\s]/g, '');
+    // collapse multiple spaces to single space
+    value = value.replace(/\s+/g, ' ');
     setSearchTerm(value);
-    
+
     // Clear customer data if search term is cleared
     if (value === '') {
       setFormData((prev) => ({
@@ -255,6 +259,13 @@ const InvoiceForm = ({ initialData, onSubmit, onCancel }) => {
 
     if (!formData.customerName || !formData.customerEmail) {
       alert("Please fill in required customer information (Name and Email are required).");
+      return;
+    }
+
+    // Validate customer name contains only letters and spaces
+    const nameVal = (formData.customerName || '').toString().trim();
+    if (!/^[A-Za-z]+(?:\s[A-Za-z]+)*$/.test(nameVal)) {
+      alert('Customer name can contain letters and spaces only');
       return;
     }
 
@@ -428,7 +439,7 @@ const InvoiceForm = ({ initialData, onSubmit, onCancel }) => {
           <div className="grid sm:grid-cols-1 gap-6">
             <div className="relative">
               <label className="block text-sm font-semibold text-gray-700 mb-2">
-                Customer Name *
+                Customer Name
                 <span className="text-red-500 ml-1">*</span>
               </label>
               <input
