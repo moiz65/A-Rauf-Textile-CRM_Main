@@ -1156,8 +1156,8 @@ const InvoiceManagement = () => {
   const [invoicesData, setInvoicesData] = useState([]);
   const [selectedRows, setSelectedRows] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
-  // Default items per page aligned with other tables so 6 items show a second page
-  const [itemsPerPage, setItemsPerPage] = useState(5);
+  // Default items per page - set to 10 so page 2 is shown after 11 items
+  const [itemsPerPage, setItemsPerPage] = useState(10);
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState('All');
   const [filters, setFilters] = useState({
@@ -1462,8 +1462,19 @@ const InvoiceManagement = () => {
   const startIndex = (currentPage - 1) * itemsPerPage;
   const visibleInvoices = filteredInvoices().slice(startIndex, startIndex + itemsPerPage);
 
-  // Compute pages to display in pagination (max 5 visible pages, with ellipses)
-  const maxVisiblePages = 5;
+  // Ensure currentPage is within bounds when filtered data or itemsPerPage changes
+  useEffect(() => {
+    if (totalPages === 0) {
+      setCurrentPage(1);
+      return;
+    }
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [totalPages, currentPage]);
+
+  // Compute pages to display in pagination (max 10 visible pages, with ellipses)
+  const maxVisiblePages = 10;
   const pages = [];
   if (totalPages <= maxVisiblePages) {
     for (let i = 1; i <= totalPages; i++) pages.push(i);

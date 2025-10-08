@@ -299,26 +299,32 @@ const InvoiceDetailsLayoutImproved = () => {
               </thead>
               <tbody>
                 ${invoice.items && invoice.items.length > 0 ? 
-                  invoice.items.map((item, index) => `
+                  invoice.items.map((item, index) => {
+                    const valueIncTax = parseFloat(item.amount || 0);
+                    const taxRate = parseFloat(invoice.tax_rate || 0);
+                    const taxAmount = valueIncTax * (taxRate / 100);
+                    const valueExTax = valueIncTax - taxAmount;
+                    return `
                     <tr>
                       <td class="text-center"><strong>${index + 1}</strong></td>
                       <td class="text-left">${item.description || 'N/A'}${item.specifications ? '<br><small>' + item.specifications + '</small>' : ''}</td>
                       <td class="text-center">${parseFloat(item.quantity || 0).toLocaleString()}</td>
                       <td class="text-right">${parseFloat(item.rate || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
-                      <td class="text-right">${parseFloat(item.amount / (1 + (invoice.tax_rate || 0) / 100) || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
-                      <td class="text-center">${invoice.tax_rate || 0}%</td>
-                      <td class="text-right">${parseFloat((item.amount * (invoice.tax_rate || 0) / 100) / (1 + (invoice.tax_rate || 0) / 100) || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
-                      <td class="text-right"><strong>${parseFloat(item.amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</strong></td>
+                      <td class="text-right">${valueExTax.toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+                      <td class="text-center">${taxRate.toFixed(2)}%</td>
+                      <td class="text-right">${taxAmount.toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+                      <td class="text-right"><strong>${valueIncTax.toLocaleString('en-US', { minimumFractionDigits: 2 })}</strong></td>
                     </tr>
-                  `).join('') : `
+                  `;
+                  }).join('') : `
                     <tr>
                       <td class="text-center"><strong>1</strong></td>
                       <td class="text-left">${invoice.item_name || 'N/A'}</td>
                       <td class="text-center">${parseFloat(invoice.quantity || 0).toLocaleString()}</td>
                       <td class="text-right">${parseFloat(invoice.rate || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
-                      <td class="text-right">${parseFloat(invoice.subtotal || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
-                      <td class="text-center">${invoice.tax_rate || 0}%</td>
-                      <td class="text-right">${parseFloat(invoice.salesTax || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+                      <td class="text-right">${(parseFloat(invoice.total_amount || 0) - (parseFloat(invoice.total_amount || 0) * ((invoice.tax_rate || 0) / 100))).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+                      <td class="text-center">${(invoice.tax_rate || 0).toFixed(2)}%</td>
+                      <td class="text-right">${(parseFloat(invoice.total_amount || 0) * ((invoice.tax_rate || 0) / 100)).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
                       <td class="text-right"><strong>${parseFloat(invoice.total_amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</strong></td>
                     </tr>
                   `
@@ -328,10 +334,30 @@ const InvoiceDetailsLayoutImproved = () => {
                   <td class="text-left">NET AMOUNT RECEIVABLE</td>
                   <td class="text-center">${invoice.items ? invoice.items.reduce((sum, item) => sum + parseFloat(item.quantity || 0), 0).toLocaleString() : parseFloat(invoice.quantity || 0).toLocaleString()}</td>
                   <td></td>
-                  <td class="text-right"><strong>${parseFloat(invoice.subtotal || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</strong></td>
+                  <td class="text-right"><strong>${(() => {
+                    const totalValueIncTax = invoice.items && invoice.items.length > 0 
+                      ? invoice.items.reduce((sum, item) => sum + parseFloat(item.amount || 0), 0) 
+                      : parseFloat(invoice.total_amount || 0);
+                    const taxRate = parseFloat(invoice.tax_rate || 0);
+                    const totalTaxAmount = totalValueIncTax * (taxRate / 100);
+                    const totalValueExTax = totalValueIncTax - totalTaxAmount;
+                    return totalValueExTax.toLocaleString('en-US', { minimumFractionDigits: 2 });
+                  })()}</strong></td>
                   <td></td>
-                  <td class="text-right"><strong>${parseFloat(invoice.salesTax || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</strong></td>
-                  <td class="text-right"><strong>${parseFloat(invoice.total_amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</strong></td>
+                  <td class="text-right"><strong>${(() => {
+                    const totalValueIncTax = invoice.items && invoice.items.length > 0 
+                      ? invoice.items.reduce((sum, item) => sum + parseFloat(item.amount || 0), 0) 
+                      : parseFloat(invoice.total_amount || 0);
+                    const taxRate = parseFloat(invoice.tax_rate || 0);
+                    const totalTaxAmount = totalValueIncTax * (taxRate / 100);
+                    return totalTaxAmount.toLocaleString('en-US', { minimumFractionDigits: 2 });
+                  })()}</strong></td>
+                  <td class="text-right"><strong>${(() => {
+                    const totalValueIncTax = invoice.items && invoice.items.length > 0 
+                      ? invoice.items.reduce((sum, item) => sum + parseFloat(item.amount || 0), 0) 
+                      : parseFloat(invoice.total_amount || 0);
+                    return totalValueIncTax.toLocaleString('en-US', { minimumFractionDigits: 2 });
+                  })()}</strong></td>
                 </tr>
               </tbody>
             </table>
@@ -348,12 +374,8 @@ const InvoiceDetailsLayoutImproved = () => {
                 <div class="signature-line">Authorized By</div>
               </div>
             </div>
+
             
-              <div class="footer">
-                
-                <div style="margin-top: 4px; font-size: 10px;">Deals in all kind of Greige & Dyed Fabric</div>
-                <div style="font-size: 10px;">STRN # 32-77-8761-279-54 | NTN # 7225539-1</div>
-              </div>
             </div>
           </div>
         </body>
@@ -716,7 +738,12 @@ This action cannot be undone.`;
                         </thead>
                         <tbody>
                           {invoice.items && invoice.items.length > 0 ? (
-                            invoice.items.map((item, index) => (
+                            invoice.items.map((item, index) => {
+                              const valueIncTax = parseFloat(item.amount || 0);
+                              const taxRate = parseFloat(invoice.tax_rate || 0);
+                              const taxAmount = valueIncTax * (taxRate / 100);
+                              const valueExTax = valueIncTax - taxAmount;
+                              return (
                               <tr key={item.id || index} className="border-b border-gray-300">
                                 <td className="py-4 px-2 text-sm text-gray-800 text-center border-r border-gray-300 font-semibold">{index + 1}</td>
                                 <td className="py-4 px-3 text-sm text-gray-800 border-r border-gray-300">
@@ -725,13 +752,19 @@ This action cannot be undone.`;
                                 </td>
                                 <td className="py-4 px-3 text-sm text-gray-800 text-center border-r border-gray-300">{parseFloat(item.quantity || 0).toLocaleString()}</td>
                                 <td className="py-4 px-3 text-sm text-gray-800 text-right border-r border-gray-300">{parseFloat(item.rate || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
-                                <td className="py-4 px-3 text-sm text-gray-800 text-right border-r border-gray-300">{parseFloat(item.amount / (1 + (invoice.tax_rate || 0) / 100) || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
-                                <td className="py-4 px-3 text-sm text-gray-800 text-center border-r border-gray-300">{invoice.tax_rate || 0}%</td>
-                                <td className="py-4 px-3 text-sm text-gray-800 text-right border-r border-gray-300">{parseFloat((item.amount * (invoice.tax_rate || 0) / 100) / (1 + (invoice.tax_rate || 0) / 100) || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
-                                <td className="py-4 px-3 text-sm font-semibold text-gray-900 text-right">{parseFloat(item.amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+                                <td className="py-4 px-3 text-sm text-gray-800 text-right border-r border-gray-300">{valueExTax.toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+                                <td className="py-4 px-3 text-sm text-gray-800 text-center border-r border-gray-300">{taxRate.toFixed(2)}%</td>
+                                <td className="py-4 px-3 text-sm text-gray-800 text-right border-r border-gray-300">{taxAmount.toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+                                <td className="py-4 px-3 text-sm font-semibold text-gray-900 text-right">{valueIncTax.toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
                               </tr>
-                            ))
-                          ) : (
+                              );
+                            })
+                          ) : (() => {
+                            const valueIncTax = parseFloat(invoice.total_amount || 0);
+                            const taxRate = parseFloat(invoice.tax_rate || 0);
+                            const taxAmount = valueIncTax * (taxRate / 100);
+                            const valueExTax = valueIncTax - taxAmount;
+                            return (
                             <tr className="border-b border-gray-300">
                               <td className="py-4 px-2 text-sm text-gray-800 text-center border-r border-gray-300 font-semibold">1</td>
                               <td className="py-4 px-3 text-sm text-gray-800 border-r border-gray-300">
@@ -739,23 +772,35 @@ This action cannot be undone.`;
                               </td>
                               <td className="py-4 px-3 text-sm text-gray-800 text-center border-r border-gray-300">{parseFloat(invoice.quantity || 0).toLocaleString()}</td>
                               <td className="py-4 px-3 text-sm text-gray-800 text-right border-r border-gray-300">{parseFloat(invoice.rate || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
-                              <td className="py-4 px-3 text-sm text-gray-800 text-right border-r border-gray-300">{parseFloat(invoice.subtotal || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
-                              <td className="py-4 px-3 text-sm text-gray-800 text-center border-r border-gray-300">{invoice.tax_rate || 0}%</td>
-                              <td className="py-4 px-3 text-sm text-gray-800 text-right border-r border-gray-300">{parseFloat(invoice.salesTax || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
-                              <td className="py-4 px-3 text-sm font-semibold text-gray-900 text-right">{parseFloat(invoice.total_amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+                              <td className="py-4 px-3 text-sm text-gray-800 text-right border-r border-gray-300">{valueExTax.toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+                              <td className="py-4 px-3 text-sm text-gray-800 text-center border-r border-gray-300">{taxRate.toFixed(2)}%</td>
+                              <td className="py-4 px-3 text-sm text-gray-800 text-right border-r border-gray-300">{taxAmount.toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+                              <td className="py-4 px-3 text-sm font-semibold text-gray-900 text-right">{valueIncTax.toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
                             </tr>
-                          )}
+                            );
+                          })()}
                           {/* Net Amount Row */}
+                          {(() => {
+                            // Calculate totals by summing all items
+                            const totalValueIncTax = invoice.items && invoice.items.length > 0
+                              ? invoice.items.reduce((sum, item) => sum + parseFloat(item.amount || 0), 0)
+                              : parseFloat(invoice.total_amount || 0);
+                            const taxRate = parseFloat(invoice.tax_rate || 0);
+                            const totalTaxAmount = totalValueIncTax * (taxRate / 100);
+                            const totalValueExTax = totalValueIncTax - totalTaxAmount;
+                            return (
                           <tr className="bg-gray-100 border-t-2 border-gray-400">
                             <td className="py-3 px-2 border-r border-gray-300"></td>
                             <td className="py-3 px-3 text-sm font-bold text-gray-800 border-r border-gray-300">NET AMOUNT RECEIVABLE</td>
                             <td className="py-3 px-3 text-sm text-gray-800 text-center border-r border-gray-300">{invoice.items ? invoice.items.reduce((sum, item) => sum + parseFloat(item.quantity || 0), 0).toLocaleString() : parseFloat(invoice.quantity || 0).toLocaleString()}</td>
                             <td className="py-3 px-3 border-r border-gray-300"></td>
-                            <td className="py-3 px-3 text-sm font-bold text-gray-900 text-right border-r border-gray-300">{parseFloat(invoice.subtotal || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+                            <td className="py-3 px-3 text-sm font-bold text-gray-900 text-right border-r border-gray-300">{totalValueExTax.toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
                             <td className="py-3 px-3 border-r border-gray-300"></td>
-                            <td className="py-3 px-3 text-sm font-bold text-gray-900 text-right border-r border-gray-300">{parseFloat(invoice.salesTax || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
-                            <td className="py-3 px-3 text-sm font-bold text-gray-900 text-right">{parseFloat(invoice.total_amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+                            <td className="py-3 px-3 text-sm font-bold text-gray-900 text-right border-r border-gray-300">{totalTaxAmount.toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+                            <td className="py-3 px-3 text-sm font-bold text-gray-900 text-right">{totalValueIncTax.toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
                           </tr>
+                            );
+                          })()}
                         </tbody>
                       </table>
                     </div>
@@ -794,9 +839,7 @@ This action cannot be undone.`;
                   <p className="text-xs text-gray-700 mt-1">
                     Deals in all kind of Greige & Dyed Fabric
                   </p>
-                  <p className="text-xs text-gray-700 mt-1">
-                    STRN # 32-77-8761-279-54 | NTN # 7225539-1
-                  </p>
+
                 </div>
               </div>
             </div>

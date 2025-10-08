@@ -22,7 +22,7 @@ import {
 import { useClickOutside } from '../hooks/useClickOutside';
 import { generatePOId } from '../utils/idGenerator';
 
-const ITEMS_PER_PAGE = 5;
+const ITEMS_PER_PAGE = 10;
 
 const PurchaseOrderTable = ({ onViewDetails, openEditPOId = null }) => {
   const [purchaseOrders, setPurchaseOrders] = useState([]);
@@ -347,8 +347,19 @@ const PurchaseOrderTable = ({ onViewDetails, openEditPOId = null }) => {
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
   const visiblePOs = sortedFilteredPOs.slice(startIndex, startIndex + ITEMS_PER_PAGE);
 
+  // If filtering or data changes reduce the total pages, ensure currentPage is within range
+  useEffect(() => {
+    if (totalPages === 0) {
+      if (currentPage !== 1) setCurrentPage(1);
+      return;
+    }
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [totalPages]);
+
   // Compute pages to display in pagination (max 5 visible pages, with ellipses)
-  const maxVisiblePages = 5;
+  const maxVisiblePages = 10;
   const pages = [];
   if (totalPages <= maxVisiblePages) {
     for (let i = 1; i <= totalPages; i++) pages.push(i);
@@ -943,9 +954,37 @@ const PurchaseOrderTable = ({ onViewDetails, openEditPOId = null }) => {
       (async () => {
         if (editingPO) {
           console.debug('EditPOModal: Setting up for editing PO:', editingPO);
+          
+          // Helper function to format date correctly (prevents timezone offset issues)
+          const formatDateForInput = (dateValue) => {
+            if (!dateValue) return '';
+            // If it's already in YYYY-MM-DD format, return as-is
+            if (typeof dateValue === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateValue)) {
+              return dateValue;
+            }
+            // Parse the date and format it without timezone conversion
+            try {
+              const date = new Date(dateValue);
+              // Get local date components to avoid timezone shift
+              const year = date.getFullYear();
+              const month = String(date.getMonth() + 1).padStart(2, '0');
+              const day = String(date.getDate()).padStart(2, '0');
+              return `${year}-${month}-${day}`;
+            } catch (e) {
+              return '';
+            }
+          };
+          
           // Ensure all numeric fields are parsed as numbers to prevent string concatenation
           const normalizedFormData = {
             ...editingPO,
+            // Format the date properly to prevent timezone offset issues
+            po_date: formatDateForInput(editingPO.po_date || editingPO.date),
+            // Initialize supplier_name to prevent uncontrolled to controlled warning
+            supplier_name: editingPO.supplier_name || editingPO.supplier || '',
+            supplier_email: editingPO.supplier_email || '',
+            supplier_phone: editingPO.supplier_phone || '',
+            supplier_address: editingPO.supplier_address || '',
             subtotal: parseFloat(editingPO.subtotal) || 0,
             tax_rate: parseFloat(editingPO.tax_rate) || 0,
             tax_amount: parseFloat(editingPO.tax_amount) || 0,
@@ -994,7 +1033,7 @@ const PurchaseOrderTable = ({ onViewDetails, openEditPOId = null }) => {
             id: newPOId,
             po_number: newPOId,
             po_date: today,
-            supplier_name: '',
+            supplier_name: '', // Initialize to prevent uncontrolled to controlled warning
             supplier_email: '',
             supplier_phone: '',
             supplier_address: '',
@@ -1112,9 +1151,10 @@ const PurchaseOrderTable = ({ onViewDetails, openEditPOId = null }) => {
     const handleSubmit = (e) => {
       e.preventDefault();
       
-      // Validate required fields
-      if (!formData.po_number || !formData.po_date || !formData.supplier_name) {
-        alert('Please fill in all required fields: PO Number, Date, and Supplier Name');
+      // Validate required fields - only PO Number and Supplier Name are mandatory
+      // Date can be empty or unchanged when editing
+      if (!formData.po_number || !formData.supplier_name) {
+        alert('Please fill in all required fields: PO Number and Supplier Name');
         return;
       }
 
@@ -1166,17 +1206,17 @@ const PurchaseOrderTable = ({ onViewDetails, openEditPOId = null }) => {
                   required
                 />
               </div>
-              <div>
-                <label className="block text-gray-700 font-medium mb-2">PO Date *</label>
-                <input
-                  type="date"
-                  name="po_date"
-                  value={formData.po_date || formData.date || ''}
-                  onChange={handleChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  required
-                />
-              </div>
+                <div>
+                  <label className="block text-gray-700 font-medium mb-2">PO Date</label>
+                  <input
+                    type="date"
+                    name="po_date"
+                    value={formData.po_date || ''}
+                    onChange={handleChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
             </div>
 
             {/* Supplier Information */}
@@ -1188,12 +1228,22 @@ const PurchaseOrderTable = ({ onViewDetails, openEditPOId = null }) => {
                   <input
                     type="text"
                     name="supplier_name"
-                    value={formData.supplier_name || formData.supplier || ''}
+                    value={formData.supplier_name || ''}
                     onChange={handleChange}
+                    onKeyPress={(e) => {
+                      // Allow only alphabetic characters and spaces
+                      if (!/^[A-Za-z\s]$/.test(e.key)) {
+                        e.preventDefault();
+                      }
+                    }}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     required
+                    pattern="[A-Za-z\s]+"
+                    title="Only alphabetic characters and spaces are allowed"
+                    placeholder="Enter supplier name"
                   />
                 </div>
+
                 <div>
                   <label className="block text-gray-700 font-medium mb-2">Supplier Email</label>
                   <input
