@@ -337,7 +337,16 @@ const CustomersTable = () => {
     }, [editingCustomer]);
 
     const handleChange = (e) => {
-      const { name, value } = e.target;
+      const { name, value: rawValue } = e.target;
+      let value = rawValue;
+
+      // If editing customer name, allow letters and spaces only
+      if (name === 'customer') {
+        value = (value || '').toString().replace(/[^A-Za-z\s]/g, '');
+        // collapse multiple spaces to a single space and preserve typing
+        value = value.replace(/\s+/g, ' ');
+      }
+
       setFormData(prev => ({
         ...prev,
         [name]: value
@@ -350,6 +359,13 @@ const CustomersTable = () => {
       // Basic validation: ensure required fields exist
       if (!formData.customer || !formData.email || !formData.phone || !formData.address || !formData.date || !formData.stn || !formData.ntn) {
         showNotification('Validation', 'Please fill all required fields including STN and NTN.');
+        return;
+      }
+
+      // Validate customer name contains only letters and spaces
+      const nameVal = (formData.customer || '').toString().trim();
+      if (!/^[A-Za-z]+(?:\s[A-Za-z]+)*$/.test(nameVal)) {
+        showNotification('Validation', 'Customer name can contain letters and spaces only');
         return;
       }
 

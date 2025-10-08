@@ -155,6 +155,15 @@ const SettingsPage = () => {
       if (value.length > 15) value = value.slice(0, 15);
     }
 
+    // For name field, allow letters and spaces only (strip other characters)
+    if (name === 'name') {
+      // Replace anything that's not A-Z or a space
+      value = (value || '').toString().replace(/[^A-Za-z\s]/g, '');
+      // Collapse multiple spaces to a single space and trim ends
+      value = value.replace(/\s+/g, ' ').trimStart();
+      // Note: keep trailing space while typing is acceptable, but validation will trim on submit
+    }
+
     // Update the localInputs while editing so the component doesn't get
     // overwritten by async updates and to avoid mid-keystroke value swaps.
     setLocalInputs(prev => ({ ...prev, [name]: value }));
@@ -266,6 +275,18 @@ const SettingsPage = () => {
     const newErrors = { ...errors };
     
     switch (name) {
+      case 'name':
+        {
+          const val = (value || '').toString().trim();
+          if (!val) {
+            newErrors.name = 'Full name is required';
+          } else if (!/^[A-Za-z]+(?:\s[A-Za-z]+)*$/.test(val)) {
+            newErrors.name = 'Full name can contain letters and spaces only';
+          } else {
+            delete newErrors.name;
+          }
+        }
+        break;
       case 'email':
         if (!value.trim()) newErrors.email = 'Email is required';
         else if (!/^\S+@\S+\.\S+$/.test(value)) newErrors.email = 'Invalid email format';
