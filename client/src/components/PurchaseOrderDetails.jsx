@@ -49,6 +49,7 @@ const PurchaseOrderDetails = ({ poId, onBack }) => {
             description: item.description || 'N/A',
             quantity: item.quantity || 0,
             unit: item.unit || 'pcs',
+            netWeight: item.net_weight || 0,
             unitPrice: item.unit_price || item.unitPrice || 0,
             total: item.amount || item.total || 0
           })),
@@ -58,7 +59,8 @@ const PurchaseOrderDetails = ({ poId, onBack }) => {
           totalAmount: data.total_amount || 0,
           currency: data.currency || 'PKR',
           status: data.status || 'Pending',
-          termsAndConditions: data.terms_conditions || 'Payment within 30 days of delivery. Quality as per approved sample. Delivery at buyer\'s warehouse.',
+          paymentDays: data.payment_days || 30,
+          termsAndConditions: data.terms_conditions || `Payment within ${data.payment_days || 30} days of delivery. Quality as per approved sample. Delivery at buyer's warehouse.`,
           notes: data.notes || '',
           createdBy: 'System User', // Static for now
           approvedBy: data.status === 'Approved' ? 'Manager' : null,
@@ -94,7 +96,8 @@ const PurchaseOrderDetails = ({ poId, onBack }) => {
           totalAmount: 0,
           currency: 'PKR',
           status: 'Pending',
-          termsAndConditions: 'No terms available',
+          paymentDays: 30,
+          termsAndConditions: 'Payment within 30 days of delivery. Quality as per approved sample. Delivery at buyer\'s warehouse.',
           notes: 'Error loading purchase order details',
           createdBy: 'System',
           approvedBy: null,
@@ -754,7 +757,8 @@ const PurchaseOrderDetails = ({ poId, onBack }) => {
                         <th style="padding: 12px 8px; text-align: center; font-size: 11px; font-weight: bold; color: #1f2937; border-right: 1px solid #9ca3af;">S.No</th>
                         <th style="padding: 12px 12px; text-align: center; font-size: 11px; font-weight: bold; color: #1f2937; border-right: 1px solid #9ca3af;">Description</th>
                         <th style="padding: 12px 12px; text-align: center; font-size: 11px; font-weight: bold; color: #1f2937; border-right: 1px solid #9ca3af;">Quantity</th>
-                        <th style="padding: 12px 12px; text-align: center; font-size: 11px; font-weight: bold; color: #1f2937; border-right: 1px solid #9ca3af;">Unit Price</th>
+                        <th style="padding: 12px 12px; text-align: center; font-size: 11px; font-weight: bold; color: #1f2937; border-right: 1px solid #9ca3af;">Net Weight (KG)</th>
+                        <th style="padding: 12px 12px; text-align: center; font-size: 11px; font-weight: bold; color: #1f2937; border-right: 1px solid #9ca3af;">Rate</th>
                         <th style="padding: 12px 12px; text-align: center; font-size: 11px; font-weight: bold; color: #1f2937;">Total Amount</th>
                       </tr>
                     </thead>
@@ -767,11 +771,12 @@ const PurchaseOrderDetails = ({ poId, onBack }) => {
                               <div style="font-weight: 500;">${item.description || 'N/A'}</div>
                             </td>
                             <td style="padding: 16px 12px; font-size: 13px; color: #1f2937; text-align: center; border-right: 1px solid #d1d5db;">${parseFloat(item.quantity || 0).toLocaleString()}</td>
+                            <td style="padding: 16px 12px; font-size: 13px; color: #1f2937; text-align: center; border-right: 1px solid #d1d5db;">${parseFloat(item.netWeight || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })} KG</td>
                             <td style="padding: 16px 12px; font-size: 13px; color: #1f2937; text-align: center; border-right: 1px solid #d1d5db;">${purchaseOrder.currency} ${parseFloat(item.unitPrice || item.unit_price || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
                             <td style="padding: 16px 12px; font-size: 13px; font-weight: 600; color: #111827; text-align: center;">${purchaseOrder.currency} ${parseFloat(item.total || item.amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
                           </tr>
                         `).join('') :
-                        '<tr style="border-bottom: 1px solid #d1d5db;"><td colspan="5" style="padding: 32px 16px; text-align: center; font-size: 13px; color: #6b7280;">No items found for this purchase order</td></tr>'
+                        '<tr style="border-bottom: 1px solid #d1d5db;"><td colspan="6" style="padding: 32px 16px; text-align: center; font-size: 13px; color: #6b7280;">No items found for this purchase order</td></tr>'
                       }
                       <!-- Total Row -->
                       <tr style="background: #f3f4f6; border-top: 2px solid #9ca3af;">
@@ -779,6 +784,9 @@ const PurchaseOrderDetails = ({ poId, onBack }) => {
                         <td style="padding: 12px 12px; font-size: 13px; font-weight: bold; color: #1f2937; border-right: 1px solid #d1d5db;">TOTAL</td>
                         <td style="padding: 12px 12px; font-size: 13px; color: #1f2937; text-align: center; border-right: 1px solid #d1d5db;">
                           ${purchaseOrder.items ? purchaseOrder.items.reduce((sum, item) => sum + parseFloat(item.quantity || 0), 0).toLocaleString() : 0}
+                        </td>
+                        <td style="padding: 12px 12px; font-size: 13px; color: #1f2937; text-align: center; border-right: 1px solid #d1d5db;">
+                          ${purchaseOrder.items ? purchaseOrder.items.reduce((sum, item) => sum + parseFloat(item.netWeight || 0), 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) : 0} KG
                         </td>
                         <td style="padding: 12px 12px; border-right: 1px solid #d1d5db;"></td>
                         <td style="padding: 12px 12px; font-size: 13px; font-weight: bold; color: #111827; text-align: center;">${purchaseOrder.currency} ${parseFloat(purchaseOrder.totalAmount || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
@@ -914,10 +922,31 @@ const PurchaseOrderDetails = ({ poId, onBack }) => {
 
   // Invoice Modal Component
   const InvoiceModal = () => {
+    const [invoicingMode, setInvoicingMode] = useState('amount'); // 'amount' or 'quantity'
+    const [poItemsWithTracking, setPOItemsWithTracking] = useState([]);
+    const [loadingItems, setLoadingItems] = useState(false);
+
+    // Helper function to safely calculate totals
+    const safeParseFloat = (value) => {
+      const parsed = parseFloat(value);
+      return isNaN(parsed) ? 0 : parsed;
+    };
+
+    // Helper function to calculate total quantities
+    const calculateTotalQuantity = (items) => {
+      return items.reduce((sum, item) => sum + safeParseFloat(item.po_quantity), 0);
+    };
+
+    // Helper function to calculate remaining quantities
+    const calculateRemainingQuantity = (items) => {
+      return items.reduce((sum, item) => sum + safeParseFloat(item.remaining_quantity), 0);
+    };
+    
     const [invoiceData, setInvoiceData] = useState({
       invoiceNumber: '', // Will be generated after fetching existing invoices
       invoiceDate: new Date().toISOString().split('T')[0],
       dueDate: new Date(Date.now() + 30*24*60*60*1000).toISOString().split('T')[0], // 30 days from now
+      paymentDays: purchaseOrder?.paymentDays || 30, // Default from PO, user can override
       supplier: {
         name: purchaseOrder?.supplier?.name || '',
         email: purchaseOrder?.supplier?.email || '',
@@ -927,6 +956,7 @@ const PurchaseOrderDetails = ({ poId, onBack }) => {
       items: purchaseOrder?.items?.map(item => ({
         description: item.description || 'N/A',
         quantity: item.quantity || 0,
+        netWeight: item.netWeight || 0,
         unitPrice: item.unitPrice || item.unit_price || 0,
         amount: item.total || item.amount || 0
       })) || [],
@@ -937,12 +967,74 @@ const PurchaseOrderDetails = ({ poId, onBack }) => {
       invoiceAmount: 0, // Will be set to remaining amount
       remainingAmount: 0, // Will be calculated
       notes: `Generated from Purchase Order: ${purchaseOrder?.number || ''}`,
-      po_id: purchaseOrder?.databaseId || purchaseOrder?.id || poId // Link to PO with database ID
+      po_id: purchaseOrder?.databaseId || purchaseOrder?.id || poId, // Link to PO with database ID
+      quantityItems: [] // For quantity-based invoicing
     });
 
-    // Initialize invoice amount with remaining amount when PO summary is loaded
+    // Fetch PO items with quantity tracking when switching to quantity mode
+    const fetchPOItemsWithTracking = async () => {
+      if (!poId) return;
+      
+      try {
+        setLoadingItems(true);
+        const response = await fetch(`http://localhost:5000/api/purchase-orders/${poId}/items/quantity-tracking`);
+        if (response.ok) {
+          const items = await response.json();
+          console.debug('PO Items loaded for quantity tracking:', items.length, 'items');
+          console.debug('Raw items from API:', items);
+          
+          // Ensure all numeric fields are properly converted
+          const numericItems = items.map(item => ({
+            ...item,
+            po_quantity: safeParseFloat(item.po_quantity),
+            remaining_quantity: safeParseFloat(item.remaining_quantity),
+            unit_price: safeParseFloat(item.unit_price)
+          }));
+          
+          console.debug('Items after numeric conversion:', numericItems);
+          
+          setPOItemsWithTracking(numericItems);
+          
+          if (items.length === 0) {
+            alert('This Purchase Order has no items available for quantity-based invoicing.\n\nPlease use Amount-Based invoicing instead or check if all items have been fully invoiced.');
+            setInvoicingMode('amount');
+            return;
+          }
+          
+          // Initialize quantity items with available quantities (ensure numeric conversion)
+          const quantityItems = numericItems.map(item => ({
+            po_item_id: item.po_item_id,
+            description: item.description,
+            po_quantity: safeParseFloat(item.po_quantity),
+            remaining_quantity: safeParseFloat(item.remaining_quantity),
+            unit: item.unit,
+            net_weight: safeParseFloat(item.net_weight || 0),
+            unit_price: safeParseFloat(item.unit_price),
+            invoiced_quantity: 0, // User will set this
+            amount: 0,
+            item_status: item.item_status
+          }));
+          
+          console.debug('Initialized quantity items:', quantityItems.length, 'items ready for invoicing');
+          
+          setInvoiceData(prev => ({
+            ...prev,
+            quantityItems
+          }));
+        } else {
+          console.error('Failed to fetch PO items with tracking');
+          alert('Error loading PO items for quantity-based invoicing. Please try again or use Amount-Based invoicing.');
+          setInvoicingMode('amount');
+        }
+      } catch (error) {
+        console.error('Error fetching PO items:', error);
+      }
+      setLoadingItems(false);
+    };
+
+    // Initialize invoice amount with remaining amount when PO summary is loaded (for amount mode)
     useEffect(() => {
-      if (poSummary.remainingAmount > 0) {
+      if (invoicingMode === 'amount' && poSummary.remainingAmount > 0) {
         setInvoiceData(prev => ({
           ...prev,
           invoiceAmount: poSummary.remainingAmount,
@@ -951,7 +1043,14 @@ const PurchaseOrderDetails = ({ poId, onBack }) => {
           remainingAmount: 0 // Will be 0 after this invoice
         }));
       }
-    }, [poSummary.remainingAmount]);
+    }, [poSummary.remainingAmount, invoicingMode]);
+    
+    // Load PO items when switching to quantity mode
+    useEffect(() => {
+      if (invoicingMode === 'quantity') {
+        fetchPOItemsWithTracking();
+      }
+    }, [invoicingMode]);
 
     // Generate unique incremental PO invoice number on component mount
     useEffect(() => {
@@ -1007,10 +1106,69 @@ const PurchaseOrderDetails = ({ poId, onBack }) => {
       }));
     };
 
-    // Items are now read-only since they come from PO
+    // Handle quantity changes for quantity-based invoicing
+    const handleQuantityChange = (itemIndex, newQuantity) => {
+      const quantity = parseFloat(newQuantity) || 0;
+      
+      setInvoiceData(prev => {
+        const updatedItems = [...prev.quantityItems];
+        const item = updatedItems[itemIndex];
+        
+        if (item) {
+          // Ensure quantity doesn't exceed remaining quantity and is not negative
+          const maxQuantity = Math.max(0, safeParseFloat(item.remaining_quantity));
+          const validQuantity = Math.min(Math.max(0, quantity), maxQuantity);
+          
+          // Update item quantities and amount
+          item.invoiced_quantity = validQuantity;
+          item.amount = validQuantity * safeParseFloat(item.unit_price);
+          
+          // Update remaining quantity for this item
+          item.current_remaining = item.remaining_quantity - validQuantity;
+          
+          console.debug(`Quantity change for item ${itemIndex}:`, {
+            description: item.description,
+            requested: quantity,
+            valid: validQuantity,
+            remaining: item.remaining_quantity,
+            amount: item.amount
+          });
+        }
+        
+        // Calculate totals for quantity-based invoice with proper numeric conversion
+        const totalQuantity = updatedItems.reduce((sum, item) => {
+          const qty = parseFloat(item.invoiced_quantity) || 0;
+          return sum + qty;
+        }, 0);
+        
+        const totalAmount = updatedItems.reduce((sum, item) => {
+          const amount = parseFloat(item.amount) || 0;
+          return sum + amount;
+        }, 0);
+        
+        const totalItems = updatedItems.filter(item => parseFloat(item.invoiced_quantity) > 0).length;
+        
+        console.debug('Quantity-based invoice totals:', {
+          totalItems,
+          totalQuantity,
+          totalAmount,
+          itemsWithQuantity: updatedItems.filter(item => item.invoiced_quantity > 0).length
+        });
+        
+        return {
+          ...prev,
+          quantityItems: updatedItems,
+          invoiceAmount: totalAmount,
+          subtotal: totalAmount,
+          total: totalAmount,
+          totalQuantity,
+          selectedItemsCount: totalItems
+        };
+      });
+    };
+
+    // Items are now read-only since they come from PO (for amount-based invoicing)
     // Only the invoice amount can be changed to control partial invoicing
-
-
 
     const handleInvoiceAmountChange = (e) => {
       const invoiceAmount = parseFloat(e.target.value) || 0;
@@ -1037,31 +1195,92 @@ const PurchaseOrderDetails = ({ poId, onBack }) => {
 
     const handleCreateInvoice = async () => {
       try {
-        // Prepare invoice data for backend
-        const invoicePayload = {
-          invoice_number: invoiceData.invoiceNumber,
-          invoice_date: invoiceData.invoiceDate,
-          due_date: invoiceData.dueDate,
-          po_id: purchaseOrder?.databaseId || purchaseOrder?.id, // Use database ID
-          po_number: purchaseOrder?.number,
-          customer_name: invoiceData.supplier.name, // Use customer_name to match DB field
-          customer_email: invoiceData.supplier.email,
-          customer_phone: invoiceData.supplier.phone,
-          customer_address: invoiceData.supplier.address,
-          subtotal: invoiceData.subtotal,
-          tax_rate: invoiceData.taxRate,
-          tax_amount: invoiceData.taxAmount,
-          total_amount: invoiceData.invoiceAmount,
-          currency: purchaseOrder?.currency || 'PKR',
-          status: 'Draft',
-          notes: invoiceData.notes,
-          items: invoiceData.items.filter(item => item.description && item.quantity > 0)
-        };
-
-  console.debug('Creating invoice:', invoicePayload);
+        let invoicePayload;
+        let apiEndpoint;
         
-        // Save to backend (you'll need to create this endpoint)
-        const response = await fetch('http://localhost:5000/api/po-invoices', {
+        if (invoicingMode === 'quantity') {
+          // Validate that at least one item has quantity > 0
+          const itemsWithQuantity = invoiceData.quantityItems.filter(item => item.invoiced_quantity > 0);
+          
+          if (itemsWithQuantity.length === 0) {
+            alert('Please specify quantities for at least one item from the PO.\n\nIn the "Select Quantities to Invoice" table above, enter the quantities you want to invoice for each item.');
+            return;
+          }
+          
+          // Validate that all selected quantities are valid
+          const invalidItems = itemsWithQuantity.filter(item => 
+            item.invoiced_quantity > item.remaining_quantity || 
+            item.invoiced_quantity <= 0
+          );
+          
+          if (invalidItems.length > 0) {
+            const itemNames = invalidItems.map(item => `"${item.description}"`).join(', ');
+            alert(`Invalid quantities detected for: ${itemNames}\n\nPlease ensure all quantities are positive and don't exceed the remaining quantities.`);
+            return;
+          }
+          
+          console.debug('Quantity-based invoice validation passed:', {
+            totalItems: invoiceData.quantityItems.length,
+            selectedItems: itemsWithQuantity.length,
+            selectedItemDetails: itemsWithQuantity.map(item => ({
+              description: item.description,
+              invoiced_quantity: item.invoiced_quantity,
+              amount: item.amount
+            }))
+          });
+          
+          // Prepare quantity-based invoice payload
+          invoicePayload = {
+            invoice_number: invoiceData.invoiceNumber,
+            invoice_date: invoiceData.invoiceDate,
+            due_date: invoiceData.dueDate,
+            po_id: purchaseOrder?.databaseId || purchaseOrder?.id,
+            po_number: purchaseOrder?.number,
+            customer_name: invoiceData.supplier.name,
+            customer_email: invoiceData.supplier.email,
+            customer_phone: invoiceData.supplier.phone,
+            customer_address: invoiceData.supplier.address,
+            currency: purchaseOrder?.currency || 'PKR',
+            status: 'Draft',
+            payment_days: invoiceData.paymentDays || 30,
+            notes: invoiceData.notes,
+            items: itemsWithQuantity.map(item => ({
+              po_item_id: item.po_item_id,
+              invoiced_quantity: item.invoiced_quantity,
+              net_weight: item.net_weight || 0
+            }))
+          };
+          
+          apiEndpoint = 'http://localhost:5000/api/po-invoices/quantity-based';
+        } else {
+          // Amount-based invoice (existing logic)
+          invoicePayload = {
+            invoice_number: invoiceData.invoiceNumber,
+            invoice_date: invoiceData.invoiceDate,
+            due_date: invoiceData.dueDate,
+            po_id: purchaseOrder?.databaseId || purchaseOrder?.id,
+            po_number: purchaseOrder?.number,
+            customer_name: invoiceData.supplier.name,
+            customer_email: invoiceData.supplier.email,
+            customer_phone: invoiceData.supplier.phone,
+            customer_address: invoiceData.supplier.address,
+            subtotal: invoiceData.subtotal,
+            tax_rate: invoiceData.taxRate,
+            tax_amount: invoiceData.taxAmount,
+            total_amount: invoiceData.invoiceAmount,
+            currency: purchaseOrder?.currency || 'PKR',
+            status: 'Draft',
+            payment_days: invoiceData.paymentDays || 30,
+            notes: invoiceData.notes,
+            items: invoiceData.items.filter(item => item.description && item.quantity > 0)
+          };
+          
+          apiEndpoint = 'http://localhost:5000/api/po-invoices';
+        }
+
+        console.debug(`Creating ${invoicingMode}-based invoice:`, invoicePayload);
+        
+        const response = await fetch(apiEndpoint, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -1078,15 +1297,20 @@ const PurchaseOrderDetails = ({ poId, onBack }) => {
           // Refresh invoice history to show the new invoice
           await fetchInvoiceHistory();
           
-          alert(`Invoice ${invoiceData.invoiceNumber} created successfully!\nInvoice Amount: PKR ${invoiceData.invoiceAmount.toLocaleString()}\nRemaining PO Amount: PKR ${invoiceData.remainingAmount.toLocaleString()}`);
+          if (invoicingMode === 'quantity') {
+            alert(`Quantity-based invoice ${invoiceData.invoiceNumber} created successfully!\nTotal Items: ${result.invoice?.items?.length || 0}\nTotal Quantity: ${invoiceData.totalQuantity || 0}\nTotal Amount: PKR ${invoiceData.invoiceAmount.toLocaleString()}`);
+          } else {
+            alert(`Amount-based invoice ${invoiceData.invoiceNumber} created successfully!\nInvoice Amount: PKR ${invoiceData.invoiceAmount.toLocaleString()}\nRemaining PO Amount: PKR ${invoiceData.remainingAmount.toLocaleString()}`);
+          }
+          
           setShowInvoiceModal(false);
         } else {
           const errorData = await response.json().catch(() => ({ message: 'Failed to create invoice' }));
-          throw new Error(errorData.message || 'Failed to create invoice');
+          throw new Error(errorData.details || errorData.message || 'Failed to create invoice');
         }
       } catch (error) {
         console.error('Error creating invoice:', error);
-        alert(`Error creating invoice: ${error.message}\n\nPlease try again.`);
+        alert(`Error creating ${invoicingMode}-based invoice: ${error.message}\n\nPlease try again.`);
       }
     };
 
@@ -1104,6 +1328,42 @@ const PurchaseOrderDetails = ({ poId, onBack }) => {
           </div>
           
           <div className="space-y-6">
+            {/* Invoicing Mode Toggle */}
+            <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+              <h4 className="font-medium text-blue-800 mb-3">Select Invoicing Method</h4>
+              <div className="flex gap-4">
+                <label className="flex items-center space-x-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="invoicingMode"
+                    value="amount"
+                    checked={invoicingMode === 'amount'}
+                    onChange={(e) => setInvoicingMode(e.target.value)}
+                    className="text-blue-600 focus:ring-blue-500"
+                  />
+                  <span className="font-medium text-gray-700">Amount-Based</span>
+                  <span className="text-sm text-gray-500">(Invoice by total amount)</span>
+                </label>
+                <label className="flex items-center space-x-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="invoicingMode"
+                    value="quantity"
+                    checked={invoicingMode === 'quantity'}
+                    onChange={(e) => setInvoicingMode(e.target.value)}
+                    className="text-blue-600 focus:ring-blue-500"
+                  />
+                  <span className="font-medium text-gray-700">Quantity-Based</span>
+                  <span className="text-sm text-gray-500">(Invoice by item quantities)</span>
+                </label>
+              </div>
+              <p className="text-xs text-blue-600 mt-2">
+                💡 {invoicingMode === 'amount' 
+                  ? 'Enter the total amount you want to invoice from this PO. You can create partial invoices.'
+                  : 'Specify quantities for each item you want to invoice. Each item can have different quantities.'}
+              </p>
+            </div>
+
             {/* Invoice Basic Info */}
             <div className="grid md:grid-cols-3 gap-4">
               <div>
@@ -1128,18 +1388,23 @@ const PurchaseOrderDetails = ({ poId, onBack }) => {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Due Date</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Payment Terms (Days)</label>
                 <input
-                  type="date"
-                  name="dueDate"
-                  value={invoiceData.dueDate}
+                  type="number"
+                  name="paymentDays"
+                  value={invoiceData.paymentDays}
                   onChange={handleInputChange}
+                  min="1"
+                  max="365"
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  placeholder="e.g., 30"
                 />
+                <p className="text-xs text-gray-500 mt-1">Days for payment (default from PO: {purchaseOrder?.paymentDays || 30})</p>
               </div>
             </div>
 
-            {/* PO Information & Invoice Amount */}
+            {/* PO Information & Invoice Amount/Quantity */}
+            {invoicingMode === 'amount' ? (
             <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
               <div className="flex justify-between items-center mb-3">
                 <h4 className="font-medium text-blue-800">Purchase Order Information</h4>
@@ -1249,6 +1514,162 @@ const PurchaseOrderDetails = ({ poId, onBack }) => {
                 </div>
               </div>
             </div>
+            ) : (
+            // Quantity-based PO Information
+            <div className="bg-green-50 p-4 rounded-lg border border-green-200">
+              <div className="flex justify-between items-center mb-3">
+                <h4 className="font-medium text-green-800">Purchase Order - Quantity-Based Invoicing</h4>
+                <div className="flex items-center space-x-2">
+                  <span className="px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800">
+                    Quantity Based
+                  </span>
+                </div>
+              </div>
+              
+              <div className="grid md:grid-cols-2 gap-4 mb-4">
+                <div>
+                  <div className="mb-2">
+                    <label className="block text-sm font-medium text-green-700 mb-1">PO Number</label>
+                    <input
+                      type="text"
+                      value={purchaseOrder?.number || ''}
+                      className="w-full px-3 py-2 border border-green-300 rounded-lg bg-green-25 text-green-800"
+                      readOnly
+                    />
+                  </div>
+                  <div className="mb-2">
+                    <label className="block text-sm font-medium text-green-700 mb-1">PO Total Amount</label>
+                    <input
+                      type="text"
+                      value={`PKR ${(purchaseOrder?.totalAmount || 0).toLocaleString()}`}
+                      className="w-full px-3 py-2 border border-green-300 rounded-lg bg-green-25 text-green-800"
+                      readOnly
+                    />
+                  </div>
+                </div>
+                <div>
+                  {loadingItems ? (
+                    <div className="flex items-center justify-center py-4">
+                      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-green-500"></div>
+                      <span className="ml-2 text-green-700">Loading items...</span>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="mb-2">
+                        <label className="block text-sm font-medium text-green-700 mb-1">Total PO Quantity</label>
+                        <input
+                          type="text"
+                          value={calculateTotalQuantity(poItemsWithTracking).toLocaleString()}
+                          className="w-full px-3 py-2 border border-green-300 rounded-lg bg-green-25 text-green-800"
+                          readOnly
+                        />
+                      </div>
+                      <div className="mb-2">
+                        <label className="block text-sm font-medium text-green-700 mb-1">Available to Invoice (Qty)</label>
+                        <input
+                          type="text"
+                          value={calculateRemainingQuantity(poItemsWithTracking).toLocaleString()}
+                          className="w-full px-3 py-2 border border-green-300 rounded-lg bg-green-25 text-green-800"
+                          readOnly
+                        />
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
+
+              {/* Quantity Items Table */}
+              {!loadingItems && poItemsWithTracking.length > 0 && (
+                <div className="mt-4">
+                  <h5 className="font-medium text-green-700 mb-3">Select Quantities</h5>
+                  <div className="overflow-x-auto max-h-64 overflow-y-auto">
+                    <table className="w-full border-collapse border border-green-300">
+                      <thead className="bg-green-100 sticky top-0">
+                        <tr>
+                          <th className="border border-green-300 px-3 py-2 text-left text-sm font-medium text-green-800">Item</th>
+                          <th className="border border-green-300 px-3 py-2 text-center text-sm font-medium text-green-800">PO Qty</th>
+                          <th className="border border-green-300 px-3 py-2 text-center text-sm font-medium text-green-800">Net Weight (KG)</th>
+                          <th className="border border-green-300 px-3 py-2 text-center text-sm font-medium text-green-800">Available</th>
+                          <th className="border border-green-300 px-3 py-2 text-center text-sm font-medium text-green-800">Invoice Qty</th>
+                          <th className="border border-green-300 px-3 py-2 text-center text-sm font-medium text-green-800">Rate</th>
+                          <th className="border border-green-300 px-3 py-2 text-center text-sm font-medium text-green-800">Amount</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {invoiceData.quantityItems.map((item, index) => (
+                          <tr key={index} className={
+                            safeParseFloat(item.remaining_quantity) <= 0 
+                              ? 'bg-red-50' 
+                              : safeParseFloat(item.invoiced_quantity) > 0 
+                                ? 'bg-green-50 border-green-300' 
+                                : 'bg-white hover:bg-gray-50'
+                          }>
+                            <td className="border border-green-300 px-3 py-2 text-sm">
+                              <div className="font-medium">{item.description}</div>
+                              <div className="text-xs text-gray-500">Unit: {item.unit}</div>
+                              {item.item_status !== 'Not Invoiced' && (
+                                <span className={`text-xs px-2 py-1 rounded ${
+                                  item.item_status === 'Fully Invoiced' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'
+                                }`}>
+                                  {item.item_status}
+                                </span>
+                              )}
+                            </td>
+                            <td className="border border-green-300 px-3 py-2 text-center text-sm">
+                              {safeParseFloat(item.po_quantity).toLocaleString()}
+                            </td>
+                            <td className="border border-green-300 px-3 py-2 text-center text-sm">
+                              {safeParseFloat(item.net_weight || 0).toLocaleString('en-PK', { minimumFractionDigits: 2 })}
+                            </td>
+                            <td className="border border-green-300 px-3 py-2 text-center text-sm">
+                              <span className={safeParseFloat(item.remaining_quantity) <= 0 ? 'text-red-600 font-medium' : 'text-green-600'}>
+                                {safeParseFloat(item.remaining_quantity).toLocaleString()}
+                              </span>
+                            </td>
+                            <td className="border border-green-300 px-3 py-2 text-center">
+                              <input
+                                type="number"
+                                min="0"
+                                max={safeParseFloat(item.remaining_quantity)}
+                                step="0.01"
+                                value={item.invoiced_quantity}
+                                onChange={(e) => handleQuantityChange(index, e.target.value)}
+                                disabled={safeParseFloat(item.remaining_quantity) <= 0}
+                                className={`w-20 px-2 py-1 border rounded text-center text-sm ${
+                                  safeParseFloat(item.remaining_quantity) <= 0 
+                                    ? 'border-red-300 bg-red-50 text-red-500' 
+                                    : 'border-gray-300 focus:ring-2 focus:ring-green-500'
+                                }`}
+                                placeholder="0"
+                              />
+                            </td>
+                            <td className="border border-green-300 px-3 py-2 text-center text-sm">
+                              PKR {safeParseFloat(item.unit_price).toLocaleString('en-PK', { minimumFractionDigits: 2 })}
+                            </td>
+                            <td className="border border-green-300 px-3 py-2 text-center text-sm font-medium">
+                              PKR {(item.amount || 0).toLocaleString('en-PK', { minimumFractionDigits: 2 })}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  
+                  {/* Quantity Summary */}
+                  <div className="mt-4 bg-green-100 p-3 rounded border border-green-200">
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="font-medium text-green-700">Total Quantity:</span>
+                      <span className="font-bold text-green-600">{invoiceData.totalQuantity || 0}</span>
+                    </div>
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="font-medium text-green-700">Total Invoice Amount:</span>
+                      <span className="font-bold text-green-600">PKR {(invoiceData.invoiceAmount || 0).toLocaleString('en-PK')}</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+            )}
 
             {/* Customer Info */}
             <div className="bg-gray-50 p-4 rounded-lg">
@@ -1299,11 +1720,12 @@ const PurchaseOrderDetails = ({ poId, onBack }) => {
               </div>
             </div>
 
-            {/* Items Table - Read Only */}
+            {/* Items Table - Different for each mode */}
+            {invoicingMode === 'amount' ? (
             <div className="bg-gray-50 p-4 rounded-lg">
               <h4 className="font-medium text-gray-700 mb-3">Invoice Items (From Purchase Order)</h4>
               <p className="text-sm text-gray-600 mb-3">
-                ℹ️ Items are from the Purchase Order and cannot be modified
+                ℹ️ Items are from the Purchase Order and cannot be modified in amount-based invoicing
               </p>
               <div className="overflow-x-auto">
                 <table className="w-full border-collapse border border-gray-300">
@@ -1311,7 +1733,8 @@ const PurchaseOrderDetails = ({ poId, onBack }) => {
                     <tr className="bg-gray-200">
                       <th className="border border-gray-300 px-3 py-2 text-left text-sm font-medium">Description</th>
                       <th className="border border-gray-300 px-3 py-2 text-center text-sm font-medium">Quantity</th>
-                      <th className="border border-gray-300 px-3 py-2 text-center text-sm font-medium">Unit Price</th>
+                      <th className="border border-gray-300 px-3 py-2 text-center text-sm font-medium">Net Weight (KG)</th>
+                      <th className="border border-gray-300 px-3 py-2 text-center text-sm font-medium">Rate</th>
                       <th className="border border-gray-300 px-3 py-2 text-center text-sm font-medium">Amount</th>
                     </tr>
                   </thead>
@@ -1326,6 +1749,14 @@ const PurchaseOrderDetails = ({ poId, onBack }) => {
                         <td className="border border-gray-300 px-3 py-2 text-center">
                           <div className="px-2 py-1 text-gray-700 bg-gray-100 rounded text-center">
                             {item.quantity}
+                          </div>
+                        </td>
+                        <td className="border border-gray-300 px-3 py-2 text-center">
+                          <div className="px-2 py-1 text-gray-700 bg-gray-100 rounded text-center">
+                            {(item.netWeight || 0).toLocaleString('en-PK', {
+                              minimumFractionDigits: 2,
+                              maximumFractionDigits: 2
+                            })} KG
                           </div>
                         </td>
                         <td className="border border-gray-300 px-3 py-2 text-center print:text-center">
@@ -1350,28 +1781,72 @@ const PurchaseOrderDetails = ({ poId, onBack }) => {
                 </table>
               </div>
             </div>
+            ) : (
+            <div className="bg-green-50 p-4 rounded-lg">
+              <h4 className="font-medium text-green-700 mb-3">Quantity-Based Invoice Items</h4>
+              <p className="text-sm text-green-600 mb-3">
+                ✅ Items with specified quantities will be included in the invoice
+              </p>
+              <div className="text-sm text-green-700">
+                Items to be invoiced: <strong>{invoiceData.quantityItems?.filter(item => item.invoiced_quantity > 0).length || 0}</strong> of <strong>{invoiceData.quantityItems?.length || 0}</strong> available
+              </div>
+              <div className="text-sm text-green-700">
+                Total quantity: <strong>{invoiceData.totalQuantity || 0}</strong> units
+              </div>
+              <div className="text-sm text-green-700">
+                Invoice amount: <strong>PKR {(invoiceData.invoiceAmount || 0).toLocaleString('en-PK')}</strong>
+              </div>
+            </div>
+            )}
 
             {/* Summary Totals */}
-            <div className="bg-blue-50 p-6 rounded-lg border border-blue-200">
-              <h4 className="font-semibold text-gray-800 mb-4 text-lg">Purchase Order Invoice Summary</h4>
+            <div className={`p-6 rounded-lg border ${invoicingMode === 'quantity' ? 'bg-green-50 border-green-200' : 'bg-blue-50 border-blue-200'}`}>
+              <h4 className="font-semibold text-gray-800 mb-4 text-lg">
+                {invoicingMode === 'quantity' ? 'Quantity-Based Invoice Summary' : 'Amount-Based Invoice Summary'}
+              </h4>
               <div className="space-y-3">
-                {/* Total PO Amount */}
-                <div className="flex justify-between items-center py-2 border-b border-blue-200">
-                  <span className="font-medium text-gray-700">Total PO Amount:</span>
-                  <span className="font-bold text-lg">PKR {(purchaseOrder?.totalAmount || 0).toLocaleString('en-PK')}/-</span>
+                {/* Total PO Amount/Quantity */}
+                <div className="flex justify-between items-center py-2 border-b border-gray-200">
+                  <span className="font-medium text-gray-700">Total PO {invoicingMode === 'quantity' ? 'Quantity' : 'Amount'}:</span>
+                  <span className="font-bold text-lg">
+                    {invoicingMode === 'quantity' 
+                      ? `${calculateTotalQuantity(poItemsWithTracking).toLocaleString()} units`
+                      : `PKR ${(purchaseOrder?.totalAmount || 0).toLocaleString('en-PK')}/-`
+                    }
+                  </span>
                 </div>
                 
-                {/* Total Invoice Amount */}
-                <div className="flex justify-between items-center py-2 border-b border-blue-200">
-                  <span className="font-medium text-blue-700">Total Invoice Amount:</span>
-                  <span className="font-bold text-lg text-blue-600">PKR {(invoiceData.invoiceAmount || 0).toLocaleString('en-PK')}/-</span>
+                {/* Total Invoice Amount/Quantity */}
+                <div className={`flex justify-between items-center py-2 border-b ${invoicingMode === 'quantity' ? 'border-green-200' : 'border-blue-200'}`}>
+                  <span className={`font-medium ${invoicingMode === 'quantity' ? 'text-green-700' : 'text-blue-700'}`}>
+                    Total Invoice {invoicingMode === 'quantity' ? 'Quantity' : 'Amount'}:
+                  </span>
+                  <span className={`font-bold text-lg ${invoicingMode === 'quantity' ? 'text-green-600' : 'text-blue-600'}`}>
+                    {invoicingMode === 'quantity' 
+                      ? `${invoiceData.totalQuantity || 0} units`
+                      : `PKR ${(invoiceData.invoiceAmount || 0).toLocaleString('en-PK')}/-`
+                    }
+                  </span>
                 </div>
                 
-                {/* Remaining Amount */}
-                <div className="flex justify-between items-center py-2 bg-green-50 px-4 rounded-md border border-green-200">
-                  <span className="font-medium text-green-700">Remaining Amount:</span>
-                  <span className="font-bold text-lg text-green-600">
-                    PKR {((purchaseOrder?.totalAmount || 0) - (invoiceData.invoiceAmount || 0)).toLocaleString('en-PK')}/-
+                {/* Invoice Amount (for quantity mode) */}
+                {invoicingMode === 'quantity' && (
+                  <div className="flex justify-between items-center py-2 border-b border-green-200">
+                    <span className="font-medium text-green-700">Total Invoice Amount:</span>
+                    <span className="font-bold text-lg text-green-600">PKR {(invoiceData.invoiceAmount || 0).toLocaleString('en-PK')}/-</span>
+                  </div>
+                )}
+                
+                {/* Remaining Amount/Quantity */}
+                <div className="flex justify-between items-center py-2 bg-gray-50 px-4 rounded-md border border-gray-200">
+                  <span className="font-medium text-gray-700">
+                    Remaining {invoicingMode === 'quantity' ? 'Quantity' : 'Amount'}:
+                  </span>
+                  <span className="font-bold text-lg text-gray-600">
+                    {invoicingMode === 'quantity' 
+                      ? `${Math.max(0, calculateRemainingQuantity(poItemsWithTracking) - safeParseFloat(invoiceData.totalQuantity)).toLocaleString()} units`
+                      : `PKR ${((purchaseOrder?.totalAmount || 0) - (invoiceData.invoiceAmount || 0)).toLocaleString('en-PK')}/-`
+                    }
                   </span>
                 </div>
               </div>
@@ -1613,7 +2088,8 @@ const PurchaseOrderDetails = ({ poId, onBack }) => {
                     <th className="py-3 px-2 text-center text-xs font-bold text-gray-800 border-r border-gray-400">S.No</th>
                     <th className="py-3 px-3 text-center text-xs font-bold text-gray-800 border-r border-gray-400">Description</th>
                     <th className="py-3 px-3 text-center text-xs font-bold text-gray-800 border-r border-gray-400">Quantity</th>
-                    <th className="py-3 px-3 text-center text-xs font-bold text-gray-800 border-r border-gray-400">Unit Price</th>
+                    <th className="py-3 px-3 text-center text-xs font-bold text-gray-800 border-r border-gray-400">Net Weight (KG)</th>
+                    <th className="py-3 px-3 text-center text-xs font-bold text-gray-800 border-r border-gray-400">Rate</th>
                     <th className="py-3 px-3 text-center text-xs font-bold text-gray-800">Total Amount</th>
                   </tr>
                 </thead>
@@ -1626,13 +2102,14 @@ const PurchaseOrderDetails = ({ poId, onBack }) => {
                           <div className="font-medium">{item.description || 'N/A'}</div>
                         </td>
                         <td className="py-4 px-3 text-sm text-gray-800 text-center border-r border-gray-300">{parseFloat(item.quantity || 0).toLocaleString()}</td>
+                        <td className="py-4 px-3 text-sm text-gray-800 text-center border-r border-gray-300">{parseFloat(item.netWeight || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })} KG</td>
                         <td className="py-4 px-3 text-sm text-gray-800 text-center border-r border-gray-300">{purchaseOrder.currency} {parseFloat(item.unitPrice || item.unit_price || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
                         <td className="py-4 px-3 text-sm font-semibold text-gray-900 text-center">{purchaseOrder.currency} {parseFloat(item.total || item.amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
                       </tr>
                     ))
                   ) : (
                     <tr className="border-b border-gray-300">
-                      <td colSpan="5" className="py-8 px-4 text-center text-sm text-gray-500">
+                      <td colSpan="6" className="py-8 px-4 text-center text-sm text-gray-500">
                         No items found for this purchase order
                       </td>
                     </tr>
@@ -1643,6 +2120,9 @@ const PurchaseOrderDetails = ({ poId, onBack }) => {
                     <td className="py-3 px-3 text-sm font-bold text-gray-800 border-r border-gray-300">TOTAL</td>
                     <td className="py-3 px-3 text-sm text-gray-800 text-center border-r border-gray-300">
                       {purchaseOrder.items ? purchaseOrder.items.reduce((sum, item) => sum + parseFloat(item.quantity || 0), 0).toLocaleString() : 0}
+                    </td>
+                    <td className="py-3 px-3 text-sm text-gray-800 text-center border-r border-gray-300">
+                      {purchaseOrder.items ? purchaseOrder.items.reduce((sum, item) => sum + parseFloat(item.netWeight || 0), 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) : 0} KG
                     </td>
                     <td className="py-3 px-3 border-r border-gray-300"></td>
                     <td className="py-3 px-3 text-sm font-bold text-gray-900 text-center">{purchaseOrder.currency} {parseFloat(purchaseOrder.totalAmount || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
@@ -1772,14 +2252,10 @@ const PurchaseOrderDetails = ({ poId, onBack }) => {
                             {invoice.status}
                           </span>
                         </div>
-                        <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm text-gray-600">
+                        <div className="grid grid-cols-2 gap-4 text-sm text-gray-600">
                           <div>
                             <p className="font-medium">Invoice Date:</p>
                             <p>{new Date(invoice.invoice_date).toLocaleDateString()}</p>
-                          </div>
-                          <div>
-                            <p className="font-medium">Due Date:</p>
-                            <p>{invoice.due_date ? new Date(invoice.due_date).toLocaleDateString() : 'N/A'}</p>
                           </div>
                           <div>
                             <p className="font-medium">Supplier:</p>

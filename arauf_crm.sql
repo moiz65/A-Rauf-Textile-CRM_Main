@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Oct 07, 2025 at 06:56 PM
+-- Generation Time: Oct 14, 2025 at 06:19 PM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.0.30
 
@@ -47,7 +47,9 @@ INSERT INTO `categories` (`id`, `name`, `description`, `type`, `status`, `create
 (2, 'Loan ', 'Liability - Loan ', 'Liability', 'Active', '2025-09-30', '2025-09-30 14:35:49', '2025-10-06 17:30:19'),
 (3, 'Computer', 'Hardware Asset', 'Asset', 'Active', '2025-09-30', '2025-09-30 14:41:57', '2025-09-30 14:51:39'),
 (4, 'Travel Expense', '', 'Expense', 'Active', '2025-09-30', '2025-09-30 14:49:34', '2025-09-30 14:49:34'),
-(5, 'Computer loan ', '', 'Liability', 'Active', '2025-09-30', '2025-09-30 17:12:53', '2025-09-30 17:12:53');
+(5, 'Computer loan ', '', 'Liability', 'Active', '2025-09-30', '2025-09-30 17:12:53', '2025-09-30 17:12:53'),
+(7, 'educational loan ', 'aaaa', 'Expense', 'Active', '2025-10-08', '2025-10-08 18:40:43', '2025-10-08 18:40:43'),
+(8, 'Muhammad Hunain', '', 'Expense', 'Active', '2025-10-08', '2025-10-08 18:47:57', '2025-10-08 18:47:57');
 
 -- --------------------------------------------------------
 
@@ -94,7 +96,7 @@ CREATE TABLE `customertable` (
 INSERT INTO `customertable` (`customer_id`, `customer`, `company`, `date`, `phone`, `address`, `stn`, `ntn`, `email`, `created_at`, `updated_at`) VALUES
 (1, 'Muhammad Huinain', 'Digious', '2025-09-30', '+923435980052', '202 Floor Shan Residency SB-44 Block-K North Nazimabad karachi', '', '', 'm.hunainofficial@gmail.com', '2025-09-30 11:49:35', '2025-09-30 11:49:35'),
 (2, 'XYZ', 'FAST', '2025-09-30', '03435980052', '504 Floor Shan Residency SB-44 Block-K North Nazimabad karachi', '', '', 'xyz@gmail.com', '2025-09-30 13:02:28', '2025-09-30 13:02:28'),
-(3, 'MH', NULL, '2025-10-02', '+923435980052', 'Floor Shan Residency SB-44 Block-K North Nazimabad karachi', '1111111', '1111111', '19@gmail.com', '2025-10-02 13:16:16', '2025-10-02 13:16:16');
+(3, 'MH', 'XYZ', '2025-10-14', '+9234359800521', 'Floor Shan Residency SB-44 Block-K North Nazimabad karachi', '1111111', '1111111', '19@gmail.com', '2025-10-02 13:16:16', '2025-10-14 14:22:50');
 
 -- --------------------------------------------------------
 
@@ -125,7 +127,9 @@ INSERT INTO `expenses` (`id`, `title`, `date`, `vendor`, `amount`, `category`, `
 (2, 'Loan ', '2025-09-30', 'Digious Sol.', 5000.00, 'Loan ', 'Cash', 'Pending', '', '2025-09-30 14:37:44', '2025-09-30 16:37:31', NULL),
 (3, 'Travel Expense ', '2025-09-30', 'Digious Sol.', 15000.00, 'Travel Expense', 'Cash', 'Paid', '', '2025-09-30 14:50:25', '2025-09-30 16:37:31', NULL),
 (4, 'New Expense', '2025-09-30', 'Digious Sol.', 25000.00, 'Computer', 'Cash', 'Paid', '', '2025-09-30 14:51:33', '2025-09-30 16:37:31', NULL),
-(5, 'computer loan ', '2025-10-02', 'xyz', 10000.00, 'Computer loan ', 'Cash', 'Paid', 'mmmmm', '2025-09-30 17:13:31', '2025-10-01 19:59:57', NULL);
+(5, 'computer loan ', '2025-10-02', 'xyz', 10000.00, 'Computer loan ', 'Cash', 'Paid', 'mmmmm', '2025-09-30 17:13:31', '2025-10-01 19:59:57', NULL),
+(7, 'aaa111', '2025-10-08', 'mmm', 500.00, 'educational loan ', 'Cash', 'Pending', '', '2025-10-08 18:41:08', '2025-10-08 18:41:08', NULL),
+(8, ',bbb', '2025-10-08', 'bbbb', 51.00, 'Muhammad Hunain', 'Cash', 'Paid', '', '2025-10-08 18:48:19', '2025-10-08 18:48:19', NULL);
 
 -- --------------------------------------------------------
 
@@ -163,18 +167,22 @@ CREATE TABLE `invoice` (
   `is_sent` tinyint(1) DEFAULT 0,
   `sent_at` timestamp NULL DEFAULT NULL,
   `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
-  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
+  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  `payment_days` int(11) DEFAULT 30 COMMENT 'Number of days for payment terms (default 30 days)'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
 -- Dumping data for table `invoice`
 --
 
-INSERT INTO `invoice` (`id`, `invoice_number`, `customer_id`, `customer_name`, `customer_email`, `p_number`, `a_p_number`, `address`, `st_reg_no`, `ntn_number`, `item_name`, `quantity`, `rate`, `currency`, `salesTax`, `item_amount`, `bill_date`, `delivery_date`, `terms_of_payment`, `payment_deadline`, `note`, `subtotal`, `tax_rate`, `tax_amount`, `total_amount`, `status`, `is_sent`, `sent_at`, `created_at`, `updated_at`) VALUES
-(2, 'INV-2025-1759237352951', 2, 'XYZ', 'xyz@gmail.com', '03435980052', '', '504 Floor Shan Residency SB-44 Block-K North Nazimabad karachi', '', '', NULL, 0.00, 0.00, 'PKR', 0.00, 0.00, '2025-09-30', NULL, 'Within 15 days', '2025-10-01', 'this is another test ', 2500.00, 14.99, 374.75, 2874.75, 'Paid', 0, NULL, '2025-09-30 13:02:32', '2025-09-30 16:38:40'),
-(3, 'INV-2025-1759237849385', 1, 'Muhammad Huinain', 'm.hunainofficial@gmail.com', '+923435980052', '', '202 Floor Shan Residency SB-44 Block-K North Nazimabad karachi', '', '', NULL, 0.00, 0.00, 'PKR', 0.00, 0.00, '2025-09-30', NULL, 'Within 15 days', '2025-09-30', 'Paid ', 1750.00, 12.00, 210.00, 1960.00, 'Paid', 0, NULL, '2025-09-30 13:10:49', '2025-09-30 13:10:49'),
-(8, 'INV-2025-1759425800766', 3, 'MH', '19@gmail.com', '+923435980052', '', 'Floor Shan Residency SB-44 Block-K North Nazimabad karachi', '', '', NULL, 0.00, 0.00, 'PKR', 0.00, 0.00, '2025-09-30', NULL, 'Within 15 days', '2025-09-30', 'iiiiii', 512.82, 17.00, 87.18, 600.00, 'Pending', 0, NULL, '2025-10-02 17:23:20', '2025-10-02 17:37:29'),
-(11, 'INV-2025-1759845903844', 3, 'MH', '19@gmail.com', '+923435980052', '', 'Floor Shan Residency SB-44 Block-K North Nazimabad karachi', '1111111', '1111111', NULL, 0.00, 0.00, 'PKR', 0.00, 0.00, '2025-10-07', NULL, 'Within 15 days', '2025-10-07', '', 500.00, 0.00, 0.00, 500.00, 'Pending', 0, NULL, '2025-10-07 14:05:03', '2025-10-07 14:05:03');
+INSERT INTO `invoice` (`id`, `invoice_number`, `customer_id`, `customer_name`, `customer_email`, `p_number`, `a_p_number`, `address`, `st_reg_no`, `ntn_number`, `item_name`, `quantity`, `rate`, `currency`, `salesTax`, `item_amount`, `bill_date`, `delivery_date`, `terms_of_payment`, `payment_deadline`, `note`, `subtotal`, `tax_rate`, `tax_amount`, `total_amount`, `status`, `is_sent`, `sent_at`, `created_at`, `updated_at`, `payment_days`) VALUES
+(2, 'INV-2025-1759237352951', 2, 'XYZ', 'xyz@gmail.com', '03435980052', '', '504 Floor Shan Residency SB-44 Block-K North Nazimabad karachi', '', '', NULL, 0.00, 0.00, 'PKR', 0.00, 0.00, '2025-09-30', NULL, 'Within 15 days', '2025-10-01', 'this is another test ', 2500.00, 14.99, 374.75, 2874.75, 'Paid', 0, NULL, '2025-09-30 13:02:32', '2025-09-30 16:38:40', 30),
+(3, 'INV-2025-1759237849385', 1, 'Muhammad Huinain', 'm.hunainofficial@gmail.com', '+923435980052', '', '202 Floor Shan Residency SB-44 Block-K North Nazimabad karachi', '', '', NULL, 0.00, 0.00, 'PKR', 0.00, 0.00, '2025-09-30', NULL, 'Within 15 days', '2025-09-30', 'Paid ', 1750.00, 12.00, 210.00, 1960.00, 'Paid', 0, NULL, '2025-09-30 13:10:49', '2025-09-30 13:10:49', 30),
+(8, 'INV-2025-1759425800766', 3, 'MH', '19@gmail.com', '+923435980052', '', 'Floor Shan Residency SB-44 Block-K North Nazimabad karachi', '', '', NULL, 0.00, 0.00, 'PKR', 0.00, 0.00, '2025-09-30', NULL, 'Within 15 days', '2025-09-30', 'iiiiii', 512.82, 17.00, 87.18, 600.00, 'Pending', 0, NULL, '2025-10-02 17:23:20', '2025-10-02 17:37:29', 30),
+(11, 'INV-2025-1759845903844', 3, 'MH', '19@gmail.com', '+923435980052', '', 'Floor Shan Residency SB-44 Block-K North Nazimabad karachi', '1111111', '1111111', NULL, 0.00, 0.00, 'PKR', 0.00, 0.00, '2025-10-07', NULL, 'Within 15 days', '2025-10-07', '', 500.00, 0.00, 0.00, 500.00, 'Pending', 0, NULL, '2025-10-07 14:05:03', '2025-10-07 14:05:03', 30),
+(12, 'INV-2025-1760443020181', 3, 'MH', '19@gmail.com', '+923435980052', '', 'Floor Shan Residency SB-44 Block-K North Nazimabad karachi', '1111111', '1111111', NULL, 0.00, 0.00, 'PKR', 0.00, 0.00, '2025-10-14', NULL, 'Within 15 days', '2025-10-29', '', 1111.00, 1.00, 11.11, 1122.11, 'Pending', 0, NULL, '2025-10-14 11:57:00', '2025-10-14 11:57:00', 15),
+(14, 'INV-2025-1760443882789', 3, 'MH', '19@gmail.com', '+923435980052', '', 'Floor Shan Residency SB-44 Block-K North Nazimabad karachi', '1111111', '1111111', NULL, 0.00, 0.00, 'PKR', 0.00, 0.00, '2025-10-12', NULL, 'Within 15 days', '0000-00-00', '', 12221.00, 0.00, 0.00, 12221.00, 'Paid', 0, NULL, '2025-10-14 12:11:22', '2025-10-14 12:43:03', 10),
+(15, 'INV-2025-1760447140989', NULL, 'Zainab Rizwan', 'ayesharizwan519@gmail.com', '03172178847', '', '202 Floor Shan Residency SB-44 Block-K North Nazimabad karachi', '152', '172', NULL, 0.00, 0.00, 'PKR', 0.00, 0.00, '2025-10-14', NULL, 'Within 15 days', '2025-10-19', '', 12321.00, 11.00, 1355.31, 13676.31, 'Pending', 0, NULL, '2025-10-14 13:05:40', '2025-10-14 13:05:40', 5);
 
 -- --------------------------------------------------------
 
@@ -203,7 +211,10 @@ INSERT INTO `invoice_items` (`id`, `invoice_id`, `item_no`, `description`, `quan
 (2, 2, 1, 'this is another test ', 5, NULL, NULL, 500.00, 2500.00, '2025-09-30 13:02:32'),
 (3, 3, 1, 'Tape Ball ', 5, NULL, NULL, 350.00, 1750.00, '2025-09-30 13:10:49'),
 (12, 8, 1, 'iiiii', 1, 'Nos', NULL, 512.82, 512.82, '2025-10-02 17:37:29'),
-(17, 11, 1, 'a', 1, '', NULL, 500.00, 500.00, '2025-10-07 14:05:03');
+(17, 11, 1, 'a', 1, '', NULL, 500.00, 500.00, '2025-10-07 14:05:03'),
+(18, 12, 1, 'aaa', 1, '', 15.00, 1111.00, 1111.00, '2025-10-14 11:57:00'),
+(22, 14, 1, 'aaa', 11, '', 15.00, 1111.00, 12221.00, '2025-10-14 12:43:03'),
+(23, 15, 1, 'zzz', 111, '', 111.00, 111.00, 12321.00, '2025-10-14 13:05:41');
 
 -- --------------------------------------------------------
 
@@ -257,6 +268,28 @@ CREATE TABLE `po_complete_history` (
 -- --------------------------------------------------------
 
 --
+-- Stand-in structure for view `po_complete_summary`
+-- (See below for the actual view)
+--
+CREATE TABLE `po_complete_summary` (
+`po_id` int(11)
+,`po_number` varchar(50)
+,`supplier_name` varchar(255)
+,`po_total_amount` decimal(15,2)
+,`po_status` enum('Draft','Pending','Approved','Received','Cancelled')
+,`amount_invoiced` decimal(37,2)
+,`amount_remaining` decimal(38,2)
+,`amount_invoice_count` bigint(21)
+,`po_total_quantity` decimal(32,2)
+,`quantity_invoiced` decimal(37,2)
+,`quantity_remaining` decimal(38,2)
+,`quantity_invoice_count` bigint(21)
+,`invoicing_type` varchar(15)
+);
+
+-- --------------------------------------------------------
+
+--
 -- Table structure for table `po_deletion_history`
 --
 
@@ -290,7 +323,18 @@ INSERT INTO `po_deletion_history` (`id`, `po_invoice_id`, `invoice_number`, `po_
 (8, 10, 'INV-PO-20250929-150543-1759162977238', 'PO-20250929-150543', 'Muhammad Hunain', 1220096.31, '2025-09-29', '2025-09-30 12:11:46', 'Manual deletion via system', 'System User', NULL, '2025-09-30 12:11:46'),
 (9, 25, 'PI25-004', 'PO25-9-004', 'Hunain', 5000.00, '2025-09-30', '2025-10-01 14:56:40', 'PO cancelled - invoices automatically removed', 'System Trigger', NULL, '2025-10-01 14:56:40'),
 (10, 26, 'PI25-004-1', 'PO25-9-004', 'Hunain', 20000.00, '2025-10-01', '2025-10-01 14:56:40', 'PO cancelled - invoices automatically removed', 'System Trigger', NULL, '2025-10-01 14:56:40'),
-(11, 29, 'PI25-005', 'PO25-10-003', 'efg', 10.00, '2025-10-02', '2025-10-03 15:43:56', 'PO permanently deleted', 'System User', NULL, '2025-10-03 15:43:56');
+(11, 29, 'PI25-005', 'PO25-10-003', 'efg', 10.00, '2025-10-02', '2025-10-03 15:43:56', 'PO permanently deleted', 'System User', NULL, '2025-10-03 15:43:56'),
+(12, 31, 'PI25-005', 'PO25-10-004', 'Muhammad Hunain', 849.99, '2025-10-13', '2025-10-13 18:36:17', 'Manual deletion via system', 'System User', NULL, '2025-10-13 18:36:17'),
+(13, 33, 'PI25-006', 'PO25-10-005', 'Muhammad Hunain', 124.95, '2025-10-13', '2025-10-13 20:35:14', 'Manual deletion via system', 'System User', NULL, '2025-10-13 20:35:14'),
+(14, 35, 'PI25-006-1', 'PO25-10-005', 'Muhammad Hunain', 60.00, '2025-10-13', '2025-10-14 12:43:12', 'Manual deletion via system', 'System User', NULL, '2025-10-14 12:43:12'),
+(15, 34, 'PI25-006', 'PO25-10-005', 'Muhammad Hunain', 150.00, '2025-10-13', '2025-10-14 12:43:16', 'Manual deletion via system', 'System User', NULL, '2025-10-14 12:43:16'),
+(16, 32, 'PI25-005', 'PO25-10-004', 'Muhammad Hunain', 849.99, '2025-10-13', '2025-10-14 12:43:19', 'Manual deletion via system', 'System User', NULL, '2025-10-14 12:43:19'),
+(17, 36, 'PI25-005', 'PO25-10-007', 'Muhammad Hunain', 1100.00, '2025-10-14', '2025-10-14 14:31:41', 'Manual deletion via system', 'System User', NULL, '2025-10-14 14:31:41'),
+(18, 37, 'PI25-005', 'PO25-10-007', 'Muhammad Hunain', 1100.00, '2025-10-14', '2025-10-14 14:40:03', 'Manual deletion via system', 'System User', NULL, '2025-10-14 14:40:03'),
+(19, 38, 'PI25-005', 'PO25-10-007', 'Muhammad Hunain', 1100.00, '2025-10-14', '2025-10-14 14:44:57', 'Manual deletion via system', 'System User', NULL, '2025-10-14 14:44:57'),
+(20, 39, 'PI25-005', 'PO25-10-007', 'Muhammad Hunain', 123.21, '2025-10-14', '2025-10-14 16:18:57', 'PO permanently deleted - invoices automatically removed', 'System Trigger', NULL, '2025-10-14 16:18:57'),
+(21, 27, 'PI25-004', 'PO25-10-001', 'Muhammad Hunain', 50.00, '2025-10-01', '2025-10-14 16:18:57', 'PO permanently deleted - invoices automatically removed', 'System Trigger', NULL, '2025-10-14 16:18:57'),
+(22, 28, 'PI25-004-1', 'PO25-10-001', 'Muhammad Hunain', 1000.00, '2025-10-02', '2025-10-14 16:18:57', 'PO permanently deleted - invoices automatically removed', 'System Trigger', NULL, '2025-10-14 16:18:57');
 
 -- --------------------------------------------------------
 
@@ -346,21 +390,25 @@ CREATE TABLE `po_invoices` (
   `payment_reference` varchar(100) DEFAULT NULL,
   `notes` text DEFAULT NULL,
   `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
-  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
+  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  `invoicing_mode` enum('amount','quantity','mixed') NOT NULL DEFAULT 'amount' COMMENT 'Invoicing mode: amount-based, quantity-based, or mixed',
+  `total_po_quantity` decimal(15,2) DEFAULT 0.00 COMMENT 'Total quantity from PO (for quantity-based)',
+  `invoiced_quantity` decimal(15,2) DEFAULT 0.00 COMMENT 'Quantity being invoiced',
+  `quantity_percentage` decimal(5,2) DEFAULT 0.00 COMMENT 'Percentage of PO quantity being invoiced',
+  `payment_days` int(11) DEFAULT 30 COMMENT 'Number of days for payment terms (default 30 days)'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
 -- Dumping data for table `po_invoices`
 --
 
-INSERT INTO `po_invoices` (`id`, `invoice_number`, `invoice_date`, `due_date`, `po_id`, `po_number`, `customer_name`, `customer_email`, `customer_phone`, `customer_address`, `subtotal`, `tax_rate`, `tax_amount`, `total_amount`, `currency`, `status`, `payment_date`, `payment_method`, `payment_reference`, `notes`, `created_at`, `updated_at`) VALUES
-(20, 'PI25-001', '2025-09-30', '2025-10-30', '18', 'PO25-9-002', 'Muhammad ', 'rizwan519@gmail.com', '03435980052', '504 Floor Shan Residency SB-44 Block-K North Nazimabad karachi', 19900.00, 19.90, 0.00, 19900.00, 'PKR', 'Paid', '2025-09-30', NULL, NULL, 'Generated from Purchase Order: PO25-9-002', '2025-09-30 12:20:42', '2025-09-30 13:22:27'),
-(21, 'PI25-002', '2025-09-30', '2025-10-30', '17', 'PO25-9-001', 'Muhammad Hunain', 'm.hunainofficial@gmail.com', '03435980052', '202 Floor Shan Residency SB-44 Block-K North Nazimabad karachi', 15000.00, 15.00, 0.00, 15000.00, 'PKR', 'Paid', '2025-09-30', NULL, NULL, 'Generated from Purchase Order: PO25-9-001', '2025-09-30 12:31:15', '2025-09-30 12:52:06'),
-(22, 'PI25-003', '2025-09-30', '2025-10-30', '19', 'PO25-9-003', 'Paysys', 'paysys@gmail.com', '03435980052', 'Shan Residency SB-44 Block-K North Nazimabad karachi', 340000.00, 11.70, 0.00, 340000.00, 'PKR', 'Paid', '2025-09-30', NULL, NULL, 'Generated from Purchase Order: PO25-9-003', '2025-09-30 14:46:31', '2025-09-30 14:46:48'),
-(23, 'PI25-003-1', '2025-09-30', '2025-10-30', '19', 'PO25-9-003', 'Paysys', 'paysys@gmail.com', '03435980052', 'Shan Residency SB-44 Block-K North Nazimabad karachi', 1000000.00, 11.70, 0.00, 1000000.00, 'PKR', 'Not Sent', NULL, NULL, NULL, 'Generated from Purchase Order: PO25-9-003', '2025-09-30 14:47:43', '2025-10-02 20:28:27'),
-(24, 'PI25-003-2', '2025-09-30', '2025-10-30', '19', 'PO25-9-003', 'Paysys', 'paysys@gmail.com', '03435980052', 'Shan Residency SB-44 Block-K North Nazimabad karachi', 21000000.00, 11.70, 2340000.00, 21000000.00, 'PKR', 'Paid', '2025-09-30', NULL, NULL, 'Generated from Purchase Order: PO25-9-003', '2025-09-30 16:35:51', '2025-09-30 16:36:07'),
-(27, 'PI25-004', '2025-10-01', '2025-10-31', '24', 'PO25-10-001', 'Muhammad Hunain', 'ayesharizwan519@gmail.com', '03435980052', '504 Floor Shan Residency SB-44 Block-K North Nazimabad karachi', 50.00, 5.00, 0.00, 50.00, 'PKR', 'Paid', '2025-10-02', NULL, NULL, 'Generated from Purchase Order: PO25-10-001', '2025-10-01 17:42:15', '2025-10-02 21:07:30'),
-(28, 'PI25-004-1', '2025-10-02', '2025-10-01', '24', 'PO25-10-001', 'Muhammad Hunain', 'ayesharizwan519@gmail.com', '03435980052', '504 Floor Shan Residency SB-44 Block-K North Nazimabad karachi', 1000.00, 5.00, 50.00, 1000.00, 'PKR', 'Overdue', NULL, NULL, NULL, 'Generated from Purchase Order: PO25-10-001', '2025-10-02 13:47:54', '2025-10-02 13:48:36');
+INSERT INTO `po_invoices` (`id`, `invoice_number`, `invoice_date`, `due_date`, `po_id`, `po_number`, `customer_name`, `customer_email`, `customer_phone`, `customer_address`, `subtotal`, `tax_rate`, `tax_amount`, `total_amount`, `currency`, `status`, `payment_date`, `payment_method`, `payment_reference`, `notes`, `created_at`, `updated_at`, `invoicing_mode`, `total_po_quantity`, `invoiced_quantity`, `quantity_percentage`, `payment_days`) VALUES
+(20, 'PI25-001', '2025-09-30', '2025-10-30', '18', 'PO25-9-002', 'Muhammad ', 'rizwan519@gmail.com', '03435980052', '504 Floor Shan Residency SB-44 Block-K North Nazimabad karachi', 19900.00, 19.90, 0.00, 19900.00, 'PKR', 'Paid', '2025-09-30', NULL, NULL, 'Generated from Purchase Order: PO25-9-002', '2025-09-30 12:20:42', '2025-09-30 13:22:27', 'amount', 0.00, 0.00, 0.00, 30),
+(21, 'PI25-002', '2025-09-30', '2025-10-30', '17', 'PO25-9-001', 'Muhammad Hunain', 'm.hunainofficial@gmail.com', '03435980052', '202 Floor Shan Residency SB-44 Block-K North Nazimabad karachi', 15000.00, 15.00, 0.00, 15000.00, 'PKR', 'Paid', '2025-09-30', NULL, NULL, 'Generated from Purchase Order: PO25-9-001', '2025-09-30 12:31:15', '2025-09-30 12:52:06', 'amount', 0.00, 0.00, 0.00, 30),
+(22, 'PI25-003', '2025-09-30', '2025-10-30', '19', 'PO25-9-003', 'Paysys', 'paysys@gmail.com', '03435980052', 'Shan Residency SB-44 Block-K North Nazimabad karachi', 340000.00, 11.70, 0.00, 340000.00, 'PKR', 'Paid', '2025-09-30', NULL, NULL, 'Generated from Purchase Order: PO25-9-003', '2025-09-30 14:46:31', '2025-09-30 14:46:48', 'amount', 0.00, 0.00, 0.00, 30),
+(23, 'PI25-003-1', '2025-09-30', '2025-10-30', '19', 'PO25-9-003', 'Paysys', 'paysys@gmail.com', '03435980052', 'Shan Residency SB-44 Block-K North Nazimabad karachi', 1000000.00, 11.70, 0.00, 1000000.00, 'PKR', 'Not Sent', NULL, NULL, NULL, 'Generated from Purchase Order: PO25-9-003', '2025-09-30 14:47:43', '2025-10-02 20:28:27', 'amount', 0.00, 0.00, 0.00, 30),
+(24, 'PI25-003-2', '2025-09-30', '2025-10-30', '19', 'PO25-9-003', 'Paysys', 'paysys@gmail.com', '03435980052', 'Shan Residency SB-44 Block-K North Nazimabad karachi', 21000000.00, 11.70, 2340000.00, 21000000.00, 'PKR', 'Paid', '2025-09-30', NULL, NULL, 'Generated from Purchase Order: PO25-9-003', '2025-09-30 16:35:51', '2025-09-30 16:36:07', 'amount', 0.00, 0.00, 0.00, 30),
+(30, 'PI25-001-1', '2025-10-13', '2025-11-12', '18', 'PO25-9-002', 'Muhammad ', 'rizwan519@gmail.com', '03435980052', '504 Floor Shan Residency SB-44 Block-K North Nazimabad karachi', 50000.00, 0.00, 0.00, 50000.00, 'PKR', 'Draft', NULL, NULL, NULL, 'Generated from Purchase Order: PO25-9-002', '2025-10-13 18:19:38', '2025-10-13 18:19:38', 'quantity', 0.00, 5000.00, 0.00, 30);
 
 --
 -- Triggers `po_invoices`
@@ -478,6 +526,28 @@ CREATE TRIGGER `trg_po_summary_after_update` AFTER UPDATE ON `po_invoices` FOR E
 END
 $$
 DELIMITER ;
+DELIMITER $$
+CREATE TRIGGER `trg_sync_payment_days_on_invoice_insert` BEFORE INSERT ON `po_invoices` FOR EACH ROW BEGIN
+    DECLARE po_payment_days INT DEFAULT 30;
+    
+    -- Get payment_days from parent purchase_order
+    SELECT payment_days INTO po_payment_days
+    FROM arauf_crm.purchase_orders
+    WHERE id = NEW.po_id
+    LIMIT 1;
+    
+    -- If no payment_days specified in INSERT or it's default 30, use PO's payment_days
+    IF NEW.payment_days IS NULL OR NEW.payment_days = 30 THEN
+        SET NEW.payment_days = po_payment_days;
+    END IF;
+    
+    -- Recalculate due_date based on payment_days
+    IF NEW.invoice_date IS NOT NULL THEN
+        SET NEW.due_date = DATE_ADD(NEW.invoice_date, INTERVAL NEW.payment_days DAY);
+    END IF;
+END
+$$
+DELIMITER ;
 
 -- --------------------------------------------------------
 
@@ -511,12 +581,16 @@ CREATE TABLE `po_invoice_history` (
 CREATE TABLE `po_invoice_items` (
   `id` int(11) NOT NULL,
   `po_invoice_id` int(11) NOT NULL,
-  `item_no` int(11) NOT NULL DEFAULT 1,
+  `po_item_id` int(11) NOT NULL,
+  `item_no` int(11) NOT NULL,
   `description` text NOT NULL,
-  `quantity` decimal(10,2) NOT NULL DEFAULT 0.00,
-  `unit_price` decimal(15,2) NOT NULL DEFAULT 0.00,
-  `amount` decimal(15,2) NOT NULL DEFAULT 0.00,
-  `specifications` text DEFAULT NULL,
+  `po_quantity` decimal(10,2) NOT NULL,
+  `invoiced_quantity` decimal(10,2) NOT NULL,
+  `remaining_quantity` decimal(10,2) NOT NULL,
+  `unit` varchar(50) DEFAULT NULL,
+  `net_weight` decimal(10,2) DEFAULT NULL COMMENT 'Net weight in KG',
+  `unit_price` decimal(15,2) NOT NULL,
+  `amount` decimal(15,2) NOT NULL,
   `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
   `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
@@ -525,8 +599,84 @@ CREATE TABLE `po_invoice_items` (
 -- Dumping data for table `po_invoice_items`
 --
 
-INSERT INTO `po_invoice_items` (`id`, `po_invoice_id`, `item_no`, `description`, `quantity`, `unit_price`, `amount`, `specifications`, `created_at`, `updated_at`) VALUES
-(1, 23, 1, 'Textile Materials (Cotton Fabric)', 1000.00, 1000.00, 1000000.00, 'Premium quality cotton fabric as per PO requirements', '2025-09-30 18:49:08', '2025-09-30 18:49:08');
+INSERT INTO `po_invoice_items` (`id`, `po_invoice_id`, `po_item_id`, `item_no`, `description`, `po_quantity`, `invoiced_quantity`, `remaining_quantity`, `unit`, `net_weight`, `unit_price`, `amount`, `created_at`, `updated_at`) VALUES
+(1, 30, 43, 1, 'this is another test', 10000.00, 5000.00, 5000.00, 'pcs', NULL, 10.00, 50000.00, '2025-10-13 18:19:38', '2025-10-13 18:19:38');
+
+--
+-- Triggers `po_invoice_items`
+--
+DELIMITER $$
+CREATE TRIGGER `trg_calculate_invoice_quantities_delete` AFTER DELETE ON `po_invoice_items` FOR EACH ROW BEGIN
+  -- Update the parent po_invoices record with quantity totals
+  UPDATE po_invoices pi
+  SET 
+    invoiced_quantity = (
+      SELECT COALESCE(SUM(pii.invoiced_quantity), 0) 
+      FROM po_invoice_items pii 
+      WHERE pii.po_invoice_id = pi.id
+    ),
+    total_amount = (
+      SELECT COALESCE(SUM(pii.amount), 0) 
+      FROM po_invoice_items pii 
+      WHERE pii.po_invoice_id = pi.id
+    ),
+    subtotal = (
+      SELECT COALESCE(SUM(pii.amount), 0) 
+      FROM po_invoice_items pii 
+      WHERE pii.po_invoice_id = pi.id
+    )
+  WHERE pi.id = OLD.po_invoice_id;
+END
+$$
+DELIMITER ;
+DELIMITER $$
+CREATE TRIGGER `trg_calculate_invoice_quantities_insert` AFTER INSERT ON `po_invoice_items` FOR EACH ROW BEGIN
+  -- Update the parent po_invoices record with quantity totals
+  UPDATE po_invoices pi
+  SET 
+    invoiced_quantity = (
+      SELECT COALESCE(SUM(pii.invoiced_quantity), 0) 
+      FROM po_invoice_items pii 
+      WHERE pii.po_invoice_id = pi.id
+    ),
+    total_amount = (
+      SELECT COALESCE(SUM(pii.amount), 0) 
+      FROM po_invoice_items pii 
+      WHERE pii.po_invoice_id = pi.id
+    ),
+    subtotal = (
+      SELECT COALESCE(SUM(pii.amount), 0) 
+      FROM po_invoice_items pii 
+      WHERE pii.po_invoice_id = pi.id
+    )
+  WHERE pi.id = NEW.po_invoice_id;
+END
+$$
+DELIMITER ;
+DELIMITER $$
+CREATE TRIGGER `trg_calculate_invoice_quantities_update` AFTER UPDATE ON `po_invoice_items` FOR EACH ROW BEGIN
+  -- Update the parent po_invoices record with quantity totals
+  UPDATE po_invoices pi
+  SET 
+    invoiced_quantity = (
+      SELECT COALESCE(SUM(pii.invoiced_quantity), 0) 
+      FROM po_invoice_items pii 
+      WHERE pii.po_invoice_id = pi.id
+    ),
+    total_amount = (
+      SELECT COALESCE(SUM(pii.amount), 0) 
+      FROM po_invoice_items pii 
+      WHERE pii.po_invoice_id = pi.id
+    ),
+    subtotal = (
+      SELECT COALESCE(SUM(pii.amount), 0) 
+      FROM po_invoice_items pii 
+      WHERE pii.po_invoice_id = pi.id
+    )
+  WHERE pi.id = NEW.po_invoice_id;
+END
+$$
+DELIMITER ;
 
 -- --------------------------------------------------------
 
@@ -556,14 +706,59 @@ INSERT INTO `po_invoice_summary` (`id`, `po_number`, `po_total_amount`, `total_i
 (45, 'PO-20250927-205007', 136886.31, 0.00, 136886.31, 0, NULL, '2025-09-29 14:29:20', '2025-09-29 14:29:20'),
 (51, 'PO-20250929-194943', 56000.00, 0.00, 56000.00, 0, NULL, '2025-09-29 14:50:33', '2025-09-30 11:54:30'),
 (67, 'PO-20250929-221636', 200.00, 0.00, 200.00, 0, NULL, '2025-09-29 17:22:23', '2025-09-30 11:53:50'),
-(71, 'PO25-9-001', 115000.00, 15000.00, 100000.00, 1, '2025-09-30', '2025-09-29 21:20:00', '2025-09-30 12:52:35'),
+(71, 'PO25-9-001', 115000.00, 15000.00, 100000.00, 1, '2025-09-30', '2025-09-29 21:20:00', '2025-10-08 17:17:01'),
 (119, 'PO-20250927-182905', 0.00, 0.00, 0.00, 0, NULL, '2025-09-30 12:11:27', '2025-09-30 12:11:27'),
 (120, 'PO-20250927-180053', 0.00, 0.00, 0.00, 0, NULL, '2025-09-30 12:11:31', '2025-09-30 12:11:31'),
 (122, 'PO-20250929-215641', 0.00, 0.00, 0.00, 0, NULL, '2025-09-30 12:11:40', '2025-09-30 12:11:40'),
 (123, 'PO-20250929-150543', 0.00, 0.00, 0.00, 0, NULL, '2025-09-30 12:11:46', '2025-09-30 12:11:46'),
-(127, 'PO25-9-002', 119900.00, 19900.00, 100000.00, 1, '2025-09-30', '2025-09-30 12:17:28', '2025-10-03 15:34:49'),
+(127, 'PO25-9-002', 119900.00, 69900.00, 50000.00, 2, '2025-10-13', '2025-09-30 12:17:28', '2025-10-13 21:29:54'),
 (138, 'PO25-9-003', 22340000.00, 22340000.00, 0.00, 3, '2025-09-30', '2025-09-30 14:46:18', '2025-10-02 20:28:27'),
-(158, 'PO25-10-001', 1050.00, 1050.00, 0.00, 2, '2025-10-01', '2025-10-01 17:42:02', '2025-10-02 21:07:30');
+(179, 'PO25-10-002', 18000.00, 0.00, 18000.00, 0, NULL, '2025-10-08 16:49:11', '2025-10-08 16:49:11'),
+(223, 'PO25-10-006', 112.11, 0.00, 112.11, 0, NULL, '2025-10-13 21:31:46', '2025-10-14 14:41:26'),
+(226, 'PO25-10-005', 330.00, 0.00, 330.00, 0, NULL, '2025-10-14 12:43:16', '2025-10-14 12:43:16'),
+(227, 'PO25-10-004', 70804.76, 0.00, 70804.76, 0, NULL, '2025-10-14 12:43:19', '2025-10-14 12:43:19');
+
+-- --------------------------------------------------------
+
+--
+-- Stand-in structure for view `po_item_quantity_tracking`
+-- (See below for the actual view)
+--
+CREATE TABLE `po_item_quantity_tracking` (
+`po_item_id` int(11)
+,`po_id` int(11)
+,`po_number` varchar(50)
+,`item_no` int(11)
+,`description` text
+,`po_quantity` decimal(10,2)
+,`unit` varchar(50)
+,`unit_price` decimal(15,2)
+,`po_amount` decimal(15,2)
+,`total_invoiced_quantity` decimal(32,2)
+,`remaining_quantity` decimal(33,2)
+,`item_invoicing_percentage` decimal(41,6)
+,`item_status` varchar(18)
+,`invoice_count` bigint(21)
+);
+
+-- --------------------------------------------------------
+
+--
+-- Stand-in structure for view `po_quantity_summary`
+-- (See below for the actual view)
+--
+CREATE TABLE `po_quantity_summary` (
+`po_id` int(11)
+,`po_number` varchar(50)
+,`supplier_name` varchar(255)
+,`po_status` enum('Draft','Pending','Approved','Received','Cancelled')
+,`po_total_quantity` decimal(32,2)
+,`total_invoiced_quantity` decimal(37,2)
+,`remaining_quantity` decimal(38,2)
+,`quantity_invoicing_percentage` decimal(46,6)
+,`quantity_invoice_count` bigint(21)
+,`quantity_status` varchar(18)
+);
 
 -- --------------------------------------------------------
 
@@ -588,20 +783,22 @@ CREATE TABLE `purchase_orders` (
   `previous_status` varchar(50) DEFAULT NULL,
   `notes` text DEFAULT NULL,
   `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
-  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
+  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  `payment_days` int(11) DEFAULT 30 COMMENT 'Number of days for payment terms (default 30 days)'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
 -- Dumping data for table `purchase_orders`
 --
 
-INSERT INTO `purchase_orders` (`id`, `po_number`, `po_date`, `supplier_name`, `supplier_email`, `supplier_phone`, `supplier_address`, `subtotal`, `tax_rate`, `tax_amount`, `total_amount`, `currency`, `status`, `previous_status`, `notes`, `created_at`, `updated_at`) VALUES
-(17, 'PO25-9-001', '2025-09-30', 'Muhammad Hunain', 'm.hunainofficial@gmail.com', '03435980052', '202 Floor Shan Residency SB-44 Block-K North Nazimabad karachi', 100000.00, 15.00, 15000.00, 115000.00, 'PKR', 'Approved', NULL, 'this is test ', '2025-09-30 12:02:32', '2025-09-30 12:02:32'),
-(18, 'PO25-9-002', '2025-09-30', 'Muhammad ', 'rizwan519@gmail.com', '03435980052', '504 Floor Shan Residency SB-44 Block-K North Nazimabad karachi', 100000.00, 19.90, 19900.00, 119900.00, 'PKR', 'Approved', NULL, '', '2025-09-30 12:03:21', '2025-09-30 12:03:21'),
-(19, 'PO25-9-003', '2025-09-30', 'Paysys', 'paysys@gmail.com', '03435980052', 'Shan Residency SB-44 Block-K North Nazimabad karachi', 20000000.00, 11.70, 2340000.00, 22340000.00, 'PKR', 'Approved', NULL, 'approved by IT team ', '2025-09-30 14:46:10', '2025-09-30 14:46:10'),
-(24, 'PO25-10-001', '2025-10-01', 'Muhammad Hunain', 'ayesharizwan519@gmail.com', '03435980052', '504 Floor Shan Residency SB-44 Block-K North Nazimabad karachi', 1000.00, 5.00, 50.00, 1050.00, 'PKR', 'Approved', NULL, '', '2025-10-01 17:36:57', '2025-10-01 17:49:57'),
-(25, 'PO25-10-002', '2025-10-03', 'ABC', 'ABC@gmail.com', '03435980052', 'SB-44 Block-K North Nazimabad karachi', 15000.00, 20.00, 3000.00, 18000.00, 'PKR', 'Pending', NULL, 'iii', '2025-10-02 19:52:24', '2025-10-02 19:52:44'),
-(27, 'PO25-10-003', '2025-10-06', 'Muhammad Hunain', 'ayesharizwan519@gmail.com', '03172178847', '202 Floor Shan Residency SB-44 Block-K North Nazimabad karachi', 1111.00, 1.00, 11.11, 1122.11, 'PKR', 'Pending', NULL, '', '2025-10-06 15:15:18', '2025-10-06 15:15:18');
+INSERT INTO `purchase_orders` (`id`, `po_number`, `po_date`, `supplier_name`, `supplier_email`, `supplier_phone`, `supplier_address`, `subtotal`, `tax_rate`, `tax_amount`, `total_amount`, `currency`, `status`, `previous_status`, `notes`, `created_at`, `updated_at`, `payment_days`) VALUES
+(17, 'PO25-9-001', '2025-09-30', 'Muhammad Hunain', 'm.hunainofficial@gmail.com', '03435980052', '202 Floor Shan Residency SB-44 Block-K North Nazimabad karachi', 100000.00, 15.00, 15000.00, 115000.00, 'PKR', 'Approved', NULL, 'this is test ', '2025-09-30 12:02:32', '2025-09-30 12:02:32', 30),
+(18, 'PO25-9-002', '2025-10-31', 'Muhammad ', 'rizwan519@gmail.com', '03435980052', '504 Floor Shan Residency SB-44 Block-K North Nazimabad karachi', 100000.00, 19.90, 19900.00, 119900.00, 'PKR', 'Approved', NULL, '', '2025-09-30 12:03:21', '2025-10-08 16:45:59', 30),
+(19, 'PO25-9-003', '2025-09-30', 'Paysys', 'paysys@gmail.com', '03435980052', 'Shan Residency SB-44 Block-K North Nazimabad karachi', 20000000.00, 11.70, 2340000.00, 22340000.00, 'PKR', 'Approved', NULL, 'approved by IT team ', '2025-09-30 14:46:10', '2025-09-30 14:46:10', 30),
+(25, 'PO25-10-002', '2025-10-03', 'ABC', 'ABC@gmail.com', '03435980052', 'SB-44 Block-K North Nazimabad karachi', 15000.00, 20.00, 3000.00, 18000.00, 'PKR', 'Pending', NULL, 'iii', '2025-10-02 19:52:24', '2025-10-08 16:45:34', 30),
+(29, 'PO25-10-004', '2025-10-13', 'Muhammad Hunain', '19@gmail.com', '03172178847', '202 Floor Shan Residency SB-44 Block-K North Nazimabad karachi', 59499.80, 19.00, 11304.96, 70804.76, 'PKR', 'Approved', NULL, '', '2025-10-13 18:35:01', '2025-10-13 18:35:01', 30),
+(30, 'PO25-10-005', '2025-10-13', 'Muhammad Hunain', '', '', '', 275.00, 20.00, 55.00, 330.00, 'PKR', 'Approved', NULL, '', '2025-10-13 20:12:46', '2025-10-13 20:12:46', 30),
+(31, 'PO25-10-006', '2025-10-13', 'aaaa', '', '', '', 111.00, 1.00, 1.11, 112.11, 'PKR', 'Approved', NULL, '', '2025-10-13 21:31:27', '2025-10-13 21:31:27', 30);
 
 --
 -- Triggers `purchase_orders`
@@ -690,6 +887,19 @@ END
 $$
 DELIMITER ;
 DELIMITER $$
+CREATE TRIGGER `trg_sync_payment_days_on_po_update` AFTER UPDATE ON `purchase_orders` FOR EACH ROW BEGIN
+    -- Only update if payment_days has changed
+    IF OLD.payment_days != NEW.payment_days THEN
+        -- Update all related po_invoices with the new payment_days
+        UPDATE arauf_crm.po_invoices
+        SET payment_days = NEW.payment_days,
+            updated_at = CURRENT_TIMESTAMP
+        WHERE po_id = NEW.id;
+    END IF;
+END
+$$
+DELIMITER ;
+DELIMITER $$
 CREATE TRIGGER `trg_sync_po_total_on_update` AFTER UPDATE ON `purchase_orders` FOR EACH ROW BEGIN
     -- Update the summary table when PO total amount changes
     UPDATE `po_invoice_summary` 
@@ -715,6 +925,7 @@ CREATE TABLE `purchase_order_items` (
   `description` text NOT NULL,
   `quantity` decimal(10,2) NOT NULL,
   `unit` varchar(50) DEFAULT NULL,
+  `net_weight` decimal(10,2) DEFAULT NULL COMMENT 'Net weight in KG',
   `unit_price` decimal(15,2) NOT NULL,
   `amount` decimal(15,2) NOT NULL,
   `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
@@ -725,14 +936,18 @@ CREATE TABLE `purchase_order_items` (
 -- Dumping data for table `purchase_order_items`
 --
 
-INSERT INTO `purchase_order_items` (`id`, `purchase_order_id`, `item_no`, `description`, `quantity`, `unit`, `unit_price`, `amount`, `created_at`, `updated_at`) VALUES
-(18, 17, 1, 'this is test', 10000.00, 'pcs', 10.00, 100000.00, '2025-09-30 12:02:32', '2025-10-02 18:58:09'),
-(19, 18, 1, 'this is another test', 10000.00, 'pcs', 10.00, 100000.00, '2025-09-30 12:03:21', '2025-10-02 18:58:09'),
-(20, 19, 1, 'Computer i5 7 gen ', 10.00, 'pcs', 2000000.00, 20000000.00, '2025-09-30 14:46:10', '2025-10-02 18:58:09'),
-(28, 24, 1, 'mmm', 1.00, 'pcs', 1000.00, 1000.00, '2025-10-01 17:49:57', '2025-10-02 18:58:09'),
-(31, 25, 1, 'aaa', 1.00, 'NOS', 5000.00, 5000.00, '2025-10-02 19:52:44', '2025-10-02 19:52:44'),
-(32, 25, 2, 'bbb', 1.00, 'JOB', 10000.00, 10000.00, '2025-10-02 19:52:44', '2025-10-02 19:52:44'),
-(34, 27, 1, 'mm', 1.00, 'pcs', 1111.00, 1111.00, '2025-10-06 15:15:18', '2025-10-06 15:15:18');
+INSERT INTO `purchase_order_items` (`id`, `purchase_order_id`, `item_no`, `description`, `quantity`, `unit`, `net_weight`, `unit_price`, `amount`, `created_at`, `updated_at`) VALUES
+(18, 17, 1, 'this is test', 10000.00, 'pcs', NULL, 10.00, 100000.00, '2025-09-30 12:02:32', '2025-10-02 18:58:09'),
+(20, 19, 1, 'Computer i5 7 gen ', 10.00, 'pcs', NULL, 2000000.00, 20000000.00, '2025-09-30 14:46:10', '2025-10-02 18:58:09'),
+(41, 25, 1, 'aaa', 1.00, 'NOS', NULL, 5000.00, 5000.00, '2025-10-08 16:45:34', '2025-10-08 16:45:34'),
+(42, 25, 2, 'bbb', 1.00, 'JOB', NULL, 10000.00, 10000.00, '2025-10-08 16:45:34', '2025-10-08 16:45:34'),
+(43, 18, 1, 'this is another test', 10000.00, 'pcs', NULL, 10.00, 100000.00, '2025-10-08 16:45:59', '2025-10-08 16:45:59'),
+(46, 29, 1, 'aaa', 10.00, 'pcs', NULL, 250.00, 2500.00, '2025-10-13 18:35:01', '2025-10-13 18:35:01'),
+(47, 29, 2, 'bbb', 20.00, 'pcs', NULL, 349.99, 6999.80, '2025-10-13 18:35:01', '2025-10-13 18:35:01'),
+(48, 29, 3, 'ccc', 5.00, 'pcs', NULL, 10000.00, 50000.00, '2025-10-13 18:35:01', '2025-10-13 18:35:01'),
+(49, 30, 1, 'a1', 20.00, 'pcs', 5.00, 10.00, 200.00, '2025-10-13 20:12:46', '2025-10-13 20:12:46'),
+(50, 30, 2, 'b2', 15.00, 'pcs', 10.00, 5.00, 75.00, '2025-10-13 20:12:46', '2025-10-13 20:12:46'),
+(51, 31, 1, 'aa', 1.00, 'pcs', 1.00, 111.00, 111.00, '2025-10-13 21:31:27', '2025-10-13 21:31:27');
 
 -- --------------------------------------------------------
 
@@ -834,7 +1049,7 @@ CREATE TABLE `user_settings` (
 --
 
 INSERT INTO `user_settings` (`id`, `user_id`, `first_name`, `last_name`, `email`, `phone`, `company`, `address`, `profile_picture_url`, `job_title`, `bio`, `timezone`, `language`, `currency_preference`, `date_format`, `two_factor_enabled`, `email_notifications`, `marketing_emails`, `theme_preference`, `dashboard_layout`, `created_at`, `updated_at`, `profile_picture`) VALUES
-(1, 2, NULL, NULL, '', '03435980052', 'A Rauf Textile', 'North Khi Block K', 'user_2_1759856151414.png', NULL, NULL, 'UTC+5', 'en', 'PKR', 'YYYY-MM-DD', 0, 1, 1, 'light', NULL, '2025-10-01 16:53:22', '2025-10-07 16:55:51', 'user_2_1759494851048.png');
+(1, 2, NULL, NULL, '', '03435980052', 'A Rauf Textile', 'North ', 'user_2_1759942463180.png', NULL, NULL, 'UTC+5', 'en', 'PKR', 'YYYY-MM-DD', 0, 1, 1, 'light', NULL, '2025-10-01 16:53:22', '2025-10-08 20:46:08', 'user_2_1759494851048.png');
 
 -- --------------------------------------------------------
 
@@ -844,6 +1059,15 @@ INSERT INTO `user_settings` (`id`, `user_id`, `first_name`, `last_name`, `email`
 DROP TABLE IF EXISTS `po_complete_history`;
 
 CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `po_complete_history`  AS SELECT `po`.`po_number` AS `po_number`, `po`.`po_date` AS `po_date`, `po`.`supplier_name` AS `supplier_name`, `po`.`total_amount` AS `po_total_amount`, `po`.`status` AS `po_status`, `pi`.`id` AS `invoice_id`, `pi`.`invoice_number` AS `invoice_number`, `pi`.`invoice_date` AS `invoice_date`, `pi`.`due_date` AS `due_date`, `pi`.`total_amount` AS `invoice_amount`, `pi`.`status` AS `invoice_status`, `pi`.`payment_date` AS `payment_date`, `pi`.`payment_method` AS `payment_method`, `pi`.`customer_name` AS `customer_name`, `pi`.`notes` AS `invoice_notes`, `ps`.`total_invoiced_amount` AS `total_invoiced_amount`, `ps`.`remaining_amount` AS `remaining_amount`, `ps`.`invoice_count` AS `invoice_count`, `ps`.`last_invoice_date` AS `last_invoice_date`, CASE WHEN `ps`.`total_invoiced_amount` >= `po`.`total_amount` THEN 'Fully Invoiced' WHEN `ps`.`total_invoiced_amount` > 0 THEN 'Partially Invoiced' ELSE 'Not Invoiced' END AS `invoicing_status`, round(`ps`.`total_invoiced_amount` / `po`.`total_amount` * 100,2) AS `invoicing_percentage`, `pi`.`created_at` AS `invoice_created_at` FROM ((`purchase_orders` `po` left join `po_invoices` `pi` on(`po`.`po_number` = `pi`.`po_number`)) left join `po_invoice_summary` `ps` on(`po`.`po_number` = `ps`.`po_number`)) ORDER BY `po`.`po_date` DESC, `pi`.`invoice_date` DESC ;
+
+-- --------------------------------------------------------
+
+--
+-- Structure for view `po_complete_summary`
+--
+DROP TABLE IF EXISTS `po_complete_summary`;
+
+CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `po_complete_summary`  AS SELECT `po`.`id` AS `po_id`, `po`.`po_number` AS `po_number`, `po`.`supplier_name` AS `supplier_name`, `po`.`total_amount` AS `po_total_amount`, `po`.`status` AS `po_status`, coalesce(sum(case when `pi`.`invoicing_mode` = 'amount' then `pi`.`total_amount` else 0 end),0) AS `amount_invoiced`, `po`.`total_amount`- coalesce(sum(case when `pi`.`invoicing_mode` = 'amount' then `pi`.`total_amount` else 0 end),0) AS `amount_remaining`, count(case when `pi`.`invoicing_mode` = 'amount' then `pi`.`id` end) AS `amount_invoice_count`, coalesce(sum(`poi`.`quantity`),0) AS `po_total_quantity`, coalesce(sum(case when `pi`.`invoicing_mode` in ('quantity','mixed') then `pi`.`invoiced_quantity` else 0 end),0) AS `quantity_invoiced`, coalesce(sum(`poi`.`quantity`),0) - coalesce(sum(case when `pi`.`invoicing_mode` in ('quantity','mixed') then `pi`.`invoiced_quantity` else 0 end),0) AS `quantity_remaining`, count(case when `pi`.`invoicing_mode` in ('quantity','mixed') then `pi`.`id` end) AS `quantity_invoice_count`, CASE WHEN count(distinct `pi`.`invoicing_mode`) > 1 THEN 'Mixed Invoicing' WHEN count(case when `pi`.`invoicing_mode` = 'amount' then 1 end) > 0 THEN 'Amount Based' WHEN count(case when `pi`.`invoicing_mode` in ('quantity','mixed') then 1 end) > 0 THEN 'Quantity Based' ELSE 'Not Invoiced' END AS `invoicing_type` FROM ((`purchase_orders` `po` left join `purchase_order_items` `poi` on(`po`.`id` = `poi`.`purchase_order_id`)) left join `po_invoices` `pi` on(`po`.`id` = `pi`.`po_id`)) GROUP BY `po`.`id`, `po`.`po_number`, `po`.`supplier_name`, `po`.`total_amount`, `po`.`status` ;
 
 -- --------------------------------------------------------
 
@@ -862,6 +1086,24 @@ CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW 
 DROP TABLE IF EXISTS `po_invoice_history`;
 
 CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `po_invoice_history`  AS SELECT `pi`.`id` AS `id`, `pi`.`invoice_number` AS `invoice_number`, `pi`.`invoice_date` AS `invoice_date`, `pi`.`due_date` AS `due_date`, `pi`.`po_number` AS `po_number`, `pi`.`customer_name` AS `customer_name`, `pi`.`total_amount` AS `invoice_amount`, `pi`.`status` AS `status`, `pi`.`notes` AS `notes`, `ps`.`po_total_amount` AS `po_total_amount`, `ps`.`total_invoiced_amount` AS `total_invoiced_amount`, `ps`.`remaining_amount` AS `remaining_amount`, `ps`.`invoice_count` AS `invoice_count`, `pi`.`created_at` AS `created_at` FROM (`po_invoices` `pi` left join `po_invoice_summary` `ps` on(`pi`.`po_number` = `ps`.`po_number`)) ORDER BY `pi`.`created_at` DESC ;
+
+-- --------------------------------------------------------
+
+--
+-- Structure for view `po_item_quantity_tracking`
+--
+DROP TABLE IF EXISTS `po_item_quantity_tracking`;
+
+CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `po_item_quantity_tracking`  AS SELECT `poi`.`id` AS `po_item_id`, `poi`.`purchase_order_id` AS `po_id`, `po`.`po_number` AS `po_number`, `poi`.`item_no` AS `item_no`, `poi`.`description` AS `description`, `poi`.`quantity` AS `po_quantity`, `poi`.`unit` AS `unit`, `poi`.`unit_price` AS `unit_price`, `poi`.`amount` AS `po_amount`, coalesce(sum(`pii`.`invoiced_quantity`),0) AS `total_invoiced_quantity`, `poi`.`quantity`- coalesce(sum(`pii`.`invoiced_quantity`),0) AS `remaining_quantity`, CASE WHEN `poi`.`quantity` > 0 THEN coalesce(sum(`pii`.`invoiced_quantity`),0) / `poi`.`quantity` * 100 ELSE 0 END AS `item_invoicing_percentage`, CASE WHEN coalesce(sum(`pii`.`invoiced_quantity`),0) = 0 THEN 'Not Invoiced' WHEN `poi`.`quantity` - coalesce(sum(`pii`.`invoiced_quantity`),0) <= 0 THEN 'Fully Invoiced' ELSE 'Partially Invoiced' END AS `item_status`, count(`pii`.`id`) AS `invoice_count` FROM ((`purchase_order_items` `poi` left join `purchase_orders` `po` on(`poi`.`purchase_order_id` = `po`.`id`)) left join `po_invoice_items` `pii` on(`poi`.`id` = `pii`.`po_item_id`)) GROUP BY `poi`.`id`, `poi`.`purchase_order_id`, `po`.`po_number`, `poi`.`item_no`, `poi`.`description`, `poi`.`quantity`, `poi`.`unit`, `poi`.`unit_price`, `poi`.`amount` ;
+
+-- --------------------------------------------------------
+
+--
+-- Structure for view `po_quantity_summary`
+--
+DROP TABLE IF EXISTS `po_quantity_summary`;
+
+CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `po_quantity_summary`  AS SELECT `po`.`id` AS `po_id`, `po`.`po_number` AS `po_number`, `po`.`supplier_name` AS `supplier_name`, `po`.`status` AS `po_status`, coalesce(sum(`poi`.`quantity`),0) AS `po_total_quantity`, coalesce(sum(case when `pi`.`invoicing_mode` in ('quantity','mixed') then `pi`.`invoiced_quantity` else 0 end),0) AS `total_invoiced_quantity`, coalesce(sum(`poi`.`quantity`),0) - coalesce(sum(case when `pi`.`invoicing_mode` in ('quantity','mixed') then `pi`.`invoiced_quantity` else 0 end),0) AS `remaining_quantity`, CASE WHEN coalesce(sum(`poi`.`quantity`),0) > 0 THEN coalesce(sum(case when `pi`.`invoicing_mode` in ('quantity','mixed') then `pi`.`invoiced_quantity` else 0 end),0) / sum(`poi`.`quantity`) * 100 ELSE 0 END AS `quantity_invoicing_percentage`, count(case when `pi`.`invoicing_mode` in ('quantity','mixed') then `pi`.`id` end) AS `quantity_invoice_count`, CASE WHEN coalesce(sum(`poi`.`quantity`),0) = 0 THEN 'No Items' WHEN coalesce(sum(case when `pi`.`invoicing_mode` in ('quantity','mixed') then `pi`.`invoiced_quantity` else 0 end),0) = 0 THEN 'Not Invoiced' WHEN coalesce(sum(`poi`.`quantity`),0) - coalesce(sum(case when `pi`.`invoicing_mode` in ('quantity','mixed') then `pi`.`invoiced_quantity` else 0 end),0) <= 0 THEN 'Fully Invoiced' ELSE 'Partially Invoiced' END AS `quantity_status` FROM ((`purchase_orders` `po` left join `purchase_order_items` `poi` on(`po`.`id` = `poi`.`purchase_order_id`)) left join `po_invoices` `pi` on(`po`.`id` = `pi`.`po_id`)) GROUP BY `po`.`id`, `po`.`po_number`, `po`.`supplier_name`, `po`.`status` ;
 
 --
 -- Indexes for dumped tables
@@ -952,8 +1194,9 @@ ALTER TABLE `po_invoices`
 --
 ALTER TABLE `po_invoice_items`
   ADD PRIMARY KEY (`id`),
-  ADD KEY `idx_po_invoice_items_invoice_id` (`po_invoice_id`),
-  ADD KEY `idx_po_invoice_items_item_no` (`item_no`);
+  ADD KEY `idx_po_invoice_id` (`po_invoice_id`),
+  ADD KEY `idx_po_item_id` (`po_item_id`),
+  ADD KEY `idx_po_invoice_items_net_weight` (`net_weight`);
 
 --
 -- Indexes for table `po_invoice_summary`
@@ -979,7 +1222,8 @@ ALTER TABLE `purchase_orders`
 --
 ALTER TABLE `purchase_order_items`
   ADD PRIMARY KEY (`id`),
-  ADD KEY `idx_po_items_order_id` (`purchase_order_id`);
+  ADD KEY `idx_po_items_order_id` (`purchase_order_id`),
+  ADD KEY `idx_purchase_order_items_net_weight` (`net_weight`);
 
 --
 -- Indexes for table `reporttable`
@@ -1020,7 +1264,7 @@ ALTER TABLE `user_settings`
 -- AUTO_INCREMENT for table `categories`
 --
 ALTER TABLE `categories`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=7;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=9;
 
 --
 -- AUTO_INCREMENT for table `company_settings`
@@ -1032,25 +1276,25 @@ ALTER TABLE `company_settings`
 -- AUTO_INCREMENT for table `customertable`
 --
 ALTER TABLE `customertable`
-  MODIFY `customer_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
+  MODIFY `customer_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=7;
 
 --
 -- AUTO_INCREMENT for table `expenses`
 --
 ALTER TABLE `expenses`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=7;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=9;
 
 --
 -- AUTO_INCREMENT for table `invoice`
 --
 ALTER TABLE `invoice`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=12;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=16;
 
 --
 -- AUTO_INCREMENT for table `invoice_items`
 --
 ALTER TABLE `invoice_items`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=18;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=24;
 
 --
 -- AUTO_INCREMENT for table `invoice_payments`
@@ -1062,37 +1306,37 @@ ALTER TABLE `invoice_payments`
 -- AUTO_INCREMENT for table `po_deletion_history`
 --
 ALTER TABLE `po_deletion_history`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=12;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=24;
 
 --
 -- AUTO_INCREMENT for table `po_invoices`
 --
 ALTER TABLE `po_invoices`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=30;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=40;
 
 --
 -- AUTO_INCREMENT for table `po_invoice_items`
 --
 ALTER TABLE `po_invoice_items`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=12;
 
 --
 -- AUTO_INCREMENT for table `po_invoice_summary`
 --
 ALTER TABLE `po_invoice_summary`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=177;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=249;
 
 --
 -- AUTO_INCREMENT for table `purchase_orders`
 --
 ALTER TABLE `purchase_orders`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=28;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=35;
 
 --
 -- AUTO_INCREMENT for table `purchase_order_items`
 --
 ALTER TABLE `purchase_order_items`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=35;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=58;
 
 --
 -- AUTO_INCREMENT for table `users`
@@ -1110,7 +1354,7 @@ ALTER TABLE `user_sessions`
 -- AUTO_INCREMENT for table `user_settings`
 --
 ALTER TABLE `user_settings`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=69;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=84;
 
 --
 -- Constraints for dumped tables
@@ -1144,7 +1388,8 @@ ALTER TABLE `invoice_payments`
 -- Constraints for table `po_invoice_items`
 --
 ALTER TABLE `po_invoice_items`
-  ADD CONSTRAINT `fk_po_invoice_items_invoice` FOREIGN KEY (`po_invoice_id`) REFERENCES `po_invoices` (`id`) ON DELETE CASCADE;
+  ADD CONSTRAINT `po_invoice_items_ibfk_1` FOREIGN KEY (`po_invoice_id`) REFERENCES `po_invoices` (`id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `po_invoice_items_ibfk_2` FOREIGN KEY (`po_item_id`) REFERENCES `purchase_order_items` (`id`) ON DELETE CASCADE;
 
 --
 -- Constraints for table `purchase_order_items`

@@ -52,8 +52,8 @@ const InvoiceDetails = () => {
                 <p className="font-semibold">Within 15 days</p>
               </div>
               <div>
-                <p className="text-sm opacity-90">Payment Deadline</p>
-                <p className="font-semibold">05/18/2020</p>
+                <p className="text-sm opacity-90">Payment Days / Due Date</p>
+                <p className="font-semibold">30 days / 05/18/2020</p>
               </div>
             </div>
           </div>
@@ -135,7 +135,7 @@ const InvoiceDetails = () => {
       {/* Terms */}
       <div className="pt-6 border-t border-gray-300 bg-white p-4 rounded-lg shadow-sm">
         <h4 className="font-semibold text-gray-900 mb-2">Terms & Conditions</h4>
-        <p className="text-sm text-gray-600">Please pay within 15 days of receiving this invoice.</p>
+  <p className="text-sm text-gray-600">Payment must be made within the specified Payment Days from invoice date.</p>
       </div>
     </div>
   );

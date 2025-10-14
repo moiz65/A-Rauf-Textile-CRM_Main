@@ -817,7 +817,7 @@ const ExpenseTable = ({ expensesData = [], onExpensesChange }) => {
                     <tr>
                       <th className="px-3 py-2 text-left text-sm font-medium text-gray-700">Description</th>
                       <th className="px-3 py-2 text-right text-sm font-medium text-gray-700">Qty</th>
-                      <th className="px-3 py-2 text-right text-sm font-medium text-gray-700">Unit Price</th>
+                      <th className="px-3 py-2 text-right text-sm font-medium text-gray-700">Rate</th>
                       <th className="px-3 py-2 text-right text-sm font-medium text-gray-700">Amount</th>
                       <th className="px-3 py-2 text-center text-sm font-medium text-gray-700"></th>
                     </tr>

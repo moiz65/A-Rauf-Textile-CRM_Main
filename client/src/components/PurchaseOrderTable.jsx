@@ -691,6 +691,7 @@ const PurchaseOrderTable = ({ onViewDetails, openEditPOId = null }) => {
         total_amount: poData.total_amount || poData.totalAmount || 0,
         currency: poData.currency || 'PKR',
         status: poData.status || 'Draft',
+        payment_days: poData.payment_days || 30,
         notes: poData.notes || '',
         items: poData.items || []
       };
@@ -840,7 +841,7 @@ const PurchaseOrderTable = ({ onViewDetails, openEditPOId = null }) => {
                     Status
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Customer
+                    Contact Person Name
                   </th>
                 </tr>
               </thead>
@@ -1043,6 +1044,7 @@ const PurchaseOrderTable = ({ onViewDetails, openEditPOId = null }) => {
             total_amount: 0,
             currency: 'PKR',
             status: 'Draft',
+            payment_days: 30,
             notes: ''
           });
           setTaxRate(0);
@@ -1308,7 +1310,8 @@ const PurchaseOrderTable = ({ onViewDetails, openEditPOId = null }) => {
                       <th className="border border-gray-300 px-3 py-3 text-left text-sm font-medium">Item #</th>
                       <th className="border border-gray-300 px-3 py-3 text-left text-sm font-medium">Item Description & Specifications *</th>
                       <th className="border border-gray-300 px-3 py-3 text-left text-sm font-medium">Quantity</th>
-                      <th className="border border-gray-300 px-3 py-3 text-left text-sm font-medium">Unit Price (PKR)</th>
+                      <th className="border border-gray-300 px-3 py-3 text-left text-sm font-medium">Net Weight (KG)</th>
+                      <th className="border border-gray-300 px-3 py-3 text-left text-sm font-medium">Rate (PKR)</th>
                       <th className="border border-gray-300 px-3 py-3 text-left text-sm font-medium">Amount (PKR)</th>
                       <th className="border border-gray-300 px-3 py-3 text-center text-sm font-medium"></th>
                     </tr>
@@ -1338,6 +1341,17 @@ const PurchaseOrderTable = ({ onViewDetails, openEditPOId = null }) => {
                             min="0"
                             step="1"
                             required
+                          />
+                        </td>
+                        <td className="border border-gray-300 px-3 py-3">
+                          <input
+                            type="number"
+                            value={item.net_weight || ''}
+                            onChange={(e) => handleItemChange(index, 'net_weight', e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+                            min="0"
+                            step="0.01"
+                            placeholder="0.00"
                           />
                         </td>
                         <td className="border border-gray-300 px-3 py-3">
@@ -1446,6 +1460,22 @@ const PurchaseOrderTable = ({ onViewDetails, openEditPOId = null }) => {
                 </select>
               </div>
               <div></div>
+            </div>
+
+            {/* Payment Terms */}
+            <div>
+              <label className="block text-gray-700 font-medium mb-2">Payment Terms (Days)</label>
+              <input
+                type="number"
+                name="payment_days"
+                value={formData.payment_days || 30}
+                onChange={handleChange}
+                min="0"
+                max="365"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="30"
+              />
+              <p className="text-sm text-gray-500 mt-1">Number of days for payment (e.g., 30 for "Net 30")</p>
             </div>
 
             {/* Notes */}

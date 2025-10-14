@@ -1317,6 +1317,7 @@ app.get("/api/invoices", (req, res) => {
     dateFrom, 
     dateTo, 
     customer, 
+    company,
     search, 
     is_sent,
     currency,
@@ -1512,24 +1513,41 @@ app.get("/api/invoices", (req, res) => {
   if (dateFrom) {
     if (invoice_type === 'po_invoice') {
       conditions.push('invoice_date >= ?');
-    } else {
+      params.push(dateFrom);
+    } else if (invoice_type === 'regular' || exclude_po === 'true') {
       conditions.push('bill_date >= ?');
+      params.push(dateFrom);
+    } else {
+      // For UNION queries, use the aliased column name from SELECT
+      conditions.push('bill_date >= ?');
+      params.push(dateFrom);
     }
-    params.push(dateFrom);
   }
   
   if (dateTo) {
     if (invoice_type === 'po_invoice') {
       conditions.push('invoice_date <= ?');
-    } else {
+      params.push(dateTo);
+    } else if (invoice_type === 'regular' || exclude_po === 'true') {
       conditions.push('bill_date <= ?');
+      params.push(dateTo);
+    } else {
+      // For UNION queries, use the aliased column name from SELECT
+      conditions.push('bill_date <= ?');
+      params.push(dateTo);
     }
-    params.push(dateTo);
   }
   
   if (customer) {
     conditions.push('customer_name LIKE ?');
     params.push(`%${customer}%`);
+  }
+
+  // Filter by company: lookup customers whose company matches and filter by their names
+  if (company) {
+    // Use subquery to match customer_name against customertable.customer where company LIKE ?
+    conditions.push(`customer_name IN (SELECT customer FROM customertable WHERE company LIKE ?)`);
+    params.push(`%${company}%`);
   }
   
   if (currency && currency !== 'All') {
@@ -1561,7 +1579,25 @@ app.get("/api/invoices", (req, res) => {
   
   // Apply conditions to the query
   if (conditions.length > 0) {
-    query = query.replace('WHERE 1=1', `WHERE 1=1 AND ${conditions.join(' AND ')}`);
+    const conditionString = `WHERE 1=1 AND ${conditions.join(' AND ')}`;
+    
+    // For UNION queries, we need to apply filters to BOTH parts AND duplicate params
+    if (!invoice_type || (invoice_type !== 'po_invoice' && invoice_type !== 'regular' && exclude_po !== 'true')) {
+      // This is a UNION query - replace both WHERE clauses and duplicate params
+      const whereCount = (query.match(/WHERE 1=1/g) || []).length;
+      query = query.replace(/WHERE 1=1/g, conditionString);
+      
+      // Duplicate params for each WHERE clause in UNION (usually 2: regular + PO)
+      if (whereCount > 1) {
+        const originalParams = [...params];
+        for (let i = 1; i < whereCount; i++) {
+          params.push(...originalParams);
+        }
+      }
+    } else {
+      // Single query (either PO only or regular only)
+      query = query.replace('WHERE 1=1', conditionString);
+    }
   }
   
   // Wrap the query and apply sorting
@@ -1620,7 +1656,7 @@ app.get("/api/invoices", (req, res) => {
         },
         filters: {
           status, minAmount, maxAmount, dateFrom, dateTo, 
-          customer, search, is_sent, currency, invoice_number
+          customer, company, search, is_sent, currency, invoice_number
         }
       });
     });
@@ -1777,7 +1813,7 @@ app.post("/api/invoices", (req, res) => {
   const {
     customer_name, customer_email, p_number, a_p_number, address,
     st_reg_no, ntn_number, currency, subtotal, tax_rate, tax_amount, 
-    total_amount, bill_date, payment_deadline, note, status = "Pending", 
+    total_amount, bill_date, payment_deadline, payment_days, note, status = "Pending", 
     items = []
   } = req.body;
 
@@ -1808,16 +1844,30 @@ app.post("/api/invoices", (req, res) => {
 
     const customer_id = customerResults[0].customer_id;
 
-    // Validate bill_date and payment_deadline as they are required in DB
+    // Validate bill_date as required in DB
     if (!bill_date) {
       return res.status(400).json({ 
         error: "Bill date is required" 
       });
     }
 
-    if (!payment_deadline) {
+    // Determine payment_deadline: if payment_days provided, calculate due date
+    let computed_payment_deadline = payment_deadline || null;
+    if ((payment_days !== undefined) && (payment_days !== null)) {
+      const pd = Number(payment_days);
+      if (isNaN(pd) || pd < 0 || pd > 365) {
+        return res.status(400).json({ error: 'payment_days must be a number between 0 and 365' });
+      }
+      const baseDate = new Date(bill_date || new Date());
+      const due = new Date(baseDate);
+      due.setDate(due.getDate() + pd);
+      computed_payment_deadline = due.toISOString().split('T')[0];
+    }
+
+    // If neither payment_deadline nor payment_days provided, reject
+    if (!computed_payment_deadline) {
       return res.status(400).json({ 
-        error: "Payment deadline is required" 
+        error: "Either payment_deadline or payment_days is required" 
       });
     }
 
@@ -1848,15 +1898,15 @@ app.post("/api/invoices", (req, res) => {
         INSERT INTO invoice (
           invoice_number, customer_id, customer_name, customer_email, p_number, a_p_number, address,
           st_reg_no, ntn_number, currency, subtotal, tax_rate, tax_amount, total_amount, bill_date,
-          payment_deadline, note, status
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          payment_deadline, payment_days, note, status
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `;
 
       const invoiceValues = [
         invoice_number, customer_id, customer_name, customer_email, p_number || '', a_p_number || '', address || '',
         st_reg_no || '', ntn_number || '', currency || 'PKR', subtotal || 0, 
         (tax_rate !== null && tax_rate !== undefined) ? tax_rate : 0,
-        tax_amount || 0, total_amount || 0, bill_date, payment_deadline, note || '', status
+        tax_amount || 0, total_amount || 0, bill_date, computed_payment_deadline, payment_days || null, note || '', status
       ];
 
     logger.debug('Executing invoice query with values:', invoiceValues); // Debug log
@@ -1878,7 +1928,7 @@ app.post("/api/invoices", (req, res) => {
         // Insert invoice items
         if (items.length > 0) {
           const itemsQuery = `
-            INSERT INTO invoice_items (invoice_id, item_no, description, quantity, unit, rate, amount)
+            INSERT INTO invoice_items (invoice_id, item_no, description, quantity, unit, rate, net_weight, amount)
             VALUES ?
           `;
 
@@ -1889,6 +1939,7 @@ app.post("/api/invoices", (req, res) => {
             item.quantity || 0,
             item.unit || '',
             item.rate || 0,
+            (item.net_weight !== undefined && item.net_weight !== null) ? item.net_weight : 0,
             item.amount || 0
           ]);
 
@@ -2026,8 +2077,8 @@ app.put("/api/invoices/:id", (req, res) => {
         // Insert new items if provided
         if (items && Array.isArray(items) && items.length > 0) {
           const insertItemQuery = `
-            INSERT INTO invoice_items (invoice_id, item_no, description, quantity, unit, rate, amount, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, NOW())
+            INSERT INTO invoice_items (invoice_id, item_no, description, quantity, unit, rate, net_weight, amount, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())
           `;
 
           let completedInserts = 0;
@@ -2041,6 +2092,7 @@ app.put("/api/invoices/:id", (req, res) => {
               parseFloat(item.quantity) || 0,
               item.unit || '',
               parseFloat(item.rate) || 0,
+              (item.net_weight !== undefined && item.net_weight !== null) ? parseFloat(item.net_weight) : 0,
               parseFloat(item.amount) || 0
             ];
 
@@ -2335,7 +2387,6 @@ app.get("/api/po-invoices", (req, res) => {
     
     // Return just the invoice numbers for ID generation
     const invoiceNumbers = results.map(row => row.invoice_number).filter(num => num);
-    logger.info(`Returning ${invoiceNumbers.length} existing PO invoice numbers for ID generation`);
     res.json(invoiceNumbers);
   });
 });
@@ -2719,7 +2770,11 @@ app.get("/api/purchase-orders/:id", (req, res) => {
         // Still return PO even if items fetch fails
         po.items = [];
       } else {
-        po.items = itemsResults || [];
+        // Handle NULL net_weight values
+        po.items = itemsResults ? itemsResults.map(item => ({
+          ...item,
+          net_weight: item.net_weight || 0
+        })) : [];
       }
       
       res.json(po);
@@ -3178,10 +3233,15 @@ app.get("/api/purchase-orders/:id", (req, res) => {
         });
       }
       
-      // Combine purchase order with items
+      // Combine purchase order with items and handle NULL net_weight values
+      const itemsWithNetWeight = itemsResults ? itemsResults.map(item => ({
+        ...item,
+        net_weight: item.net_weight || 0  // Convert NULL to 0
+      })) : [];
+      
       const poWithItems = {
         ...purchaseOrder,
-        items: itemsResults || []
+        items: itemsWithNetWeight
       };
       
       res.json(poWithItems);
@@ -3206,6 +3266,7 @@ app.post("/api/purchase-orders", (req, res) => {
     total_amount,
     currency = 'PKR',
     status = 'Pending',
+    payment_days = 30,
     notes = '',
     items = []
   } = req.body;
@@ -3236,13 +3297,13 @@ app.post("/api/purchase-orders", (req, res) => {
     const query = `
       INSERT INTO purchase_orders (
         po_number, po_date, supplier_name, supplier_email, supplier_phone, supplier_address,
-        subtotal, tax_rate, tax_amount, total_amount, currency, status, notes
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        subtotal, tax_rate, tax_amount, total_amount, currency, status, payment_days, notes
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
     
     const values = [
       po_number, po_date, supplier_name, supplier_email || '', supplier_phone || '', supplier_address || '',
-      calculatedSubtotal, tax_rate, calculatedTaxAmount, calculatedTotal, currency, status, notes
+      calculatedSubtotal, tax_rate, calculatedTaxAmount, calculatedTotal, currency, status, payment_days, notes
     ];
 
     db.query(query, values, (err, result) => {
@@ -3259,7 +3320,7 @@ app.post("/api/purchase-orders", (req, res) => {
       // Insert PO items if provided
       if (items && items.length > 0) {
         const itemsQuery = `
-          INSERT INTO purchase_order_items (purchase_order_id, item_no, description, quantity, unit, unit_price, amount)
+          INSERT INTO purchase_order_items (purchase_order_id, item_no, description, quantity, unit, net_weight, unit_price, amount)
           VALUES ?
         `;
 
@@ -3269,6 +3330,7 @@ app.post("/api/purchase-orders", (req, res) => {
           item.description || '',
           item.quantity || 1,
           item.unit || 'pcs',
+          item.net_weight || 0,
           item.unit_price || 0,
           item.amount || 0
         ]);
@@ -3422,6 +3484,7 @@ function updatePurchaseOrder(poId, requestBody, res) {
     total_amount,
     currency,
     status,
+    payment_days = 30,
     notes,
     previous_status,
     items = []
@@ -3438,14 +3501,14 @@ function updatePurchaseOrder(poId, requestBody, res) {
       UPDATE purchase_orders SET
         po_number = ?, po_date = ?, supplier_name = ?, supplier_email = ?, supplier_phone = ?,
         supplier_address = ?, subtotal = ?, tax_rate = ?, tax_amount = ?, total_amount = ?,
-        currency = ?, status = ?, notes = ?, previous_status = ?, updated_at = CURRENT_TIMESTAMP
+        currency = ?, status = ?, payment_days = ?, notes = ?, previous_status = ?, updated_at = CURRENT_TIMESTAMP
       WHERE id = ?
     `;
 
     const updatePOValues = [
       po_number, po_date, supplier_name, supplier_email || '', supplier_phone || '',
       supplier_address || '', subtotal, tax_rate, tax_amount, total_amount,
-      currency, status, notes || '', previous_status || null, poId
+      currency, status, payment_days, notes || '', previous_status || null, poId
     ];
 
     db.query(updatePOQuery, updatePOValues, (err, results) => {
@@ -3475,7 +3538,7 @@ function updatePurchaseOrder(poId, requestBody, res) {
         // Insert new items if provided
         if (items && items.length > 0) {
           const itemsQuery = `
-            INSERT INTO purchase_order_items (purchase_order_id, item_no, description, quantity, unit, unit_price, amount)
+            INSERT INTO purchase_order_items (purchase_order_id, item_no, description, quantity, unit, net_weight, unit_price, amount)
             VALUES ?
           `;
 
@@ -3485,6 +3548,7 @@ function updatePurchaseOrder(poId, requestBody, res) {
             item.description || '',
             item.quantity || 1,
             item.unit || 'pcs',
+            item.net_weight || 0,
             item.unit_price || 0,
             item.amount || 0
           ]);
@@ -3793,8 +3857,29 @@ app.post("/api/po-invoices", (req, res) => {
     return res.status(400).json({ message: "Missing required fields: invoice_number, invoice_date, po_number, supplier_name" });
   }
 
+  // Get PO details to fetch payment_days and calculate due_date
+  const getPODetailsAndCreateInvoice = (itemsToSave) => {
+    const poQuery = "SELECT payment_days FROM purchase_orders WHERE po_number = ?";
+    db.query(poQuery, [po_number], (err, poResults) => {
+      if (err) {
+        console.error("Error fetching PO details:", err);
+        return res.status(500).json({ message: "Failed to fetch PO details", error: err.message });
+      }
+      
+      const payment_days = poResults.length > 0 ? (poResults[0].payment_days || 30) : 30;
+      
+      // Calculate due_date: invoice_date + payment_days
+      const invoiceDate = new Date(invoice_date);
+      const calculatedDueDate = new Date(invoiceDate);
+      calculatedDueDate.setDate(calculatedDueDate.getDate() + payment_days);
+      const calculated_due_date = calculatedDueDate.toISOString().split('T')[0];
+      
+      createInvoiceWithItems(itemsToSave, payment_days, calculated_due_date);
+    });
+  };
+
   // Function to create invoice with resolved items
-  const createInvoiceWithItems = (itemsToSave) => {
+  const createInvoiceWithItems = (itemsToSave, payment_days, calculated_due_date) => {
     // Start transaction for invoice and items
     db.beginTransaction((err) => {
       if (err) {
@@ -3806,14 +3891,14 @@ app.post("/api/po-invoices", (req, res) => {
         INSERT INTO po_invoices (
           invoice_number, invoice_date, due_date, po_id, po_number, customer_name, 
           customer_email, customer_phone, customer_address, subtotal, tax_rate, 
-          tax_amount, total_amount, currency, status, notes
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          tax_amount, total_amount, currency, status, payment_days, notes
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `;
       
       const values = [
-        invoice_number, invoice_date, due_date, po_id, po_number, customer_name,
+        invoice_number, invoice_date, calculated_due_date, po_id, po_number, customer_name,
         customer_email || '', customer_phone || '', customer_address || '',
-        subtotal, tax_rate, tax_amount, total_amount, currency, status, notes
+        subtotal, tax_rate, tax_amount, total_amount, currency, status, payment_days, notes
       ];
 
       db.query(query, values, (err, result) => {
@@ -3845,15 +3930,17 @@ app.post("/api/po-invoices", (req, res) => {
         // Insert invoice items if provided
         if (itemsToSave && itemsToSave.length > 0) {
           const itemsQuery = `
-            INSERT INTO po_invoice_items (po_invoice_id, item_no, description, quantity, unit_price, amount)
+            INSERT INTO po_invoice_items (po_invoice_id, po_item_id, item_no, description, quantity, net_weight, unit_price, amount)
             VALUES ?
           `;
 
           const itemsValues = itemsToSave.map((item, index) => [
             invoiceId,
+            item.po_item_id || null,
             item.item_no || index + 1,
             item.description || '',
             item.quantity || 1,
+            item.net_weight || 0,
             item.unitPrice || item.unit_price || 0,
             item.amount || 0
           ]);
@@ -3947,9 +4034,11 @@ app.post("/api/po-invoices", (req, res) => {
     
     const fetchPOItemsQuery = `
       SELECT 
+        poi.id as po_item_id,
         poi.item_no,
         poi.description,
         poi.quantity,
+        COALESCE(poi.net_weight, 0) as net_weight,
         poi.unit_price,
         poi.amount
       FROM purchase_order_items poi
@@ -3993,8 +4082,29 @@ app.get("/api/po-invoices/:id", (req, res) => {
     
     const invoice = invoiceResults[0];
     
-    // Get PO invoice items
-    const itemsQuery = "SELECT * FROM po_invoice_items WHERE po_invoice_id = ? ORDER BY item_no";
+    // Get PO invoice items (use linked purchase_order_items.net_weight when pii.net_weight is NULL)
+    const itemsQuery = `
+      SELECT
+        pii.id,
+        pii.po_invoice_id,
+        pii.po_item_id,
+        pii.item_no,
+        COALESCE(pii.description, poi.description) as description,
+        pii.po_quantity,
+        pii.invoiced_quantity,
+        pii.remaining_quantity,
+        pii.unit,
+        COALESCE(pii.net_weight, poi.net_weight, 0) as net_weight,
+        pii.unit_price,
+        pii.amount,
+        pii.created_at,
+        pii.updated_at
+      FROM po_invoice_items pii
+      LEFT JOIN purchase_order_items poi ON pii.po_item_id = poi.id
+      WHERE pii.po_invoice_id = ?
+      ORDER BY pii.item_no
+    `;
+
     db.query(itemsQuery, [id], (err, itemsResults) => {
       if (err) {
         console.error("Error fetching PO invoice items:", err);
@@ -4008,7 +4118,6 @@ app.get("/api/po-invoices/:id", (req, res) => {
       
       // If no items found in po_invoice_items, try to get items from original PO
       if (!itemsResults || itemsResults.length === 0) {
-  logger.info(`No items found for PO invoice ${id}, checking original PO: ${invoice.po_number}`);
         
         // First try to get items from purchase_order_items table (preferred)
         const poItemsQuery = `
@@ -4016,6 +4125,7 @@ app.get("/api/po-invoices/:id", (req, res) => {
             poi.item_no,
             poi.description,
             poi.quantity,
+            COALESCE(poi.net_weight, 0) as net_weight,
             poi.unit_price,
             poi.amount,
             CONCAT('Supplier: ', po.supplier_name, ' - As per PO specifications') as specifications
@@ -4675,6 +4785,614 @@ app.post("/api/settings/:userId", (req, res) => {
   }
   
   res.json({ success: true, message: "Settings updated successfully" });
+});
+
+// ================================================================================
+// QUANTITY-BASED INVOICING API ENDPOINTS
+// ================================================================================
+
+// Get PO items with quantity tracking for invoice creation
+app.get("/api/purchase-orders/:id/items/quantity-tracking", (req, res) => {
+  const { id } = req.params;
+  
+  // Check if ID is numeric (database ID) or PO number format
+  const isNumericId = /^\d+$/.test(id);
+  const whereClause = isNumericId ? "po.id = ?" : "po.po_number = ?";
+  
+  const query = `
+    SELECT 
+      poi.id as po_item_id,
+      poi.purchase_order_id as po_id,
+      po.po_number,
+      poi.item_no,
+      poi.description,
+      poi.quantity as po_quantity,
+      poi.unit,
+      poi.net_weight,
+      poi.unit_price,
+      poi.amount as po_amount,
+      
+      -- Calculate already invoiced quantities for this item
+      COALESCE(SUM(pii.invoiced_quantity), 0) as total_invoiced_quantity,
+      
+      -- Calculate remaining quantity for this item
+      (poi.quantity - COALESCE(SUM(pii.invoiced_quantity), 0)) as remaining_quantity,
+      
+      -- Calculate percentage invoiced for this item
+      CASE 
+        WHEN poi.quantity > 0 
+        THEN (COALESCE(SUM(pii.invoiced_quantity), 0) / poi.quantity) * 100
+        ELSE 0 
+      END as item_invoicing_percentage,
+      
+      -- Item invoicing status
+      CASE 
+        WHEN COALESCE(SUM(pii.invoiced_quantity), 0) = 0 THEN 'Not Invoiced'
+        WHEN (poi.quantity - COALESCE(SUM(pii.invoiced_quantity), 0)) <= 0 THEN 'Fully Invoiced'
+        ELSE 'Partially Invoiced'
+      END as item_status,
+      
+      -- Count of invoices for this item
+      COUNT(pii.id) as invoice_count
+      
+    FROM purchase_order_items poi
+    LEFT JOIN purchase_orders po ON poi.purchase_order_id = po.id
+    LEFT JOIN po_invoice_items pii ON poi.id = pii.po_item_id
+    WHERE ${whereClause}
+    GROUP BY poi.id, poi.purchase_order_id, po.po_number, poi.item_no, poi.description, 
+             poi.quantity, poi.unit, poi.unit_price, poi.amount
+    ORDER BY poi.item_no
+  `;
+  
+  db.query(query, [id], (err, results) => {
+    if (err) {
+      console.error("Error fetching PO item quantity tracking:", err);
+      res.status(500).json({ error: "Failed to fetch PO item quantity tracking" });
+      return;
+    }
+    
+    res.json(results);
+  });
+});
+
+// Get quantity-based summary for a PO
+app.get("/api/purchase-orders/:id/quantity-summary", (req, res) => {
+  const { id } = req.params;
+  
+  // Check if ID is numeric (database ID) or PO number format
+  const isNumericId = /^\d+$/.test(id);
+  const whereClause = isNumericId ? "po.id = ?" : "po.po_number = ?";
+  
+  const query = `
+    SELECT 
+      po.id as po_id,
+      po.po_number,
+      po.supplier_name,
+      po.total_amount as po_total_amount,
+      po.status as po_status,
+      
+      -- PO Total Quantities
+      COALESCE(SUM(poi.quantity), 0) as po_total_quantity,
+      
+      -- Amount-based invoicing summary
+      COALESCE(SUM(
+        CASE WHEN pi.invoicing_mode = 'amount' 
+        THEN pi.total_amount 
+        ELSE 0 END
+      ), 0) as amount_invoiced,
+      
+      (po.total_amount - COALESCE(SUM(
+        CASE WHEN pi.invoicing_mode = 'amount' 
+        THEN pi.total_amount 
+        ELSE 0 END
+      ), 0)) as amount_remaining,
+      
+      -- Quantity-based invoicing summary
+      COALESCE(SUM(
+        CASE WHEN pi.invoicing_mode IN ('quantity', 'mixed') 
+        THEN pi.invoiced_quantity 
+        ELSE 0 END
+      ), 0) as quantity_invoiced,
+      
+      (COALESCE(SUM(poi.quantity), 0) - COALESCE(SUM(
+        CASE WHEN pi.invoicing_mode IN ('quantity', 'mixed') 
+        THEN pi.invoiced_quantity 
+        ELSE 0 END
+      ), 0)) as quantity_remaining,
+      
+      -- Percentage calculations
+      CASE 
+        WHEN po.total_amount > 0 
+        THEN (COALESCE(SUM(
+          CASE WHEN pi.invoicing_mode = 'amount' 
+          THEN pi.total_amount 
+          ELSE 0 END
+        ), 0) / po.total_amount) * 100
+        ELSE 0 
+      END as amount_invoicing_percentage,
+      
+      CASE 
+        WHEN COALESCE(SUM(poi.quantity), 0) > 0 
+        THEN (COALESCE(SUM(
+          CASE WHEN pi.invoicing_mode IN ('quantity', 'mixed') 
+          THEN pi.invoiced_quantity 
+          ELSE 0 END
+        ), 0) / SUM(poi.quantity)) * 100
+        ELSE 0 
+      END as quantity_invoicing_percentage,
+      
+      -- Invoice counts
+      COUNT(CASE WHEN pi.invoicing_mode = 'amount' THEN pi.id END) as amount_invoice_count,
+      COUNT(CASE WHEN pi.invoicing_mode IN ('quantity', 'mixed') THEN pi.id END) as quantity_invoice_count,
+      
+      -- Status determination
+      CASE 
+        WHEN COUNT(DISTINCT pi.invoicing_mode) > 1 THEN 'Mixed Invoicing'
+        WHEN COUNT(CASE WHEN pi.invoicing_mode = 'amount' THEN 1 END) > 0 THEN 'Amount Based'
+        WHEN COUNT(CASE WHEN pi.invoicing_mode IN ('quantity', 'mixed') THEN 1 END) > 0 THEN 'Quantity Based'
+        ELSE 'Not Invoiced'
+      END as invoicing_type
+      
+    FROM purchase_orders po
+    LEFT JOIN purchase_order_items poi ON po.id = poi.purchase_order_id
+    LEFT JOIN po_invoices pi ON po.id = pi.po_id
+    WHERE ${whereClause}
+    GROUP BY po.id, po.po_number, po.supplier_name, po.total_amount, po.status
+  `;
+  
+  db.query(query, [id], (err, results) => {
+    if (err) {
+      console.error("Error fetching PO quantity summary:", err);
+      res.status(500).json({ error: "Failed to fetch PO quantity summary" });
+      return;
+    }
+    
+    if (results.length === 0) {
+      res.status(404).json({ error: "Purchase order not found" });
+      return;
+    }
+    
+    const summary = results[0];
+    
+    // Ensure no negative values
+    summary.amount_remaining = Math.max(0, summary.amount_remaining);
+    summary.quantity_remaining = Math.max(0, summary.quantity_remaining);
+    
+    res.json(summary);
+  });
+});
+
+// Create quantity-based invoice
+// Wrapper function to get PO details and create quantity-based invoice
+async function getPODetailsAndCreateQuantityBasedInvoice(req, res) {
+  const { po_id, invoice_date } = req.body;
+
+  // Get payment_days from original PO
+  const query = 'SELECT payment_days FROM purchase_orders WHERE id = ?';
+  db.query(query, [po_id], (err, results) => {
+    if (err) {
+      console.error('Error fetching PO payment_days:', err);
+      return res.status(500).json({ error: 'Failed to fetch PO details' });
+    }
+
+    if (results.length === 0) {
+      return res.status(404).json({ error: 'Purchase order not found' });
+    }
+
+    const payment_days = results[0].payment_days || 30;
+    
+    // Calculate due_date
+    const invoiceDate = new Date(invoice_date || new Date());
+    const dueDate = new Date(invoiceDate);
+    dueDate.setDate(dueDate.getDate() + payment_days);
+    const calculated_due_date = dueDate.toISOString().split('T')[0];
+
+    console.log(`PO ${po_id} payment_days: ${payment_days}, calculated due_date: ${calculated_due_date}`);
+
+    // Call the actual creation function with calculated values
+    createQuantityBasedInvoiceWithItems(req, res, payment_days, calculated_due_date);
+  });
+}
+
+async function createQuantityBasedInvoiceWithItems(req, res, payment_days, calculated_due_date) {
+  const {
+    invoice_number,
+    invoice_date,
+    due_date, // This will be ignored in favor of calculated_due_date
+    po_id,
+    po_number,
+    customer_name,
+    customer_email,
+    customer_phone,
+    customer_address,
+    currency,
+    status,
+    notes,
+    items // Array of { po_item_id, invoiced_quantity }
+  } = req.body;
+
+  // Validate required fields
+  if (!po_id || !invoice_number || !customer_name || !items || !Array.isArray(items) || items.length === 0) {
+    console.error('Quantity-based invoice validation failed:', {
+      po_id: !!po_id,
+      invoice_number: !!invoice_number,
+      customer_name: !!customer_name,
+      items_provided: !!items,
+      items_is_array: Array.isArray(items),
+      items_length: items ? items.length : 0
+    });
+    
+    return res.status(400).json({ 
+      error: "Missing required fields for quantity-based invoice", 
+      required: ["po_id", "invoice_number", "customer_name", "items (array with at least 1 item)"],
+      received: {
+        po_id: !!po_id,
+        invoice_number: !!invoice_number,
+        customer_name: !!customer_name,
+        items_count: items ? items.length : 0
+      }
+    });
+  }
+
+  console.log(`Creating quantity-based invoice for PO ${po_id} with ${items.length} items:`, 
+    items.map(item => ({ po_item_id: item.po_item_id, quantity: item.invoiced_quantity }))
+  );
+
+  // Start transaction
+  db.beginTransaction((transactionErr) => {
+    if (transactionErr) {
+      console.error("Transaction start error:", transactionErr);
+      return res.status(500).json({ error: "Failed to start transaction" });
+    }
+
+    // Step 1: Validate quantities and get item details
+    const itemValidationPromises = items.map((item) => {
+      return new Promise((resolve, reject) => {
+        const itemQuery = `
+          SELECT 
+            poi.id,
+            poi.description,
+            poi.quantity as po_quantity,
+            poi.unit,
+            COALESCE(poi.net_weight, 0) as net_weight,
+            poi.unit_price,
+            poi.amount as po_amount,
+            COALESCE(SUM(pii.invoiced_quantity), 0) as already_invoiced
+          FROM purchase_order_items poi
+          LEFT JOIN po_invoice_items pii ON poi.id = pii.po_item_id
+          WHERE poi.id = ? AND poi.purchase_order_id = ?
+          GROUP BY poi.id
+        `;
+        
+        db.query(itemQuery, [item.po_item_id, po_id], (err, results) => {
+          if (err) {
+            return reject(err);
+          }
+          
+          if (results.length === 0) {
+            return reject(new Error(`PO item ${item.po_item_id} not found`));
+          }
+          
+          const poItem = results[0];
+          const requestedQty = parseFloat(item.invoiced_quantity) || 0;
+          const availableQty = poItem.po_quantity - poItem.already_invoiced;
+          
+          if (requestedQty <= 0) {
+            return reject(new Error(`Invalid quantity for item "${poItem.description}" (ID: ${item.po_item_id}): ${requestedQty}. Quantity must be greater than 0.`));
+          }
+          
+          if (requestedQty > availableQty) {
+            return reject(new Error(`Insufficient quantity for item "${poItem.description}". Available: ${availableQty}, Requested: ${requestedQty}. Please reduce the quantity or check if this item was already invoiced.`));
+          }
+          
+          console.log(`✓ Item validated - ${poItem.description}: ${requestedQty}/${availableQty} available`);
+          
+          // Calculate proportional net weight for invoiced quantity
+          const totalNetWeight = poItem.net_weight || 0;
+          const netWeightPerUnit = poItem.po_quantity > 0 ? totalNetWeight / poItem.po_quantity : 0;
+          const invoicedNetWeight = requestedQty * netWeightPerUnit;
+          
+          resolve({
+            ...poItem,
+            invoiced_quantity: requestedQty,
+            remaining_quantity: poItem.po_quantity - poItem.already_invoiced - requestedQty,
+            item_amount: requestedQty * poItem.unit_price,
+            net_weight: invoicedNetWeight // Use calculated proportional net weight
+          });
+        });
+      });
+    });
+
+    // Validate all items
+    Promise.all(itemValidationPromises)
+      .then((validatedItems) => {
+        // Calculate totals
+        const totalQuantity = validatedItems.reduce((sum, item) => sum + item.invoiced_quantity, 0);
+        const subtotal = validatedItems.reduce((sum, item) => sum + item.item_amount, 0);
+        const totalAmount = subtotal; // For now, no additional tax calculation
+
+        // Step 2: Create the invoice record
+        const invoiceQuery = `
+          INSERT INTO po_invoices (
+            po_id, po_number, invoice_number, customer_name, customer_email, 
+            customer_phone, customer_address, invoice_date, due_date, 
+            subtotal, tax_rate, tax_amount, total_amount, currency, 
+            invoicing_mode, invoiced_quantity, payment_days, notes, status
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `;
+
+        const invoiceValues = [
+          po_id, po_number, invoice_number, customer_name, customer_email || '',
+          customer_phone || '', customer_address || '', 
+          invoice_date || new Date().toISOString().split('T')[0],
+          calculated_due_date,
+          subtotal, 0, 0, totalAmount, currency || 'PKR',
+          'quantity', totalQuantity, payment_days, notes || '', status || 'Draft'
+        ];
+
+        db.query(invoiceQuery, invoiceValues, (invoiceErr, invoiceResult) => {
+          if (invoiceErr) {
+            return db.rollback(() => {
+              console.error("Error creating quantity-based invoice:", invoiceErr);
+              res.status(500).json({ error: "Failed to create invoice", details: invoiceErr.message });
+            });
+          }
+
+          const invoiceId = invoiceResult.insertId;
+
+          // Step 3: Create invoice items
+          const itemInsertPromises = validatedItems.map((item, index) => {
+            return new Promise((resolve, reject) => {
+              const itemQuery = `
+                INSERT INTO po_invoice_items (
+                  po_invoice_id, po_item_id, item_no, description,
+                  po_quantity, invoiced_quantity, remaining_quantity,
+                  unit, net_weight, unit_price, amount
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+              `;
+              
+              const itemValues = [
+                invoiceId, item.id, index + 1, item.description,
+                item.po_quantity, item.invoiced_quantity, item.remaining_quantity,
+                item.unit, item.net_weight || 0, item.unit_price, item.item_amount
+              ];
+              
+              db.query(itemQuery, itemValues, (itemErr, itemResult) => {
+                if (itemErr) {
+                  return reject(itemErr);
+                }
+                resolve(itemResult);
+              });
+            });
+          });
+
+          // Insert all items
+          Promise.all(itemInsertPromises)
+            .then(() => {
+              // Commit transaction
+              db.commit((commitErr) => {
+                if (commitErr) {
+                  return db.rollback(() => {
+                    console.error("Transaction commit error:", commitErr);
+                    res.status(500).json({ error: "Failed to commit transaction" });
+                  });
+                }
+
+                console.log(`✅ Quantity-based invoice created successfully: ${invoice_number}`);
+                console.log(`   - PO: ${po_number}`);
+                console.log(`   - Items: ${validatedItems.length}`);
+                console.log(`   - Total Quantity: ${totalQuantity}`);
+                console.log(`   - Total Amount: PKR ${totalAmount}`);
+                
+                res.status(201).json({
+                  id: invoiceId,
+                  message: "Quantity-based invoice created successfully",
+                  details: {
+                    items_processed: validatedItems.length,
+                    total_po_items: items.length,
+                    total_quantity: totalQuantity,
+                    total_amount: totalAmount
+                  },
+                  invoice: {
+                    id: invoiceId,
+                    invoice_number,
+                    po_number,
+                    customer_name,
+                    invoicing_mode: 'quantity',
+                    total_quantity: totalQuantity,
+                    total_amount: totalAmount,
+                    items: validatedItems.map(item => ({
+                      po_item_id: item.id,
+                      description: item.description,
+                      invoiced_quantity: item.invoiced_quantity,
+                      remaining_quantity: item.remaining_quantity,
+                      amount: item.item_amount
+                    })),
+                    status
+                  }
+                });
+              });
+            })
+            .catch((itemInsertErr) => {
+              db.rollback(() => {
+                console.error("Error inserting invoice items:", itemInsertErr);
+                res.status(500).json({ error: "Failed to create invoice items", details: itemInsertErr.message });
+              });
+            });
+        });
+      })
+      .catch((validationErr) => {
+        db.rollback(() => {
+          console.error("Item validation error:", validationErr);
+          res.status(400).json({ error: "Item validation failed", details: validationErr.message });
+        });
+      });
+  });
+}
+
+// Route handler for quantity-based invoices
+app.post("/api/po-invoices/quantity-based", getPODetailsAndCreateQuantityBasedInvoice);
+
+// Get invoice items for a specific invoice
+app.get("/api/po-invoices/:id/items", (req, res) => {
+  const { id } = req.params;
+  
+  const query = `
+    SELECT
+      pii.id,
+      pii.po_invoice_id,
+      pii.po_item_id,
+      pii.item_no,
+      COALESCE(pii.description, poi.description) as description,
+      pii.po_quantity,
+      pii.invoiced_quantity,
+      pii.remaining_quantity,
+      pii.unit,
+      COALESCE(pii.net_weight, poi.net_weight, 0) as net_weight,
+      pii.unit_price,
+      pii.amount,
+      pii.created_at,
+      pii.updated_at,
+      poi.quantity as original_po_quantity
+    FROM po_invoice_items pii
+    LEFT JOIN purchase_order_items poi ON pii.po_item_id = poi.id
+    WHERE pii.po_invoice_id = ?
+    ORDER BY pii.item_no
+  `;
+  
+  db.query(query, [id], (err, results) => {
+    if (err) {
+      console.error("Error fetching invoice items:", err);
+      res.status(500).json({ error: "Failed to fetch invoice items" });
+      return;
+    }
+    
+    res.json(results);
+  });
+});
+
+// Update invoice item quantity (for editing quantity-based invoices)
+app.put("/api/po-invoice-items/:id", (req, res) => {
+  const { id } = req.params;
+  const { invoiced_quantity } = req.body;
+  
+  if (!invoiced_quantity || invoiced_quantity <= 0) {
+    return res.status(400).json({ error: "Invalid invoiced quantity" });
+  }
+  
+  // Start transaction
+  db.beginTransaction((transactionErr) => {
+    if (transactionErr) {
+      console.error("Transaction start error:", transactionErr);
+      return res.status(500).json({ error: "Failed to start transaction" });
+    }
+    
+    // Get current item details for validation
+    const getItemQuery = `
+      SELECT 
+        pii.*,
+        poi.quantity as po_quantity,
+        (
+          SELECT COALESCE(SUM(other_pii.invoiced_quantity), 0) 
+          FROM po_invoice_items other_pii 
+          WHERE other_pii.po_item_id = pii.po_item_id 
+          AND other_pii.id != pii.id
+        ) as other_invoiced_quantity
+      FROM po_invoice_items pii
+      LEFT JOIN purchase_order_items poi ON pii.po_item_id = poi.id
+      WHERE pii.id = ?
+    `;
+    
+    db.query(getItemQuery, [id], (err, results) => {
+      if (err || results.length === 0) {
+        return db.rollback(() => {
+          console.error("Error fetching invoice item:", err);
+          res.status(500).json({ error: "Invoice item not found" });
+        });
+      }
+      
+      const item = results[0];
+      const newQuantity = parseFloat(invoiced_quantity);
+      const availableQuantity = item.po_quantity - item.other_invoiced_quantity;
+      
+      if (newQuantity > availableQuantity) {
+        return db.rollback(() => {
+          res.status(400).json({ 
+            error: "Insufficient quantity available",
+            available: availableQuantity,
+            requested: newQuantity
+          });
+        });
+      }
+      
+      // Update the invoice item
+      const newAmount = newQuantity * item.unit_price;
+      const newRemainingQuantity = item.po_quantity - item.other_invoiced_quantity - newQuantity;
+      
+      const updateQuery = `
+        UPDATE po_invoice_items 
+        SET invoiced_quantity = ?, amount = ?, remaining_quantity = ?
+        WHERE id = ?
+      `;
+      
+      db.query(updateQuery, [newQuantity, newAmount, newRemainingQuantity, id], (updateErr) => {
+        if (updateErr) {
+          return db.rollback(() => {
+            console.error("Error updating invoice item:", updateErr);
+            res.status(500).json({ error: "Failed to update invoice item" });
+          });
+        }
+        
+        // Commit transaction (triggers will update parent invoice totals)
+        db.commit((commitErr) => {
+          if (commitErr) {
+            return db.rollback(() => {
+              console.error("Transaction commit error:", commitErr);
+              res.status(500).json({ error: "Failed to commit transaction" });
+            });
+          }
+          
+          res.json({
+            message: "Invoice item updated successfully",
+            item: {
+              id,
+              invoiced_quantity: newQuantity,
+              amount: newAmount,
+              remaining_quantity: newRemainingQuantity
+            }
+          });
+        });
+      });
+    });
+  });
+});
+
+// Database migration endpoint - Fix NULL net_weight values
+app.post("/api/fix-net-weight", (req, res) => {
+  console.log("Starting net_weight migration...");
+  
+  // Update NULL net_weight values to 0
+  const updateQuery = `
+    UPDATE purchase_order_items 
+    SET net_weight = 0 
+    WHERE net_weight IS NULL
+  `;
+  
+  db.query(updateQuery, (err, result) => {
+    if (err) {
+      console.error("Error updating net_weight values:", err);
+      return res.status(500).json({ 
+        message: "Failed to update net_weight values", 
+        error: err.message 
+      });
+    }
+    
+    console.log(`Updated ${result.affectedRows} records with NULL net_weight values`);
+    res.json({ 
+      message: `Successfully updated ${result.affectedRows} records`, 
+      affectedRows: result.affectedRows 
+    });
+  });
 });
 
 // --- Start Server ---
