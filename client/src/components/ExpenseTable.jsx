@@ -853,7 +853,7 @@ const ExpenseTable = ({ expensesData = [], onExpensesChange }) => {
                             onChange={(e) => handleItemChange(index, 'unit_price', e.target.value)}
                             className="w-full p-1 border rounded text-sm text-right"
                             min="0"
-                            step="0.01"
+                            step="1"
                             required
                           />
                         </td>
