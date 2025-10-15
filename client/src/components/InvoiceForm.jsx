@@ -16,6 +16,7 @@ const InvoiceForm = ({ initialData, onSubmit, onCancel }) => {
     quantity: "",
     unit: "",
     rate: "",
+    net_weight: "",
     amount: 0
   }]);
 
@@ -33,7 +34,7 @@ const InvoiceForm = ({ initialData, onSubmit, onCancel }) => {
     taxAmount: 0,
     totalAmount: 0,
     billDate: new Date().toISOString().split('T')[0], // Default to today
-    paymentDeadline: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // Default to 15 days from now
+    paymentDays: 30, // Default to 30 days (user-editable)
     note: "",
   });
 
@@ -104,7 +105,7 @@ const InvoiceForm = ({ initialData, onSubmit, onCancel }) => {
         taxAmount: initialData.tax_amount || initialData.taxAmount || 0,
         totalAmount: initialData.total_amount || initialData.totalAmount || 0,
         billDate: initialData.bill_date || initialData.billDate || new Date().toISOString().split('T')[0],
-        paymentDeadline: initialData.payment_deadline || initialData.paymentDeadline || new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        paymentDays: initialData.payment_days || initialData.paymentDays || 30,
         note: initialData.note || initialData.notes || '',
       });
 
@@ -119,6 +120,7 @@ const InvoiceForm = ({ initialData, onSubmit, onCancel }) => {
           quantity: item.quantity || '',
           unit: item.unit || item.uom || item.unit_name || '',
           rate: item.rate || item.unit_price || '',
+          net_weight: item.net_weight !== undefined && item.net_weight !== null ? item.net_weight : '',
           amount: item.amount || item.total || 0
         }));
         setInvoiceItems(mappedItems);
@@ -235,6 +237,7 @@ const InvoiceForm = ({ initialData, onSubmit, onCancel }) => {
       quantity: "",
       unit: '',
       rate: "",
+      net_weight: "",
       amount: 0
     };
     setInvoiceItems([...invoiceItems, newItem]);
@@ -251,21 +254,30 @@ const InvoiceForm = ({ initialData, onSubmit, onCancel }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    // Check if customer exists in database
-    if (!checkCustomerExists(formData.customerName)) {
-      alert("Customer not present. Kindly create new Customer first.");
+    // Ensure the typed name (either selected or manually entered) matches a loaded customer.
+    // If the user typed the exact name but didn't click the suggestion, try to match and populate.
+    const typedName = (formData.customerName || searchTerm || '').toString().trim();
+    const matchedCustomer = customers.find(c => c.customer && c.customer.toLowerCase() === typedName.toLowerCase());
+    if (matchedCustomer) {
+      // populate form data from the matched customer (synchronous helper)
+      handleCustomerSelect(matchedCustomer);
+    }
+
+    const exists = customers.some(c => c.customer && c.customer.toLowerCase() === typedName.toLowerCase());
+    if (!exists) {
+      alert("Contact Person not present. Kindly create new Contact Person first.");
       return;
     }
 
     if (!formData.customerName || !formData.customerEmail) {
-      alert("Please fill in required customer information (Name and Email are required).");
+      alert("Please fill in required contact person information (Name and Email are required).");
       return;
     }
 
-    // Validate customer name contains only letters and spaces
+    // Validate contact person name contains only letters and spaces
     const nameVal = (formData.customerName || '').toString().trim();
     if (!/^[A-Za-z]+(?:\s[A-Za-z]+)*$/.test(nameVal)) {
-      alert('Customer name can contain letters and spaces only');
+      alert('Contact Person name can contain letters and spaces only');
       return;
     }
 
@@ -285,8 +297,15 @@ const InvoiceForm = ({ initialData, onSubmit, onCancel }) => {
       return;
     }
 
-    if (!formData.paymentDeadline) {
-      alert("Payment Deadline is required.");
+    // Payment days is required (user-editable)
+    if (formData.paymentDays === null || formData.paymentDays === undefined || formData.paymentDays === '') {
+      alert("Payment Days is required");
+      return;
+    }
+
+    const parsedPaymentDays = Number(formData.paymentDays);
+    if (isNaN(parsedPaymentDays) || parsedPaymentDays < 0 || parsedPaymentDays > 365) {
+      alert('Payment Days must be a number between 0 and 365');
       return;
     }
 
@@ -308,8 +327,8 @@ const InvoiceForm = ({ initialData, onSubmit, onCancel }) => {
         tax_rate: parseFloat(formData.salesTax) || 0,
         tax_amount: parseFloat(formData.taxAmount) || 0,
         total_amount: parseFloat(formData.totalAmount) || 0,
-        bill_date: formData.billDate,
-        payment_deadline: formData.paymentDeadline,
+  bill_date: formData.billDate,
+  payment_days: Number(formData.paymentDays),
         note: formData.note,
         status: "Pending",
         items: validItems.map((item, index) => ({
@@ -318,6 +337,7 @@ const InvoiceForm = ({ initialData, onSubmit, onCancel }) => {
           quantity: parseFloat(item.quantity) || 0,
           unit: item.unit || '',
           rate: parseFloat(item.rate) || 0,
+          net_weight: item.net_weight !== undefined && item.net_weight !== '' ? parseFloat(item.net_weight) : 0,
           amount: parseFloat(item.amount) || 0
         }))
       };
@@ -361,7 +381,7 @@ const InvoiceForm = ({ initialData, onSubmit, onCancel }) => {
           taxAmount: 0,
           totalAmount: 0,
           billDate: new Date().toISOString().split('T')[0],
-          paymentDeadline: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+          paymentDays: 30,
           note: "",
         });
         
@@ -372,6 +392,7 @@ const InvoiceForm = ({ initialData, onSubmit, onCancel }) => {
           quantity: "",
           unit: '',
           rate: "",
+          net_weight: "",
           amount: 0
         }]);
         
@@ -434,12 +455,12 @@ const InvoiceForm = ({ initialData, onSubmit, onCancel }) => {
         {/* Customer Information */}
         <section>
           <h2 className="text-2xl font-semibold text-gray-800 mb-6 border-b pb-3">
-            Customer Details
+            Contact Person Details
           </h2>
           <div className="grid sm:grid-cols-1 gap-6">
             <div className="relative">
               <label className="block text-sm font-semibold text-gray-700 mb-2">
-                Customer Name
+                Contact Person Name
                 <span className="text-red-500 ml-1">*</span>
               </label>
               <input
@@ -506,7 +527,7 @@ const InvoiceForm = ({ initialData, onSubmit, onCancel }) => {
           {/* Customer Information Display - Shows when customer is selected */}
           {formData.customerName && (
             <div className="mt-6 p-4 bg-gray-50 rounded-lg">
-              <h3 className="text-lg font-medium text-gray-700 mb-3">Selected Customer Information</h3>
+              <h3 className="text-lg font-medium text-gray-700 mb-3">Selected Contact Person Information</h3>
               <div className="grid sm:grid-cols-2 gap-4 text-sm">
                 <div>
                   <span className="font-semibold text-gray-600">Name:</span>
@@ -538,7 +559,7 @@ const InvoiceForm = ({ initialData, onSubmit, onCancel }) => {
             <button
               type="button"
               onClick={addNewItem}
-              className="bg-blue-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+              className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
             >
               + Add Item
             </button>
@@ -554,6 +575,9 @@ const InvoiceForm = ({ initialData, onSubmit, onCancel }) => {
                   </th>
                   <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 border-b">
                     Quantity *
+                  </th>
+                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 border-b">
+                    Net Weight (KG)
                   </th>
                   <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 border-b">
                     Unit
@@ -589,6 +613,17 @@ const InvoiceForm = ({ initialData, onSubmit, onCancel }) => {
                         min="0"
                         step="0.01"
                         required
+                      />
+                    </td>
+                    <td className="px-4 py-3">
+                      <input
+                        type="number"
+                        value={item.net_weight || ''}
+                        onChange={(e) => handleItemChange(index, 'net_weight', e.target.value)}
+                        className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
+                        placeholder="0.00"
+                        min="0"
+                        step="0.01"
                       />
                     </td>
                     <td className="px-4 py-3">
@@ -695,12 +730,14 @@ const InvoiceForm = ({ initialData, onSubmit, onCancel }) => {
               required
             />
             <Input
-              label="Payment Deadline"
-              type="date"
-              name="paymentDeadline"
-              value={formData.paymentDeadline}
+              label="Payment Days (editable)"
+              type="number"
+              name="paymentDays"
+              value={formData.paymentDays}
               onChange={handleChange}
               required
+              min="0"
+              max="365"
             />
           </div>
           <div className="mt-6">

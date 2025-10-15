@@ -53,6 +53,7 @@ const InvoiceForm = ({ onSubmit, onCancel, initialData = null }) => {
     quantity: "",
     unit: '',
     rate: "",
+    net_weight: "",
     amount: 0
   }]);
 
@@ -70,7 +71,7 @@ const InvoiceForm = ({ onSubmit, onCancel, initialData = null }) => {
     taxAmount: 0,
     totalAmount: 0,
     billDate: new Date().toISOString().split('T')[0],
-    paymentDeadline: "",
+  paymentDays: 30,
     note: "",
     status: "Pending"
   });
@@ -150,10 +151,10 @@ const InvoiceForm = ({ onSubmit, onCancel, initialData = null }) => {
           setCustomers(customersData);
           setFilteredCustomers(customersData);
         } else {
-          console.error('Failed to fetch customers');
+          console.error('Failed to fetch contact persons');
         }
       } catch (error) {
-        console.error('Error fetching customers:', error);
+        console.error('Error fetching contact persons:', error);
       }
     };
 
@@ -196,7 +197,7 @@ const InvoiceForm = ({ onSubmit, onCancel, initialData = null }) => {
         taxAmount: parseFloat(initialData.tax_amount || 0),
         totalAmount: parseFloat(initialData.total_amount || 0),
         billDate: initialData.bill_date ? initialData.bill_date.split('T')[0] : new Date().toISOString().split('T')[0],
-        paymentDeadline: initialData.payment_deadline ? initialData.payment_deadline.split('T')[0] : "",
+  paymentDays: initialData && (initialData.payment_days || initialData.paymentDays) ? (initialData.payment_days || initialData.paymentDays) : 30,
         note: initialData.note || initialData.Note || "",
         status: initialData.status || "Pending"
       });
@@ -213,6 +214,7 @@ const InvoiceForm = ({ onSubmit, onCancel, initialData = null }) => {
           quantity: item.quantity?.toString() || "",
           unit: item.unit || item.uom || item.unit_name || "",
           rate: item.rate?.toString() || "",
+          net_weight: item.net_weight !== undefined && item.net_weight !== null ? item.net_weight : '',
           amount: parseFloat(item.amount || 0)
         }));
         setInvoiceItems(mappedItems);
@@ -225,6 +227,7 @@ const InvoiceForm = ({ onSubmit, onCancel, initialData = null }) => {
           quantity: initialData.quantity?.toString() || "",
           unit: initialData.unit || "",
           rate: initialData.rate?.toString() || "",
+          net_weight: initialData.net_weight || '',
           amount: parseFloat(initialData.item_amount || initialData.subtotal || 0)
         }];
         setInvoiceItems(singleItem);
@@ -237,6 +240,7 @@ const InvoiceForm = ({ onSubmit, onCancel, initialData = null }) => {
           quantity: "",
           unit: '',
           rate: "",
+          net_weight: "",
           amount: 0
         }]);
   // no item data found, using default
@@ -288,6 +292,7 @@ const InvoiceForm = ({ onSubmit, onCancel, initialData = null }) => {
       quantity: "",
       unit: '',
       rate: "",
+      net_weight: "",
       amount: 0
     };
     setInvoiceItems([...invoiceItems, newItem]);
@@ -308,12 +313,22 @@ const InvoiceForm = ({ onSubmit, onCancel, initialData = null }) => {
     );
   };
 
+  // Check if contact person exists (alias for checkCustomerExists but
+  // tolerant of different form field names). Used by the form submit
+  // validation to ensure the selected/entered Contact Person is present
+  // in the loaded customers list.
+  const checkContactPersonExists = (contactPersonName) => {
+    const nameToCheck = contactPersonName || '';
+    if (!nameToCheck) return false;
+    return customers.some(c => c.customer && c.customer.toLowerCase() === nameToCheck.toLowerCase());
+  };
+
   const handleCreateCustomer = async () => {
     try {
       // Validate required fields
       if (!newCustomer.customer || !newCustomer.email || !newCustomer.phone || 
           !newCustomer.address || !newCustomer.stn || !newCustomer.ntn) {
-        alert('Please fill in all required fields (Customer Name, Email, Phone, Address, STN, and NTN)');
+        alert('Please fill in all required fields (Contact Person Name, Email, Phone, Address, STN, and NTN)');
         return;
       }
 
@@ -397,19 +412,27 @@ const InvoiceForm = ({ onSubmit, onCancel, initialData = null }) => {
         ntn: ""
       });
       
-      alert('Customer created successfully!');
+      alert('Contact Person created successfully!');
     } catch (error) {
-      console.error('Error creating customer:', error);
-      alert(error.message || 'Failed to create customer');
+      console.error('Error creating contact person:', error);
+      alert(error.message || 'Failed to create contact person');
     }
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
     
-    // Check if customer exists in database
-    if (!checkCustomerExists(formData.customerName)) {
-      alert("Customer not present. Kindly create new Customer first.");
+    // If user typed a name but didn't select from dropdown, try to match it against loaded customers
+    const typedName = (formData.customerName || searchTerm || '').toString().trim();
+    const matchedCustomer = customers.find(c => c.customer && c.customer.toLowerCase() === typedName.toLowerCase());
+    if (matchedCustomer) {
+      handleCustomerSelect(matchedCustomer);
+    }
+
+    // Check if contact person exists in database after attempting to match
+    const exists = customers.some(c => c.customer && c.customer.toLowerCase() === typedName.toLowerCase());
+    if (!exists) {
+      alert("Contact Person not present. Kindly create new Contact Person first.");
       return;
     }
 
@@ -443,8 +466,8 @@ const InvoiceForm = ({ onSubmit, onCancel, initialData = null }) => {
       tax_rate: parseFloat(formData.salesTax) || 0,
       tax_amount: parseFloat(formData.taxAmount) || 0,
       total_amount: parseFloat(formData.totalAmount) || 0,
-      bill_date: formData.billDate,
-      payment_deadline: formData.paymentDeadline || new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+  bill_date: formData.billDate,
+  payment_days: formData.paymentDays !== undefined ? Number(formData.paymentDays) : 30,
       note: formData.note,
       status: formData.status,
       items: validItems.map((item, index) => ({
@@ -453,6 +476,7 @@ const InvoiceForm = ({ onSubmit, onCancel, initialData = null }) => {
         quantity: parseFloat(item.quantity) || 0,
         unit: item.unit || '',
         rate: parseFloat(item.rate) || 0,
+        net_weight: item.net_weight !== undefined && item.net_weight !== '' ? parseFloat(item.net_weight) : 0,
         amount: parseFloat(item.amount) || 0
       }))
     };
@@ -484,28 +508,28 @@ const InvoiceForm = ({ onSubmit, onCancel, initialData = null }) => {
         {/* Customer Information */}
         <section>
           <h2 className="text-xl font-semibold text-gray-800 mb-4 border-b pb-2">
-            Customer Details
+            Contact Person Details
           </h2>
           <div className="grid sm:grid-cols-2 gap-4 relative">
             <div className="relative sm:col-span-2">
               <div className="flex items-center justify-between mb-2">
                 <label className="text-sm font-semibold text-gray-700">
-                  Customer Name *
+                  Contact Person Name*
                 </label>
                 <button
                   type="button"
                   className="text-sm text-blue-600 hover:text-blue-800"
                   onClick={() => setIsCreatingCustomer(!isCreatingCustomer)}
                 >
-                  {isCreatingCustomer ? 'Select Existing Customer' : 'Create New Customer'}
+                  {isCreatingCustomer ? 'Select Existing Contact Person' : 'Create New Contact Person'}
                 </button>
               </div>
               
               {isCreatingCustomer ? (
                 <div className="grid sm:grid-cols-2 gap-4 p-4 bg-gray-50 rounded-lg mb-4">
                   <Input
-                    label="Customer Name *"
-                    name="customer"
+                    label="Contact Person Name *"
+                    name="contactPersonName"
                     value={newCustomer.customer}
                     onChange={handleNewCustomerChange}
                     required
@@ -582,7 +606,7 @@ const InvoiceForm = ({ onSubmit, onCancel, initialData = null }) => {
                       className="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-4 py-2 rounded-xl transition duration-300"
                       onClick={handleCreateCustomer}
                     >
-                      Create Customer
+                      Create Contact Person
                     </button>
                   </div>
                 </div>
@@ -639,7 +663,7 @@ const InvoiceForm = ({ onSubmit, onCancel, initialData = null }) => {
                       {/* No results message */}
                       {filteredCustomers.length === 0 && searchTerm.length > 0 && (
                         <div className="p-4 text-center text-gray-500">
-                          <div className="text-sm">No customers found</div>
+                          <div className="text-sm">No results found</div>
                           <div className="text-xs text-gray-400">Try a different search term</div>
                         </div>
                       )}
@@ -661,7 +685,7 @@ const InvoiceForm = ({ onSubmit, onCancel, initialData = null }) => {
             <button
               type="button"
               onClick={addNewItem}
-              className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+              className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
             >
               + Add Item
             </button>
@@ -677,6 +701,9 @@ const InvoiceForm = ({ onSubmit, onCancel, initialData = null }) => {
                   </th>
                   <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 border-b">
                     Quantity *
+                  </th>
+                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 border-b">
+                    Net Weight (KG)
                   </th>
                   <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 border-b">
                     Rate *
@@ -709,6 +736,17 @@ const InvoiceForm = ({ onSubmit, onCancel, initialData = null }) => {
                         min="0"
                         step="0.01"
                         required
+                      />
+                    </td>
+                    <td className="px-4 py-3">
+                      <input
+                        type="number"
+                        value={item.net_weight || ''}
+                        onChange={(e) => handleItemChange(index, 'net_weight', e.target.value)}
+                        className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
+                        placeholder="0.00"
+                        min="0"
+                        step="0.01"
                       />
                     </td>
                     <td className="px-4 py-3">
@@ -806,11 +844,13 @@ const InvoiceForm = ({ onSubmit, onCancel, initialData = null }) => {
               onChange={handleChange}
             />
             <Input
-              label="Payment Deadline"
-              type="date"
-              name="paymentDeadline"
-              value={formData.paymentDeadline}
+              label="Payment Days (editable)"
+              type="number"
+              name="paymentDays"
+              value={formData.paymentDays}
               onChange={handleChange}
+              min="0"
+              max="365"
             />
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-2">
@@ -1166,9 +1206,12 @@ const InvoiceManagement = () => {
     dateFrom: '',
     dateTo: '',
     customer: '',
+    company: '',
     status: ''
   });
   const [showFilters, setShowFilters] = useState(false);
+  const [companies, setCompanies] = useState([]);
+  const [companyExists, setCompanyExists] = useState(null); // null = unknown, true/false = existence
   const [activeDropdown, setActiveDropdown] = useState(null);
   const [showInvoiceForm, setShowInvoiceForm] = useState(false);
   const [editingInvoice, setEditingInvoice] = useState(null);
@@ -1395,6 +1438,35 @@ const InvoiceManagement = () => {
     setTimeout(() => setNotification(null), duration);
   };
 
+  // Fetch unique companies when filter panel is shown
+  useEffect(() => {
+    const fetchCompanies = async () => {
+      try {
+        const res = await fetch(`${API_BASE_URL}/v1/customertable`);
+        if (!res.ok) return;
+        const data = await res.json();
+        const unique = Array.from(new Set((data || []).map(c => (c.company || '').trim()).filter(Boolean)));
+        setCompanies(unique.sort((a,b) => a.localeCompare(b)));
+      } catch (err) {
+        console.error('Failed to fetch companies', err);
+      }
+    };
+
+    if (showFilters && companies.length === 0) {
+      fetchCompanies();
+    }
+  }, [showFilters]);
+
+  // If company exists (exact match), auto-apply the filter to show only that company's invoices
+  useEffect(() => {
+    if (companyExists === true && filters.company && filters.company.trim() !== '') {
+      console.debug('Auto-applying company filter for:', filters.company);
+      setCurrentPage(1);
+      // fetchInvoices is stable via useCallback
+      fetchInvoices();
+    }
+  }, [companyExists, filters.company, fetchInvoices]);
+
   // Handle filter changes - NO auto-search, just update state
   const handleFilterChange = useCallback((e) => {
     const { name, value } = e.target;
@@ -1411,13 +1483,12 @@ const InvoiceManagement = () => {
       maxAmount: '',
       dateFrom: '',
       dateTo: '',
-      account: '',
-      status: '',
-      currency: '',
-      is_sent: '',
-      invoice_number: ''
+      customer: '',
+      company: '',
+      status: ''
     });
     setSearchTerm('');
+    setCompanyExists(null);
     setActiveTab('All');
   };
 
@@ -1887,15 +1958,73 @@ const InvoiceManagement = () => {
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Customer Name</label>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Contact Person Name</label>
                 <input
                   type="text"
                   name="customer"
                   className="w-full p-2 border rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   value={filters.customer}
                   onChange={handleFilterChange}
-                  placeholder="Type customer name..."
+                  placeholder="Type Contact Person name..."
                 />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Company</label>
+                <input
+                  list="company-list"
+                  type="text"
+                  name="company"
+                  className="w-full p-2 border rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  value={filters.company}
+                  onChange={(e) => {
+                    handleFilterChange(e);
+                    const val = (e.target.value || '').trim();
+                    if (val === '') {
+                      setCompanyExists(null);
+                    } else {
+                      setCompanyExists(companies.some(c => c.toLowerCase() === val.toLowerCase()));
+                    }
+                  }}
+                  placeholder="Type company name..."
+                />
+                <datalist id="company-list">
+                  {(() => {
+                    const searchTerm = (filters.company || '').trim().toLowerCase();
+                    if (!searchTerm) return companies.map((c) => <option key={c} value={c} />);
+                    
+                    // Filter companies based on fuzzy matching
+                    const filtered = companies
+                      .filter(c => c.toLowerCase().includes(searchTerm))
+                      .sort((a, b) => {
+                        const aLower = a.toLowerCase();
+                        const bLower = b.toLowerCase();
+                        
+                        // Exact match first
+                        if (aLower === searchTerm) return -1;
+                        if (bLower === searchTerm) return 1;
+                        
+                        // Starts with search term
+                        const aStarts = aLower.startsWith(searchTerm);
+                        const bStarts = bLower.startsWith(searchTerm);
+                        if (aStarts && !bStarts) return -1;
+                        if (!aStarts && bStarts) return 1;
+                        
+                        // Alphabetical order
+                        return a.localeCompare(b);
+                      })
+                      .slice(0, 10); // Show only top 10 matches
+                    
+                    return filtered.map((c) => <option key={c} value={c} />);
+                  })()}
+                </datalist>
+
+                {/* Company existence hint */}
+                {companyExists === true && (
+                  <div className="mt-1 text-xs text-green-600">✓ Company found</div>
+                )}
+                {companyExists === false && filters.company.trim() !== '' && (
+                  <div className="mt-1 text-xs text-red-600">✗ No matching company</div>
+                )}
               </div>
               <div>
                 <label className="block text-xs font-medium text-gray-700 mb-1">Status</label>
@@ -2005,7 +2134,7 @@ const InvoiceManagement = () => {
                 </th>
                 <th className="pb-3 px-2 whitespace-nowrap text-left">Invoice ID</th>
                 <th className="pb-3 px-2 whitespace-nowrap text-left">Billing Date</th>
-                <th className="pb-3 px-2 whitespace-nowrap text-left">Customer</th>
+                <th className="pb-3 px-2 whitespace-nowrap text-left">Contact Person</th>
                 <th className="pb-3 px-2 whitespace-nowrap text-right">Amount</th>
                 <th className="pb-3 px-2 whitespace-nowrap">Status</th>
                 <th className="pb-3 px-2 whitespace-nowrap">Actions</th>

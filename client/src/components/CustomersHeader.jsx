@@ -7,7 +7,7 @@ const CustomersHeader = () => {
         <div className="flex flex-col">
           <h2 className="text-xl font-semibold text-gray-900 flex items-center">
             <div className="h-5 w-1 bg-blue-500 mr-2"></div>
-            Customers
+            Contact Person 
           </h2>
         </div>
         
@@ -39,7 +39,7 @@ const CustomersHeader = () => {
               </button>
             </div>
             <button className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-md border border-transparent bg-blue-600 text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
-              Create New Customer
+              Create New Contact Person
             </button>
           </div>
         </div>

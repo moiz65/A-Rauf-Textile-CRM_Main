@@ -558,7 +558,7 @@ const ReportsTable = ({
 
             <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Customer
+                Contact Person
               </label>
               <div className="relative" ref={customerInputRef}>
                 <input
@@ -727,7 +727,7 @@ const ReportsTable = ({
             </div>
 
             <div>
-              <h3 className="text-sm font-medium text-gray-500">Customer</h3>
+              <h3 className="text-sm font-medium text-gray-500">Contact Person</h3>
               <p className="mt-1 text-sm text-gray-900">{data.customer}</p>
             </div>
 
@@ -891,7 +891,7 @@ const ReportsTable = ({
             <div class="row"><div class="label">Date:</div><div class="value">${
               report.date
             }</div></div>
-            <div class="row"><div class="label">Customer:</div><div class="value">${
+            <div class="row"><div class="label">Contact Person:</div><div class="value">${
               report.customer
             }</div></div>
             <div class="row"><div class="label">Price:</div><div class="value">PKR ${Number(
@@ -1025,7 +1025,7 @@ const ReportsTable = ({
       {showFilters && (
         <div className="bg-gray-50 p-4 rounded-lg mb-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
           <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">Customer</label>
+            <label className="block text-xs font-medium text-gray-700 mb-1">Contact Person</label>
             <input
               type="text"
               name="customer"
@@ -1150,7 +1150,7 @@ const ReportsTable = ({
                 </th>
                 <th className="pb-3 px-2 whitespace-nowrap">Order ID</th>
                 <th className="pb-3 px-2 whitespace-nowrap">Date</th>
-                <th className="pb-3 px-2 whitespace-nowrap">Customer</th>
+                <th className="pb-3 px-2 whitespace-nowrap">Contact Person</th>
                 <th className="pb-3 px-2 whitespace-nowrap">Price</th>
                 <th className="pb-3 px-2 whitespace-nowrap">Status</th>
                 <th className="pb-3 px-2 whitespace-nowrap">Action</th>

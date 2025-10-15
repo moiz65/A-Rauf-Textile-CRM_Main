@@ -7,8 +7,8 @@ const QuickActions = ({ dashboardData }) => {
   const actions = [
     {
       icon: Users,
-      label: 'Customers',
-      description: `Manage customers (${dashboardData?.quickActions?.totalCustomers || 0})`,
+      label: 'Contact Persons',
+      description: `Manage contact persons (${dashboardData?.quickActions?.totalCustomers || 0})`,
       color: 'bg-violet-100 text-violet-600',
       hoverColor: 'hover:bg-violet-50',
       action: () => window.location.href = '/customers'

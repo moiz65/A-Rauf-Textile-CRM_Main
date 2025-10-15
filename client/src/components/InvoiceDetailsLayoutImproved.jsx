@@ -291,7 +291,11 @@ const InvoiceDetailsLayoutImproved = () => {
                   <div class="value">${invoice.terms_of_payment || 'N/A'}</div>
                 </div>
                 <div>
-                  <div class="label">Payment Deadline</div>
+                  <div class="label">Payment Days</div>
+                  <div class="value">${invoice.payment_days !== null && invoice.payment_days !== undefined ? invoice.payment_days : 'N/A'}</div>
+                </div>
+                <div>
+                  <div class="label">Due Date</div>
                   <div class="value">${invoice.payment_deadline ? new Date(invoice.payment_deadline).toLocaleDateString('en-GB') : 'N/A'}</div>
                 </div>
               </div>
@@ -374,7 +378,7 @@ const InvoiceDetailsLayoutImproved = () => {
             
             <div class="terms">
               <h4>Terms & Conditions</h4>
-              <p>${invoice.terms_of_payment ? `Please pay ${invoice.terms_of_payment.toLowerCase()}.` : 'Please pay within 15 days of receiving this invoice.'}</p>
+              <p>${invoice.terms_of_payment ? `Please pay ${invoice.terms_of_payment.toLowerCase()}.` : (invoice.payment_days ? `Payment must be made within ${invoice.payment_days} day(s) from invoice date.` : 'Please pay within 15 days of receiving this invoice.') }</p>
             </div>
           </div>
         </body>
