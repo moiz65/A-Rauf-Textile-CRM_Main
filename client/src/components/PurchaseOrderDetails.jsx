@@ -1493,7 +1493,7 @@ const PurchaseOrderDetails = ({ poId, onBack }) => {
                             }`}
                             min="0"
                             max={availableAmount}
-                            step="0.01"
+                            step="1"
                             placeholder="Enter amount to invoice"
                           />
                           {invoiceData.exceedsAvailable && (
@@ -1631,7 +1631,7 @@ const PurchaseOrderDetails = ({ poId, onBack }) => {
                                 type="number"
                                 min="0"
                                 max={safeParseFloat(item.remaining_quantity)}
-                                step="0.01"
+                                step="1"
                                 value={item.invoiced_quantity}
                                 onChange={(e) => handleQuantityChange(index, e.target.value)}
                                 disabled={safeParseFloat(item.remaining_quantity) <= 0}

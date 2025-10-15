@@ -158,10 +158,10 @@ const CustomersTable = () => {
         }
 
         await fetchCustomers();
-        showNotification("Contact Person deleted", `Contact Person '${customer.customer}' has been deleted.`);
+        showNotification("Customer deleted", `Customer '${customer.customer}' has been deleted.`);
       } catch (err) {
-        console.error('Error deleting contact person:', err);
-        showNotification("Error", "Failed to delete contact person. Please try again.");
+        console.error('Error deleting customer:', err);
+        showNotification("Error", "Failed to delete customer. Please try again.");
       }
     }
     setActiveDropdown(null);
@@ -304,12 +304,12 @@ const CustomersTable = () => {
       setEditingCustomer(null);
 
       showNotification(
-        updatedCustomer.customer_id ? "Contact Person updated" : "Contact Person created",
-        `Contact Person '${updatedCustomer.customer}' has been ${updatedCustomer.customer_id ? 'updated' : 'created'}.`
+        updatedCustomer.customer_id ? "Customer updated" : "Customer created",
+        `Customer '${updatedCustomer.customer}' has been ${updatedCustomer.customer_id ? 'updated' : 'created'}.`
       );
     } catch (err) {
-      console.error('Error saving contact person:', err);
-      showNotification("Error", err.message || "Failed to save contact person. Please try again.");
+      console.error('Error saving customer:', err);
+      showNotification("Error", err.message || "Failed to save customer. Please try again.");
     }
   };
 
@@ -365,7 +365,7 @@ const CustomersTable = () => {
       // Validate customer name contains only letters and spaces
       const nameVal = (formData.customer || '').toString().trim();
       if (!/^[A-Za-z]+(?:\s[A-Za-z]+)*$/.test(nameVal)) {
-        showNotification('Validation', 'Contact Person name can contain letters and spaces only');
+        showNotification('Validation', 'Customer name can contain letters and spaces only');
         return;
       }
 
@@ -377,11 +377,11 @@ const CustomersTable = () => {
         <div ref={editModalRef} className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
           <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
             <User className="w-5 h-5" />
-            {formData.customer_id ? 'Edit Contact Person' : 'Add New Contact Person'}
+            {formData.customer_id ? 'Edit Customer' : 'Add New Customer'}
           </h2>
           <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Contact Person Name *</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Customer Name *</label>
               <input
                 type="text"
                 name="customer"
@@ -504,7 +504,7 @@ const CustomersTable = () => {
                 type="submit"
                 className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
               >
-                {formData.customer_id ? 'Update Contact Person' : 'Create Contact Person'}
+                {formData.customer_id ? 'Update Customer' : 'Create Customer'}
               </button>
             </div>
           </form>
@@ -583,7 +583,7 @@ const CustomersTable = () => {
         <div>
           <h2 className="text-xl font-semibold text-gray-800 flex items-center gap-2">
             <User className="w-5 h-5" />
-            Contact Persons
+            Customers
           </h2>
         </div>
 
@@ -605,7 +605,7 @@ const CustomersTable = () => {
               onClick={handleAddCustomer}
             >
               <Plus className="w-4 h-4" />
-              <span>Add Contact Person</span>
+              <span>Add Customer</span>
             </button>
             <button className="flex items-center gap-2 bg-white border rounded-lg px-3 py-2.5 text-sm hover:bg-gray-50 transition-colors">
               <FileDown className="w-4 h-4" />
@@ -633,7 +633,7 @@ const CustomersTable = () => {
                   className="rounded text-blue-500 focus:ring-blue-500"
                 />
               </th>
-              <th className="px-6 py-3">Contact Person</th>
+              <th className="px-6 py-3">Customer</th>
               <th className="px-6 py-3">Contact</th>
               <th className="px-6 py-3 hidden lg:table-cell">Date</th>
               <th className="px-6 py-3 text-right">Actions</th>
