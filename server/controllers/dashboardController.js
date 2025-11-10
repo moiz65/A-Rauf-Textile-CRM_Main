@@ -154,33 +154,28 @@ class DashboardController {
 
       const results = {};
 
-      // Execute all queries
+      // Execute all queries (use promise API of mysql2)
       for (const [key, query] of Object.entries(queries)) {
-        const queryResult = await new Promise((resolve, reject) => {
-          let params = [];
-          
-          // Add parameters based on query type
-          if (key === 'lastMonthRevenue') {
-            params = [lastMonth, lastMonth]; // Two parameters for regular and PO invoices
-          } else if (key === 'currentMonthRevenue') {
-            params = [currentMonth, currentMonth]; // Two parameters for regular and PO invoices
-          } else if (key === 'todayRevenue') {
-            params = [today, today]; // Two parameters for regular and PO invoices
-          } else if (key === 'lastMonthExpenses' || key === 'currentMonthExpenses') {
-            params = [key.includes('last') ? lastMonth : currentMonth];
-          } else if (key === 'todayExpenses') {
-            params = [today];
-          } else if (key === 'lastMonthBalance') {
-            params = [lastMonth, lastMonth]; // Two parameters for the same month
-          }
+        let params = [];
 
-          db.query(query, params, (err, result) => {
-            if (err) reject(err);
-            else resolve(result);
-          });
-        });
+        // Add parameters based on query type
+        if (key === 'lastMonthRevenue') {
+          params = [lastMonth, lastMonth]; // Two parameters for regular and PO invoices
+        } else if (key === 'currentMonthRevenue') {
+          params = [currentMonth, currentMonth]; // Two parameters for regular and PO invoices
+        } else if (key === 'todayRevenue') {
+          params = [today, today]; // Two parameters for regular and PO invoices
+        } else if (key === 'lastMonthExpenses' || key === 'currentMonthExpenses') {
+          params = [key.includes('last') ? lastMonth : currentMonth];
+        } else if (key === 'todayExpenses') {
+          params = [today];
+        } else if (key === 'lastMonthBalance') {
+          params = [lastMonth, lastMonth]; // Two parameters for the same month
+        }
 
-        results[key] = queryResult;
+        // mysql2 promise pool returns [rows, fields]
+        const [rows] = await db.query(query, params);
+        results[key] = rows;
       }
 
       // Calculate percentages and format data
@@ -259,20 +254,15 @@ class DashboardController {
         `
       };
 
-      // Execute additional queries
+      // Execute additional queries (promise style)
       for (const [key, query] of Object.entries(additionalQueries)) {
         let params = [];
         if (key === 'thisMonthInvoices') {
           params = [currentMonth, currentMonth];
         }
-        
-        const queryResult = await new Promise((resolve, reject) => {
-          db.query(query, params, (err, result) => {
-            if (err) reject(err);
-            else resolve(result);
-          });
-        });
-        results[key] = queryResult;
+
+        const [rows] = await db.query(query, params);
+        results[key] = rows;
       }
 
       // Calculate enhanced metrics
@@ -390,36 +380,27 @@ class DashboardController {
         ORDER BY month ASC
       `;
 
-      db.query(query, (err, results) => {
-        if (err) {
-          console.error('Error fetching monthly expenses:', err);
-          return res.status(500).json({
-            success: false,
-            message: 'Failed to fetch monthly expenses',
-            error: err.message
-          });
-        }
+      const [rows] = await db.query(query);
 
-        // Handle empty results - provide default chart structure
-        let chartData = [];
-        if (!results || results.length === 0) {
-          // Create default 12-month data with zeros
-          const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-          chartData = months.map(month => ({
-            month: month,
-            amount: 0
-          }));
-        } else {
-          chartData = results.map(row => ({
-            month: row.month_name || 'Unknown',
-            amount: row.total_amount || 0
-          }));
-        }
+      // Handle empty results - provide default chart structure
+      let chartData = [];
+      if (!rows || rows.length === 0) {
+        // Create default 12-month data with zeros
+        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        chartData = months.map(month => ({
+          month: month,
+          amount: 0
+        }));
+      } else {
+        chartData = rows.map(row => ({
+          month: row.month_name || 'Unknown',
+          amount: row.total_amount || 0
+        }));
+      }
 
-        res.json({
-          success: true,
-          data: chartData
-        });
+      res.json({
+        success: true,
+        data: chartData
       });
     } catch (error) {
       console.error('Error fetching monthly expenses:', error);
@@ -461,27 +442,18 @@ class DashboardController {
         LIMIT ? OFFSET ?
       `;
 
-      // Get count first
-      const countResult = await new Promise((resolve, reject) => {
-        db.query(countQuery, (err, result) => {
-          if (err) reject(err);
-          else resolve(result[0] ? result[0].total : 0);
-        });
-      });
+      // Get count first (promise style)
+      const [countRows] = await db.query(countQuery);
+      const countResult = countRows[0] ? countRows[0].total : 0;
 
       // Get data
-      const dataResult = await new Promise((resolve, reject) => {
-        db.query(dataQuery, [parseInt(limit), parseInt(offset)], (err, result) => {
-          if (err) reject(err);
-          else resolve(result);
-        });
-      });
+      const [dataRows] = await db.query(dataQuery, [parseInt(limit), parseInt(offset)]);
 
       const totalRecords = countResult;
       const totalPages = Math.ceil(totalRecords / limit);
       const currentPage = parseInt(page);
 
-      const transactions = (dataResult || []).map(invoice => ({
+      const transactions = (dataRows || []).map(invoice => ({
         id: invoice.id,
         name: invoice.customer_name || 'Unknown Customer',
         initial: invoice.customer_name ? invoice.customer_name.charAt(0).toUpperCase() : 'U',
