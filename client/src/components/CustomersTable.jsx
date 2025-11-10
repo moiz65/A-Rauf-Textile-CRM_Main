@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Search,
   FileDown,
@@ -75,6 +76,7 @@ const CustomersTable = () => {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+  const navigate = useNavigate();
 
   const filteredCustomers = customersData
     .filter(customer =>
@@ -158,10 +160,10 @@ const CustomersTable = () => {
         }
 
         await fetchCustomers();
-        showNotification("Customer deleted", `Customer '${customer.customer}' has been deleted.`);
+        showNotification("Contact Person deleted", `Contact Person '${customer.customer}' has been deleted.`);
       } catch (err) {
-        console.error('Error deleting customer:', err);
-        showNotification("Error", "Failed to delete customer. Please try again.");
+        console.error('Error deleting contact person:', err);
+        showNotification("Error", "Failed to delete contact person. Please try again.");
       }
     }
     setActiveDropdown(null);
@@ -304,12 +306,12 @@ const CustomersTable = () => {
       setEditingCustomer(null);
 
       showNotification(
-        updatedCustomer.customer_id ? "Customer updated" : "Customer created",
-        `Customer '${updatedCustomer.customer}' has been ${updatedCustomer.customer_id ? 'updated' : 'created'}.`
+        updatedCustomer.customer_id ? "Contact Person updated" : "Contact Person created",
+        `Contact Person '${updatedCustomer.customer}' has been ${updatedCustomer.customer_id ? 'updated' : 'created'}.`
       );
     } catch (err) {
-      console.error('Error saving customer:', err);
-      showNotification("Error", err.message || "Failed to save customer. Please try again.");
+      console.error('Error saving contact person:', err);
+      showNotification("Error", err.message || "Failed to save contact person. Please try again.");
     }
   };
 
@@ -365,7 +367,7 @@ const CustomersTable = () => {
       // Validate customer name contains only letters and spaces
       const nameVal = (formData.customer || '').toString().trim();
       if (!/^[A-Za-z]+(?:\s[A-Za-z]+)*$/.test(nameVal)) {
-        showNotification('Validation', 'Customer name can contain letters and spaces only');
+        showNotification('Validation', 'Contact Person name can contain letters and spaces only');
         return;
       }
 
@@ -377,11 +379,11 @@ const CustomersTable = () => {
         <div ref={editModalRef} className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
           <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
             <User className="w-5 h-5" />
-            {formData.customer_id ? 'Edit Customer' : 'Add New Customer'}
+            {formData.customer_id ? 'Edit Contact Person' : 'Add New Contact Person'}
           </h2>
           <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Customer Name *</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Contact Person Name *</label>
               <input
                 type="text"
                 name="customer"
@@ -504,7 +506,7 @@ const CustomersTable = () => {
                 type="submit"
                 className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
               >
-                {formData.customer_id ? 'Update Customer' : 'Create Customer'}
+                {formData.customer_id ? 'Update Contact Person' : 'Create Contact Person'}
               </button>
             </div>
           </form>
@@ -583,7 +585,7 @@ const CustomersTable = () => {
         <div>
           <h2 className="text-xl font-semibold text-gray-800 flex items-center gap-2">
             <User className="w-5 h-5" />
-            Customers
+            Contact Persons
           </h2>
         </div>
 
@@ -605,7 +607,7 @@ const CustomersTable = () => {
               onClick={handleAddCustomer}
             >
               <Plus className="w-4 h-4" />
-              <span>Add Customer</span>
+              <span>Add Contact Person</span>
             </button>
             <button className="flex items-center gap-2 bg-white border rounded-lg px-3 py-2.5 text-sm hover:bg-gray-50 transition-colors">
               <FileDown className="w-4 h-4" />
@@ -633,16 +635,17 @@ const CustomersTable = () => {
                   className="rounded text-blue-500 focus:ring-blue-500"
                 />
               </th>
-              <th className="px-6 py-3">Customer</th>
+              <th className="px-6 py-3">Contact Person</th>
               <th className="px-6 py-3">Contact</th>
               <th className="px-6 py-3 hidden lg:table-cell">Date</th>
+              <th className="px-6 py-3">Ledger</th>
               <th className="px-6 py-3 text-right">Actions</th>
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
             {filteredCustomers.length === 0 ? (
               <tr>
-                <td colSpan="5" className="px-6 py-8 text-center">
+                <td colSpan="6" className="px-6 py-8 text-center">
                   <div className="flex flex-col items-center justify-center text-gray-400">
                     <User className="w-12 h-12 mb-2 opacity-50" />
                     <p className="text-sm">No customers found</p>
@@ -702,6 +705,14 @@ const CustomersTable = () => {
                       {formatDate(customer.date)}
                     </div>
                   </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-center">
+                    <button
+                      onClick={() => navigate(`/ledger?customerId=${customer.customer_id}`)}
+                      className="px-3 py-1.5 bg-blue-600 text-white rounded-md text-sm hover:bg-blue-700 transition-colors"
+                    >
+                      View Ledger
+                    </button>
+                  </td>
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium relative">
                     <button
                       className="text-gray-400 hover:text-gray-600 p-1 rounded hover:bg-gray-100 transition-colors"
@@ -715,6 +726,7 @@ const CustomersTable = () => {
                         ref={dropdownRef}
                         className="absolute right-0 z-50 mt-1 w-48 bg-white rounded-md shadow-lg border border-gray-200 py-1"
                       >
+                        {/* View Ledger moved to its own column */}
                         <button
                           onClick={() => handleAction('edit', customer)}
                           className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full text-left transition-colors"

@@ -2,10 +2,10 @@
 -- version 5.2.1
 -- https://www.phpmyadmin.net/
 --
--- Host: 127.0.0.1
--- Generation Time: Oct 14, 2025 at 06:19 PM
+-- Host: localhost
+-- Generation Time: Nov 10, 2025 at 07:33 PM
 -- Server version: 10.4.32-MariaDB
--- PHP Version: 8.0.30
+-- PHP Version: 8.2.12
 
 SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
 START TRANSACTION;
@@ -20,6 +20,60 @@ SET time_zone = "+00:00";
 --
 -- Database: `arauf_crm`
 --
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `accounts_payable`
+--
+
+CREATE TABLE `accounts_payable` (
+  `id` int(11) NOT NULL,
+  `supplier_id` int(11) NOT NULL,
+  `supplier_name` varchar(255) NOT NULL,
+  `supplier_email` varchar(255) DEFAULT NULL,
+  `supplier_phone` varchar(50) DEFAULT NULL,
+  `po_id` int(11) DEFAULT NULL,
+  `po_number` varchar(50) DEFAULT NULL,
+  `po_date` date DEFAULT NULL,
+  `due_date` date DEFAULT NULL,
+  `invoice_amount` decimal(15,2) NOT NULL,
+  `amount_paid` decimal(15,2) DEFAULT 0.00,
+  `amount_due` decimal(15,2) NOT NULL,
+  `aging_days` int(11) DEFAULT 0,
+  `aging_status` enum('Current','30+ Days','60+ Days','90+ Days','120+ Days') DEFAULT 'Current',
+  `status` enum('Open','Partial','Paid','Overdue','Cancelled') DEFAULT 'Open',
+  `currency` varchar(10) DEFAULT 'PKR',
+  `notes` text DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `accounts_receivable`
+--
+
+CREATE TABLE `accounts_receivable` (
+  `id` int(11) NOT NULL,
+  `customer_id` int(11) NOT NULL,
+  `customer_name` varchar(255) NOT NULL,
+  `invoice_id` int(11) DEFAULT NULL,
+  `invoice_number` varchar(50) DEFAULT NULL,
+  `invoice_date` date DEFAULT NULL,
+  `due_date` date DEFAULT NULL,
+  `invoice_amount` decimal(15,2) NOT NULL,
+  `amount_paid` decimal(15,2) DEFAULT 0.00,
+  `amount_due` decimal(15,2) NOT NULL,
+  `aging_days` int(11) DEFAULT 0,
+  `aging_status` enum('Current','30+ Days','60+ Days','90+ Days','120+ Days') DEFAULT 'Current',
+  `status` enum('Open','Partial','Paid','Overdue','Cancelled') DEFAULT 'Open',
+  `currency` varchar(10) DEFAULT 'PKR',
+  `notes` text DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- --------------------------------------------------------
 
@@ -50,6 +104,27 @@ INSERT INTO `categories` (`id`, `name`, `description`, `type`, `status`, `create
 (5, 'Computer loan ', '', 'Liability', 'Active', '2025-09-30', '2025-09-30 17:12:53', '2025-09-30 17:12:53'),
 (7, 'educational loan ', 'aaaa', 'Expense', 'Active', '2025-10-08', '2025-10-08 18:40:43', '2025-10-08 18:40:43'),
 (8, 'Muhammad Hunain', '', 'Expense', 'Active', '2025-10-08', '2025-10-08 18:47:57', '2025-10-08 18:47:57');
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `chart_of_accounts`
+--
+
+CREATE TABLE `chart_of_accounts` (
+  `id` int(11) NOT NULL,
+  `account_code` varchar(50) NOT NULL,
+  `account_name` varchar(255) NOT NULL,
+  `account_type` enum('Asset','Liability','Equity','Income','Expense','Receivable','Payable') NOT NULL,
+  `category` varchar(100) NOT NULL,
+  `description` text DEFAULT NULL,
+  `opening_balance` decimal(15,2) DEFAULT 0.00,
+  `current_balance` decimal(15,2) DEFAULT 0.00,
+  `status` enum('Active','Inactive') DEFAULT 'Active',
+  `parent_account_id` int(11) DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- --------------------------------------------------------
 
@@ -134,6 +209,31 @@ INSERT INTO `expenses` (`id`, `title`, `date`, `vendor`, `amount`, `category`, `
 -- --------------------------------------------------------
 
 --
+-- Table structure for table `general_ledger`
+--
+
+CREATE TABLE `general_ledger` (
+  `id` int(11) NOT NULL,
+  `transaction_date` date NOT NULL,
+  `voucher_number` varchar(50) NOT NULL,
+  `voucher_type` enum('Invoice','Payment','Expense','Receipt','Transfer','Adjustment') NOT NULL,
+  `account_id` int(11) NOT NULL,
+  `reference_id` int(11) DEFAULT NULL,
+  `reference_type` varchar(50) DEFAULT NULL COMMENT 'invoice_id, expense_id, payment_id, etc.',
+  `description` text NOT NULL,
+  `debit_amount` decimal(15,2) DEFAULT 0.00,
+  `credit_amount` decimal(15,2) DEFAULT 0.00,
+  `running_balance` decimal(15,2) DEFAULT 0.00,
+  `posted_by` int(11) DEFAULT NULL,
+  `is_posted` tinyint(1) DEFAULT 1,
+  `notes` text DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
 -- Table structure for table `invoice`
 --
 
@@ -182,7 +282,7 @@ INSERT INTO `invoice` (`id`, `invoice_number`, `customer_id`, `customer_name`, `
 (11, 'INV-2025-1759845903844', 3, 'MH', '19@gmail.com', '+923435980052', '', 'Floor Shan Residency SB-44 Block-K North Nazimabad karachi', '1111111', '1111111', NULL, 0.00, 0.00, 'PKR', 0.00, 0.00, '2025-10-07', NULL, 'Within 15 days', '2025-10-07', '', 500.00, 0.00, 0.00, 500.00, 'Pending', 0, NULL, '2025-10-07 14:05:03', '2025-10-07 14:05:03', 30),
 (12, 'INV-2025-1760443020181', 3, 'MH', '19@gmail.com', '+923435980052', '', 'Floor Shan Residency SB-44 Block-K North Nazimabad karachi', '1111111', '1111111', NULL, 0.00, 0.00, 'PKR', 0.00, 0.00, '2025-10-14', NULL, 'Within 15 days', '2025-10-29', '', 1111.00, 1.00, 11.11, 1122.11, 'Pending', 0, NULL, '2025-10-14 11:57:00', '2025-10-14 11:57:00', 15),
 (14, 'INV-2025-1760443882789', 3, 'MH', '19@gmail.com', '+923435980052', '', 'Floor Shan Residency SB-44 Block-K North Nazimabad karachi', '1111111', '1111111', NULL, 0.00, 0.00, 'PKR', 0.00, 0.00, '2025-10-12', NULL, 'Within 15 days', '0000-00-00', '', 12221.00, 0.00, 0.00, 12221.00, 'Paid', 0, NULL, '2025-10-14 12:11:22', '2025-10-14 12:43:03', 10),
-(15, 'INV-2025-1760447140989', NULL, 'Zainab Rizwan', 'ayesharizwan519@gmail.com', '03172178847', '', '202 Floor Shan Residency SB-44 Block-K North Nazimabad karachi', '152', '172', NULL, 0.00, 0.00, 'PKR', 0.00, 0.00, '2025-10-14', NULL, 'Within 15 days', '2025-10-19', '', 12321.00, 11.00, 1355.31, 13676.31, 'Pending', 0, NULL, '2025-10-14 13:05:40', '2025-10-14 13:05:40', 5);
+(18, 'INV-2025-1762278399628', 3, 'MH', '19@gmail.com', '+9234359800521', '', 'Floor Shan Residency SB-44 Block-K North Nazimabad karachi', '1111111', '1111111', NULL, 0.00, 0.00, 'PKR', 0.00, 0.00, '2025-11-04', NULL, 'Within 15 days', '2025-12-04', '', 2221.99, 10.00, 222.20, 2444.19, 'Pending', 0, NULL, '2025-11-04 17:46:39', '2025-11-04 17:46:39', 30);
 
 -- --------------------------------------------------------
 
@@ -214,7 +314,8 @@ INSERT INTO `invoice_items` (`id`, `invoice_id`, `item_no`, `description`, `quan
 (17, 11, 1, 'a', 1, '', NULL, 500.00, 500.00, '2025-10-07 14:05:03'),
 (18, 12, 1, 'aaa', 1, '', 15.00, 1111.00, 1111.00, '2025-10-14 11:57:00'),
 (22, 14, 1, 'aaa', 11, '', 15.00, 1111.00, 12221.00, '2025-10-14 12:43:03'),
-(23, 15, 1, 'zzz', 111, '', 111.00, 111.00, 12321.00, '2025-10-14 13:05:41');
+(27, 18, 1, 'aaa1', 1, '', 1.00, 1110.99, 1110.99, '2025-11-04 17:46:39'),
+(28, 18, 2, 'bbb2', 1, '', 1.00, 1111.00, 1111.00, '2025-11-04 17:46:39');
 
 -- --------------------------------------------------------
 
@@ -232,6 +333,180 @@ CREATE TABLE `invoice_payments` (
   `payment_method` varchar(50) DEFAULT NULL,
   `note` text DEFAULT NULL,
   `created_at` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `ledger_entries`
+--
+
+CREATE TABLE `ledger_entries` (
+  `entry_id` int(11) NOT NULL,
+  `customer_id` int(11) NOT NULL,
+  `entry_date` date NOT NULL,
+  `description` varchar(500) DEFAULT NULL,
+  `bill_no` varchar(100) DEFAULT NULL,
+  `payment_mode` varchar(50) DEFAULT 'Cash',
+  `cheque_no` varchar(100) DEFAULT NULL,
+  `debit_amount` decimal(15,2) DEFAULT 0.00,
+  `credit_amount` decimal(15,2) DEFAULT 0.00,
+  `balance` decimal(15,2) DEFAULT 0.00,
+  `status` varchar(50) DEFAULT 'paid',
+  `due_date` date DEFAULT NULL,
+  `has_multiple_items` tinyint(1) DEFAULT 0,
+  `sales_tax_rate` decimal(5,2) DEFAULT 0.00,
+  `sales_tax_amount` decimal(15,2) DEFAULT 0.00,
+  `sequence` decimal(10,1) DEFAULT 1.0,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `ledger_entries`
+--
+
+INSERT INTO `ledger_entries` (`entry_id`, `customer_id`, `entry_date`, `description`, `bill_no`, `payment_mode`, `cheque_no`, `debit_amount`, `credit_amount`, `balance`, `status`, `due_date`, `has_multiple_items`, `sales_tax_rate`, `sales_tax_amount`, `sequence`, `created_at`, `updated_at`) VALUES
+(22, 3, '2025-11-10', 'CF', 'SB44', 'Cash', NULL, 0.00, 111.00, -111.00, 'draft', NULL, 0, 11.00, 0.00, 1.0, '2025-11-10 10:07:27', '2025-11-10 10:07:27'),
+(23, 3, '2025-11-10', 'Sales Tax @ 11%', 'TAX-SB44', 'Cash', NULL, 0.00, 12.21, -123.21, 'draft', NULL, 0, 0.00, 0.00, 2.0, '2025-11-10 10:07:27', '2025-11-10 10:07:27'),
+(31, 3, '2025-11-10', 'CF', 'SB-44', 'Cash', NULL, 0.00, 1000.00, -1123.21, 'paid', NULL, 0, 10.00, 0.00, 3.0, '2025-11-10 11:21:17', '2025-11-10 11:21:17'),
+(32, 3, '2025-11-10', 'Sales Tax @ 10%', 'TAX-SB-44', 'Cash', NULL, 0.00, 100.00, -1223.21, 'paid', NULL, 0, 0.00, 0.00, 4.0, '2025-11-10 11:21:17', '2025-11-10 11:21:17');
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `ledger_entry_fy_mapping`
+--
+
+CREATE TABLE `ledger_entry_fy_mapping` (
+  `mapping_id` int(11) NOT NULL,
+  `entry_id` int(11) NOT NULL,
+  `fy_id` int(11) NOT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `ledger_financial_years`
+--
+
+CREATE TABLE `ledger_financial_years` (
+  `fy_id` int(11) NOT NULL,
+  `customer_id` int(11) NOT NULL,
+  `fy_name` varchar(100) NOT NULL,
+  `start_date` date NOT NULL,
+  `end_date` date NOT NULL,
+  `opening_debit` decimal(15,2) DEFAULT 0.00,
+  `opening_credit` decimal(15,2) DEFAULT 0.00,
+  `opening_balance` decimal(15,2) DEFAULT 0.00,
+  `closing_debit` decimal(15,2) DEFAULT 0.00,
+  `closing_credit` decimal(15,2) DEFAULT 0.00,
+  `closing_balance` decimal(15,2) DEFAULT 0.00,
+  `status` enum('open','closed','archived') DEFAULT 'open',
+  `notes` text DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Dumping data for table `ledger_financial_years`
+--
+
+INSERT INTO `ledger_financial_years` (`fy_id`, `customer_id`, `fy_name`, `start_date`, `end_date`, `opening_debit`, `opening_credit`, `opening_balance`, `closing_debit`, `closing_credit`, `closing_balance`, `status`, `notes`, `created_at`, `updated_at`) VALUES
+(1, 3, ' test - 10-11', '2025-09-01', '2025-11-04', 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 'open', NULL, '2025-11-10 16:03:17', '2025-11-10 16:03:17');
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `ledger_fy_closing_balance`
+--
+
+CREATE TABLE `ledger_fy_closing_balance` (
+  `closing_id` int(11) NOT NULL,
+  `fy_id` int(11) NOT NULL,
+  `customer_id` int(11) NOT NULL,
+  `closing_date` date NOT NULL,
+  `closing_debit` decimal(15,2) DEFAULT 0.00,
+  `closing_credit` decimal(15,2) DEFAULT 0.00,
+  `closing_balance` decimal(15,2) DEFAULT 0.00,
+  `pdf_file_path` varchar(500) DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `ledger_line_items`
+--
+
+CREATE TABLE `ledger_line_items` (
+  `id` int(11) NOT NULL,
+  `entry_id` int(11) NOT NULL,
+  `description` varchar(500) DEFAULT NULL,
+  `quantity` decimal(10,2) DEFAULT 0.00,
+  `rate` decimal(15,2) DEFAULT 0.00,
+  `tax_rate` decimal(5,2) DEFAULT 0.00,
+  `amount` decimal(15,2) DEFAULT 0.00,
+  `total_with_tax` decimal(15,2) DEFAULT 0.00,
+  `item_type` varchar(50) DEFAULT 'material',
+  `line_sequence` int(11) DEFAULT 1,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `ledger_single_materials`
+--
+
+CREATE TABLE `ledger_single_materials` (
+  `id` int(11) NOT NULL,
+  `entry_id` int(11) NOT NULL,
+  `bill_no` varchar(100) DEFAULT NULL,
+  `quantity_mtr` decimal(10,2) DEFAULT 0.00,
+  `rate` decimal(15,2) DEFAULT 0.00,
+  `tax_rate` decimal(5,2) DEFAULT 0.00,
+  `amount` decimal(15,2) DEFAULT 0.00,
+  `total_with_tax` decimal(15,2) DEFAULT 0.00,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `ledger_single_materials`
+--
+
+INSERT INTO `ledger_single_materials` (`id`, `entry_id`, `bill_no`, `quantity_mtr`, `rate`, `tax_rate`, `amount`, `total_with_tax`, `created_at`, `updated_at`) VALUES
+(10, 22, 'SB44', 1.00, 111.00, 11.00, 111.00, 123.21, '2025-11-10 10:07:27', '2025-11-10 10:07:27'),
+(14, 31, 'SB-44', 1.00, 1000.00, 10.00, 1000.00, 1100.00, '2025-11-10 11:21:17', '2025-11-10 11:21:17');
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `payment_receipts`
+--
+
+CREATE TABLE `payment_receipts` (
+  `id` int(11) NOT NULL,
+  `receipt_number` varchar(50) NOT NULL,
+  `receipt_date` date NOT NULL,
+  `receipt_type` enum('Customer Payment','Supplier Payment','Other Receipt') NOT NULL,
+  `party_type` enum('Customer','Supplier','Other') NOT NULL,
+  `party_id` int(11) DEFAULT NULL,
+  `party_name` varchar(255) NOT NULL,
+  `account_id` int(11) DEFAULT NULL,
+  `reference_number` varchar(50) DEFAULT NULL COMMENT 'Check/Bank Transfer number',
+  `amount_received` decimal(15,2) NOT NULL,
+  `payment_method` enum('Cash','Check','Bank Transfer','Credit Card','Other') NOT NULL,
+  `bank_account` varchar(100) DEFAULT NULL,
+  `description` text DEFAULT NULL,
+  `posted_by` int(11) DEFAULT NULL,
+  `is_reconciled` tinyint(1) DEFAULT 0,
+  `status` enum('Pending','Confirmed','Cancelled') DEFAULT 'Confirmed',
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- --------------------------------------------------------
@@ -334,7 +609,16 @@ INSERT INTO `po_deletion_history` (`id`, `po_invoice_id`, `invoice_number`, `po_
 (19, 38, 'PI25-005', 'PO25-10-007', 'Muhammad Hunain', 1100.00, '2025-10-14', '2025-10-14 14:44:57', 'Manual deletion via system', 'System User', NULL, '2025-10-14 14:44:57'),
 (20, 39, 'PI25-005', 'PO25-10-007', 'Muhammad Hunain', 123.21, '2025-10-14', '2025-10-14 16:18:57', 'PO permanently deleted - invoices automatically removed', 'System Trigger', NULL, '2025-10-14 16:18:57'),
 (21, 27, 'PI25-004', 'PO25-10-001', 'Muhammad Hunain', 50.00, '2025-10-01', '2025-10-14 16:18:57', 'PO permanently deleted - invoices automatically removed', 'System Trigger', NULL, '2025-10-14 16:18:57'),
-(22, 28, 'PI25-004-1', 'PO25-10-001', 'Muhammad Hunain', 1000.00, '2025-10-02', '2025-10-14 16:18:57', 'PO permanently deleted - invoices automatically removed', 'System Trigger', NULL, '2025-10-14 16:18:57');
+(22, 28, 'PI25-004-1', 'PO25-10-001', 'Muhammad Hunain', 1000.00, '2025-10-02', '2025-10-14 16:18:57', 'PO permanently deleted - invoices automatically removed', 'System Trigger', NULL, '2025-10-14 16:18:57'),
+(24, 20, 'PI25-001', 'PO25-9-002', 'Muhammad ', 19900.00, '2025-09-30', '2025-11-07 16:10:30', 'PO permanently deleted', 'System User', NULL, '2025-11-07 16:10:30'),
+(25, 30, 'PI25-001-1', 'PO25-9-002', 'Muhammad ', 50000.00, '2025-10-13', '2025-11-07 16:10:30', 'PO permanently deleted', 'System User', NULL, '2025-11-07 16:10:30'),
+(26, 40, 'PI25-004', 'PO25-10-004', 'Muhammad Hunain', 52999.95, '2025-10-21', '2025-11-07 16:10:30', 'PO permanently deleted', 'System User', NULL, '2025-11-07 16:10:30'),
+(27, 21, 'PI25-002', 'PO25-9-001', 'Muhammad Hunain', 15000.00, '2025-09-30', '2025-11-07 16:10:30', 'PO permanently deleted', 'System User', NULL, '2025-11-07 16:10:30'),
+(28, 22, 'PI25-003', 'PO25-9-003', 'Paysys', 340000.00, '2025-09-30', '2025-11-07 16:10:30', 'PO permanently deleted', 'System User', NULL, '2025-11-07 16:10:30'),
+(29, 23, 'PI25-003-1', 'PO25-9-003', 'Paysys', 1000000.00, '2025-09-30', '2025-11-07 16:10:30', 'PO permanently deleted', 'System User', NULL, '2025-11-07 16:10:30'),
+(30, 24, 'PI25-003-2', 'PO25-9-003', 'Paysys', 21000000.00, '2025-09-30', '2025-11-07 16:10:30', 'PO permanently deleted', 'System User', NULL, '2025-11-07 16:10:30'),
+(31, 41, 'PI25-001', 'PO25-11-001', 'MH', 10.00, '2025-11-07', '2025-11-07 18:04:04', 'Manual deletion via system', 'System User', NULL, '2025-11-07 18:04:04'),
+(32, 42, 'PI25-001', 'PO25-11-001', 'MH', 10.00, '2025-11-07', '2025-11-07 20:04:53', 'Manual deletion via system', 'System User', NULL, '2025-11-07 20:04:53');
 
 -- --------------------------------------------------------
 
@@ -403,12 +687,7 @@ CREATE TABLE `po_invoices` (
 --
 
 INSERT INTO `po_invoices` (`id`, `invoice_number`, `invoice_date`, `due_date`, `po_id`, `po_number`, `customer_name`, `customer_email`, `customer_phone`, `customer_address`, `subtotal`, `tax_rate`, `tax_amount`, `total_amount`, `currency`, `status`, `payment_date`, `payment_method`, `payment_reference`, `notes`, `created_at`, `updated_at`, `invoicing_mode`, `total_po_quantity`, `invoiced_quantity`, `quantity_percentage`, `payment_days`) VALUES
-(20, 'PI25-001', '2025-09-30', '2025-10-30', '18', 'PO25-9-002', 'Muhammad ', 'rizwan519@gmail.com', '03435980052', '504 Floor Shan Residency SB-44 Block-K North Nazimabad karachi', 19900.00, 19.90, 0.00, 19900.00, 'PKR', 'Paid', '2025-09-30', NULL, NULL, 'Generated from Purchase Order: PO25-9-002', '2025-09-30 12:20:42', '2025-09-30 13:22:27', 'amount', 0.00, 0.00, 0.00, 30),
-(21, 'PI25-002', '2025-09-30', '2025-10-30', '17', 'PO25-9-001', 'Muhammad Hunain', 'm.hunainofficial@gmail.com', '03435980052', '202 Floor Shan Residency SB-44 Block-K North Nazimabad karachi', 15000.00, 15.00, 0.00, 15000.00, 'PKR', 'Paid', '2025-09-30', NULL, NULL, 'Generated from Purchase Order: PO25-9-001', '2025-09-30 12:31:15', '2025-09-30 12:52:06', 'amount', 0.00, 0.00, 0.00, 30),
-(22, 'PI25-003', '2025-09-30', '2025-10-30', '19', 'PO25-9-003', 'Paysys', 'paysys@gmail.com', '03435980052', 'Shan Residency SB-44 Block-K North Nazimabad karachi', 340000.00, 11.70, 0.00, 340000.00, 'PKR', 'Paid', '2025-09-30', NULL, NULL, 'Generated from Purchase Order: PO25-9-003', '2025-09-30 14:46:31', '2025-09-30 14:46:48', 'amount', 0.00, 0.00, 0.00, 30),
-(23, 'PI25-003-1', '2025-09-30', '2025-10-30', '19', 'PO25-9-003', 'Paysys', 'paysys@gmail.com', '03435980052', 'Shan Residency SB-44 Block-K North Nazimabad karachi', 1000000.00, 11.70, 0.00, 1000000.00, 'PKR', 'Not Sent', NULL, NULL, NULL, 'Generated from Purchase Order: PO25-9-003', '2025-09-30 14:47:43', '2025-10-02 20:28:27', 'amount', 0.00, 0.00, 0.00, 30),
-(24, 'PI25-003-2', '2025-09-30', '2025-10-30', '19', 'PO25-9-003', 'Paysys', 'paysys@gmail.com', '03435980052', 'Shan Residency SB-44 Block-K North Nazimabad karachi', 21000000.00, 11.70, 2340000.00, 21000000.00, 'PKR', 'Paid', '2025-09-30', NULL, NULL, 'Generated from Purchase Order: PO25-9-003', '2025-09-30 16:35:51', '2025-09-30 16:36:07', 'amount', 0.00, 0.00, 0.00, 30),
-(30, 'PI25-001-1', '2025-10-13', '2025-11-12', '18', 'PO25-9-002', 'Muhammad ', 'rizwan519@gmail.com', '03435980052', '504 Floor Shan Residency SB-44 Block-K North Nazimabad karachi', 50000.00, 0.00, 0.00, 50000.00, 'PKR', 'Draft', NULL, NULL, NULL, 'Generated from Purchase Order: PO25-9-002', '2025-10-13 18:19:38', '2025-10-13 18:19:38', 'quantity', 0.00, 5000.00, 0.00, 30);
+(43, 'PI25-001', '2025-11-10', '2025-12-10', '35', 'PO25-11-001', 'MH', '19@gmail.com', '+9234359800521', 'Floor Shan Residency SB-44 Block-K North Nazimabad karachi', 110.00, 10.00, 10.00, 110.00, 'PKR', 'Draft', NULL, NULL, NULL, 'Generated from Purchase Order: PO25-11-001', '2025-11-10 07:19:55', '2025-11-10 07:19:55', 'amount', 0.00, 0.00, 0.00, 30);
 
 --
 -- Triggers `po_invoices`
@@ -596,13 +875,6 @@ CREATE TABLE `po_invoice_items` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
--- Dumping data for table `po_invoice_items`
---
-
-INSERT INTO `po_invoice_items` (`id`, `po_invoice_id`, `po_item_id`, `item_no`, `description`, `po_quantity`, `invoiced_quantity`, `remaining_quantity`, `unit`, `net_weight`, `unit_price`, `amount`, `created_at`, `updated_at`) VALUES
-(1, 30, 43, 1, 'this is another test', 10000.00, 5000.00, 5000.00, 'pcs', NULL, 10.00, 50000.00, '2025-10-13 18:19:38', '2025-10-13 18:19:38');
-
---
 -- Triggers `po_invoice_items`
 --
 DELIMITER $$
@@ -706,17 +978,11 @@ INSERT INTO `po_invoice_summary` (`id`, `po_number`, `po_total_amount`, `total_i
 (45, 'PO-20250927-205007', 136886.31, 0.00, 136886.31, 0, NULL, '2025-09-29 14:29:20', '2025-09-29 14:29:20'),
 (51, 'PO-20250929-194943', 56000.00, 0.00, 56000.00, 0, NULL, '2025-09-29 14:50:33', '2025-09-30 11:54:30'),
 (67, 'PO-20250929-221636', 200.00, 0.00, 200.00, 0, NULL, '2025-09-29 17:22:23', '2025-09-30 11:53:50'),
-(71, 'PO25-9-001', 115000.00, 15000.00, 100000.00, 1, '2025-09-30', '2025-09-29 21:20:00', '2025-10-08 17:17:01'),
 (119, 'PO-20250927-182905', 0.00, 0.00, 0.00, 0, NULL, '2025-09-30 12:11:27', '2025-09-30 12:11:27'),
 (120, 'PO-20250927-180053', 0.00, 0.00, 0.00, 0, NULL, '2025-09-30 12:11:31', '2025-09-30 12:11:31'),
 (122, 'PO-20250929-215641', 0.00, 0.00, 0.00, 0, NULL, '2025-09-30 12:11:40', '2025-09-30 12:11:40'),
 (123, 'PO-20250929-150543', 0.00, 0.00, 0.00, 0, NULL, '2025-09-30 12:11:46', '2025-09-30 12:11:46'),
-(127, 'PO25-9-002', 119900.00, 69900.00, 50000.00, 2, '2025-10-13', '2025-09-30 12:17:28', '2025-10-13 21:29:54'),
-(138, 'PO25-9-003', 22340000.00, 22340000.00, 0.00, 3, '2025-09-30', '2025-09-30 14:46:18', '2025-10-02 20:28:27'),
-(179, 'PO25-10-002', 18000.00, 0.00, 18000.00, 0, NULL, '2025-10-08 16:49:11', '2025-10-08 16:49:11'),
-(223, 'PO25-10-006', 112.11, 0.00, 112.11, 0, NULL, '2025-10-13 21:31:46', '2025-10-14 14:41:26'),
-(226, 'PO25-10-005', 330.00, 0.00, 330.00, 0, NULL, '2025-10-14 12:43:16', '2025-10-14 12:43:16'),
-(227, 'PO25-10-004', 70804.76, 0.00, 70804.76, 0, NULL, '2025-10-14 12:43:19', '2025-10-14 12:43:19');
+(268, 'PO25-11-001', 110.00, 110.00, 0.00, 1, '2025-11-10', '2025-11-07 20:04:53', '2025-11-10 07:19:55');
 
 -- --------------------------------------------------------
 
@@ -792,13 +1058,7 @@ CREATE TABLE `purchase_orders` (
 --
 
 INSERT INTO `purchase_orders` (`id`, `po_number`, `po_date`, `supplier_name`, `supplier_email`, `supplier_phone`, `supplier_address`, `subtotal`, `tax_rate`, `tax_amount`, `total_amount`, `currency`, `status`, `previous_status`, `notes`, `created_at`, `updated_at`, `payment_days`) VALUES
-(17, 'PO25-9-001', '2025-09-30', 'Muhammad Hunain', 'm.hunainofficial@gmail.com', '03435980052', '202 Floor Shan Residency SB-44 Block-K North Nazimabad karachi', 100000.00, 15.00, 15000.00, 115000.00, 'PKR', 'Approved', NULL, 'this is test ', '2025-09-30 12:02:32', '2025-09-30 12:02:32', 30),
-(18, 'PO25-9-002', '2025-10-31', 'Muhammad ', 'rizwan519@gmail.com', '03435980052', '504 Floor Shan Residency SB-44 Block-K North Nazimabad karachi', 100000.00, 19.90, 19900.00, 119900.00, 'PKR', 'Approved', NULL, '', '2025-09-30 12:03:21', '2025-10-08 16:45:59', 30),
-(19, 'PO25-9-003', '2025-09-30', 'Paysys', 'paysys@gmail.com', '03435980052', 'Shan Residency SB-44 Block-K North Nazimabad karachi', 20000000.00, 11.70, 2340000.00, 22340000.00, 'PKR', 'Approved', NULL, 'approved by IT team ', '2025-09-30 14:46:10', '2025-09-30 14:46:10', 30),
-(25, 'PO25-10-002', '2025-10-03', 'ABC', 'ABC@gmail.com', '03435980052', 'SB-44 Block-K North Nazimabad karachi', 15000.00, 20.00, 3000.00, 18000.00, 'PKR', 'Pending', NULL, 'iii', '2025-10-02 19:52:24', '2025-10-08 16:45:34', 30),
-(29, 'PO25-10-004', '2025-10-13', 'Muhammad Hunain', '19@gmail.com', '03172178847', '202 Floor Shan Residency SB-44 Block-K North Nazimabad karachi', 59499.80, 19.00, 11304.96, 70804.76, 'PKR', 'Approved', NULL, '', '2025-10-13 18:35:01', '2025-10-13 18:35:01', 30),
-(30, 'PO25-10-005', '2025-10-13', 'Muhammad Hunain', '', '', '', 275.00, 20.00, 55.00, 330.00, 'PKR', 'Approved', NULL, '', '2025-10-13 20:12:46', '2025-10-13 20:12:46', 30),
-(31, 'PO25-10-006', '2025-10-13', 'aaaa', '', '', '', 111.00, 1.00, 1.11, 112.11, 'PKR', 'Approved', NULL, '', '2025-10-13 21:31:27', '2025-10-13 21:31:27', 30);
+(35, 'PO25-11-001', '2025-11-07', 'MH', '19@gmail.com', '+9234359800521', 'Floor Shan Residency SB-44 Block-K North Nazimabad karachi', 100.00, 10.00, 10.00, 110.00, 'PKR', 'Approved', NULL, '', '2025-11-07 16:12:59', '2025-11-07 16:16:02', 30);
 
 --
 -- Triggers `purchase_orders`
@@ -937,17 +1197,7 @@ CREATE TABLE `purchase_order_items` (
 --
 
 INSERT INTO `purchase_order_items` (`id`, `purchase_order_id`, `item_no`, `description`, `quantity`, `unit`, `net_weight`, `unit_price`, `amount`, `created_at`, `updated_at`) VALUES
-(18, 17, 1, 'this is test', 10000.00, 'pcs', NULL, 10.00, 100000.00, '2025-09-30 12:02:32', '2025-10-02 18:58:09'),
-(20, 19, 1, 'Computer i5 7 gen ', 10.00, 'pcs', NULL, 2000000.00, 20000000.00, '2025-09-30 14:46:10', '2025-10-02 18:58:09'),
-(41, 25, 1, 'aaa', 1.00, 'NOS', NULL, 5000.00, 5000.00, '2025-10-08 16:45:34', '2025-10-08 16:45:34'),
-(42, 25, 2, 'bbb', 1.00, 'JOB', NULL, 10000.00, 10000.00, '2025-10-08 16:45:34', '2025-10-08 16:45:34'),
-(43, 18, 1, 'this is another test', 10000.00, 'pcs', NULL, 10.00, 100000.00, '2025-10-08 16:45:59', '2025-10-08 16:45:59'),
-(46, 29, 1, 'aaa', 10.00, 'pcs', NULL, 250.00, 2500.00, '2025-10-13 18:35:01', '2025-10-13 18:35:01'),
-(47, 29, 2, 'bbb', 20.00, 'pcs', NULL, 349.99, 6999.80, '2025-10-13 18:35:01', '2025-10-13 18:35:01'),
-(48, 29, 3, 'ccc', 5.00, 'pcs', NULL, 10000.00, 50000.00, '2025-10-13 18:35:01', '2025-10-13 18:35:01'),
-(49, 30, 1, 'a1', 20.00, 'pcs', 5.00, 10.00, 200.00, '2025-10-13 20:12:46', '2025-10-13 20:12:46'),
-(50, 30, 2, 'b2', 15.00, 'pcs', 10.00, 5.00, 75.00, '2025-10-13 20:12:46', '2025-10-13 20:12:46'),
-(51, 31, 1, 'aa', 1.00, 'pcs', 1.00, 111.00, 111.00, '2025-10-13 21:31:27', '2025-10-13 21:31:27');
+(59, 35, 1, 'aaa', 100.00, 'pcs', 10.00, 1.00, 100.00, '2025-11-07 16:16:02', '2025-11-07 16:16:02');
 
 -- --------------------------------------------------------
 
@@ -971,6 +1221,44 @@ INSERT INTO `reporttable` (`id`, `date`, `customer`, `price`, `status`) VALUES
 ('01', '2025-09-30', 'Muhammad Huinain', 150000.00, 'Pending'),
 ('02', '2025-09-30', 'hunain ', 1000000.00, 'Pending'),
 ('03', '2025-10-01', 'Muhammad Huinain', 15000.00, 'Pending');
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `transaction_journal`
+--
+
+CREATE TABLE `transaction_journal` (
+  `id` int(11) NOT NULL,
+  `journal_number` varchar(50) NOT NULL,
+  `journal_date` date NOT NULL,
+  `description` text NOT NULL,
+  `total_debit` decimal(15,2) DEFAULT 0.00,
+  `total_credit` decimal(15,2) DEFAULT 0.00,
+  `status` enum('Draft','Posted','Reversed') DEFAULT 'Draft',
+  `posted_by` int(11) DEFAULT NULL,
+  `posted_date` timestamp NULL DEFAULT NULL,
+  `notes` text DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `transaction_journal_entries`
+--
+
+CREATE TABLE `transaction_journal_entries` (
+  `id` int(11) NOT NULL,
+  `journal_id` int(11) NOT NULL,
+  `account_id` int(11) NOT NULL,
+  `line_item_number` int(11) NOT NULL,
+  `description` text DEFAULT NULL,
+  `debit_amount` decimal(15,2) DEFAULT 0.00,
+  `credit_amount` decimal(15,2) DEFAULT 0.00,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- --------------------------------------------------------
 
@@ -1054,6 +1342,62 @@ INSERT INTO `user_settings` (`id`, `user_id`, `first_name`, `last_name`, `email`
 -- --------------------------------------------------------
 
 --
+-- Stand-in structure for view `vw_financial_year_summary`
+-- (See below for the actual view)
+--
+CREATE TABLE `vw_financial_year_summary` (
+`fy_id` int(11)
+,`customer_id` int(11)
+,`customer_name` varchar(255)
+,`fy_name` varchar(100)
+,`start_date` date
+,`end_date` date
+,`opening_debit` decimal(15,2)
+,`opening_credit` decimal(15,2)
+,`opening_balance` decimal(15,2)
+,`closing_debit` decimal(15,2)
+,`closing_credit` decimal(15,2)
+,`closing_balance` decimal(15,2)
+,`status` enum('open','closed','archived')
+,`notes` text
+,`entry_count` bigint(21)
+,`total_debit` decimal(37,2)
+,`total_credit` decimal(37,2)
+,`created_at` timestamp
+,`updated_at` timestamp
+);
+
+-- --------------------------------------------------------
+
+--
+-- Stand-in structure for view `vw_ledger_entries_complete`
+-- (See below for the actual view)
+--
+CREATE TABLE `vw_ledger_entries_complete` (
+`entry_id` int(11)
+,`customer_id` int(11)
+,`customer_name` varchar(255)
+,`entry_date` date
+,`description` varchar(500)
+,`bill_no` varchar(100)
+,`payment_mode` varchar(50)
+,`cheque_no` varchar(100)
+,`debit_amount` decimal(15,2)
+,`credit_amount` decimal(15,2)
+,`balance` decimal(15,2)
+,`status` varchar(50)
+,`due_date` date
+,`has_multiple_items` tinyint(1)
+,`sales_tax_rate` decimal(5,2)
+,`sales_tax_amount` decimal(15,2)
+,`sequence` decimal(10,1)
+,`created_at` timestamp
+,`updated_at` timestamp
+);
+
+-- --------------------------------------------------------
+
+--
 -- Structure for view `po_complete_history`
 --
 DROP TABLE IF EXISTS `po_complete_history`;
@@ -1105,9 +1449,49 @@ DROP TABLE IF EXISTS `po_quantity_summary`;
 
 CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `po_quantity_summary`  AS SELECT `po`.`id` AS `po_id`, `po`.`po_number` AS `po_number`, `po`.`supplier_name` AS `supplier_name`, `po`.`status` AS `po_status`, coalesce(sum(`poi`.`quantity`),0) AS `po_total_quantity`, coalesce(sum(case when `pi`.`invoicing_mode` in ('quantity','mixed') then `pi`.`invoiced_quantity` else 0 end),0) AS `total_invoiced_quantity`, coalesce(sum(`poi`.`quantity`),0) - coalesce(sum(case when `pi`.`invoicing_mode` in ('quantity','mixed') then `pi`.`invoiced_quantity` else 0 end),0) AS `remaining_quantity`, CASE WHEN coalesce(sum(`poi`.`quantity`),0) > 0 THEN coalesce(sum(case when `pi`.`invoicing_mode` in ('quantity','mixed') then `pi`.`invoiced_quantity` else 0 end),0) / sum(`poi`.`quantity`) * 100 ELSE 0 END AS `quantity_invoicing_percentage`, count(case when `pi`.`invoicing_mode` in ('quantity','mixed') then `pi`.`id` end) AS `quantity_invoice_count`, CASE WHEN coalesce(sum(`poi`.`quantity`),0) = 0 THEN 'No Items' WHEN coalesce(sum(case when `pi`.`invoicing_mode` in ('quantity','mixed') then `pi`.`invoiced_quantity` else 0 end),0) = 0 THEN 'Not Invoiced' WHEN coalesce(sum(`poi`.`quantity`),0) - coalesce(sum(case when `pi`.`invoicing_mode` in ('quantity','mixed') then `pi`.`invoiced_quantity` else 0 end),0) <= 0 THEN 'Fully Invoiced' ELSE 'Partially Invoiced' END AS `quantity_status` FROM ((`purchase_orders` `po` left join `purchase_order_items` `poi` on(`po`.`id` = `poi`.`purchase_order_id`)) left join `po_invoices` `pi` on(`po`.`id` = `pi`.`po_id`)) GROUP BY `po`.`id`, `po`.`po_number`, `po`.`supplier_name`, `po`.`status` ;
 
+-- --------------------------------------------------------
+
+--
+-- Structure for view `vw_financial_year_summary`
+--
+DROP TABLE IF EXISTS `vw_financial_year_summary`;
+
+CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `vw_financial_year_summary`  AS SELECT `lfy`.`fy_id` AS `fy_id`, `lfy`.`customer_id` AS `customer_id`, `c`.`customer` AS `customer_name`, `lfy`.`fy_name` AS `fy_name`, `lfy`.`start_date` AS `start_date`, `lfy`.`end_date` AS `end_date`, `lfy`.`opening_debit` AS `opening_debit`, `lfy`.`opening_credit` AS `opening_credit`, `lfy`.`opening_balance` AS `opening_balance`, `lfy`.`closing_debit` AS `closing_debit`, `lfy`.`closing_credit` AS `closing_credit`, `lfy`.`closing_balance` AS `closing_balance`, `lfy`.`status` AS `status`, `lfy`.`notes` AS `notes`, (select count(0) from `ledger_entry_fy_mapping` where `ledger_entry_fy_mapping`.`fy_id` = `lfy`.`fy_id`) AS `entry_count`, (select coalesce(sum(`le`.`debit_amount`),0) from (`ledger_entries` `le` join `ledger_entry_fy_mapping` `lfm` on(`le`.`entry_id` = `lfm`.`entry_id`)) where `lfm`.`fy_id` = `lfy`.`fy_id` and `le`.`entry_date` between `lfy`.`start_date` and `lfy`.`end_date`) AS `total_debit`, (select coalesce(sum(`le`.`credit_amount`),0) from (`ledger_entries` `le` join `ledger_entry_fy_mapping` `lfm` on(`le`.`entry_id` = `lfm`.`entry_id`)) where `lfm`.`fy_id` = `lfy`.`fy_id` and `le`.`entry_date` between `lfy`.`start_date` and `lfy`.`end_date`) AS `total_credit`, `lfy`.`created_at` AS `created_at`, `lfy`.`updated_at` AS `updated_at` FROM (`ledger_financial_years` `lfy` left join `customertable` `c` on(`lfy`.`customer_id` = `c`.`customer_id`)) ;
+
+-- --------------------------------------------------------
+
+--
+-- Structure for view `vw_ledger_entries_complete`
+--
+DROP TABLE IF EXISTS `vw_ledger_entries_complete`;
+
+CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `vw_ledger_entries_complete`  AS SELECT `le`.`entry_id` AS `entry_id`, `le`.`customer_id` AS `customer_id`, `ct`.`customer` AS `customer_name`, `le`.`entry_date` AS `entry_date`, `le`.`description` AS `description`, `le`.`bill_no` AS `bill_no`, `le`.`payment_mode` AS `payment_mode`, `le`.`cheque_no` AS `cheque_no`, `le`.`debit_amount` AS `debit_amount`, `le`.`credit_amount` AS `credit_amount`, `le`.`balance` AS `balance`, `le`.`status` AS `status`, `le`.`due_date` AS `due_date`, `le`.`has_multiple_items` AS `has_multiple_items`, `le`.`sales_tax_rate` AS `sales_tax_rate`, `le`.`sales_tax_amount` AS `sales_tax_amount`, `le`.`sequence` AS `sequence`, `le`.`created_at` AS `created_at`, `le`.`updated_at` AS `updated_at` FROM (`ledger_entries` `le` left join `customertable` `ct` on(`le`.`customer_id` = `ct`.`customer_id`)) ;
+
 --
 -- Indexes for dumped tables
 --
+
+--
+-- Indexes for table `accounts_payable`
+--
+ALTER TABLE `accounts_payable`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `idx_supplier_id` (`supplier_id`),
+  ADD KEY `idx_po_id` (`po_id`),
+  ADD KEY `idx_due_date` (`due_date`),
+  ADD KEY `idx_status` (`status`),
+  ADD KEY `idx_aging_status` (`aging_status`);
+
+--
+-- Indexes for table `accounts_receivable`
+--
+ALTER TABLE `accounts_receivable`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `idx_customer_id` (`customer_id`),
+  ADD KEY `idx_invoice_id` (`invoice_id`),
+  ADD KEY `idx_due_date` (`due_date`),
+  ADD KEY `idx_status` (`status`),
+  ADD KEY `idx_aging_status` (`aging_status`);
 
 --
 -- Indexes for table `categories`
@@ -1115,6 +1499,17 @@ CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW 
 ALTER TABLE `categories`
   ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `name` (`name`);
+
+--
+-- Indexes for table `chart_of_accounts`
+--
+ALTER TABLE `chart_of_accounts`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `account_code` (`account_code`),
+  ADD UNIQUE KEY `unique_account_code` (`account_code`),
+  ADD KEY `idx_account_type` (`account_type`),
+  ADD KEY `idx_status` (`status`),
+  ADD KEY `parent_account_id` (`parent_account_id`);
 
 --
 -- Indexes for table `company_settings`
@@ -1141,6 +1536,18 @@ ALTER TABLE `expenses`
   ADD KEY `idx_expenses_category` (`category`);
 
 --
+-- Indexes for table `general_ledger`
+--
+ALTER TABLE `general_ledger`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `unique_voucher` (`voucher_number`,`voucher_type`),
+  ADD KEY `idx_transaction_date` (`transaction_date`),
+  ADD KEY `idx_account_id` (`account_id`),
+  ADD KEY `idx_voucher_type` (`voucher_type`),
+  ADD KEY `idx_reference` (`reference_type`,`reference_id`),
+  ADD KEY `posted_by` (`posted_by`);
+
+--
 -- Indexes for table `invoice`
 --
 ALTER TABLE `invoice`
@@ -1165,6 +1572,67 @@ ALTER TABLE `invoice_payments`
   ADD PRIMARY KEY (`id`),
   ADD KEY `fk_invoice_payments_invoice` (`invoice_id`),
   ADD KEY `idx_payment_date` (`payment_date`);
+
+--
+-- Indexes for table `ledger_entries`
+--
+ALTER TABLE `ledger_entries`
+  ADD PRIMARY KEY (`entry_id`),
+  ADD KEY `idx_customer_id` (`customer_id`),
+  ADD KEY `idx_entry_date` (`entry_date`),
+  ADD KEY `idx_status` (`status`);
+
+--
+-- Indexes for table `ledger_entry_fy_mapping`
+--
+ALTER TABLE `ledger_entry_fy_mapping`
+  ADD PRIMARY KEY (`mapping_id`),
+  ADD UNIQUE KEY `unique_entry_fy` (`entry_id`,`fy_id`),
+  ADD KEY `idx_fy_id` (`fy_id`);
+
+--
+-- Indexes for table `ledger_financial_years`
+--
+ALTER TABLE `ledger_financial_years`
+  ADD PRIMARY KEY (`fy_id`),
+  ADD UNIQUE KEY `unique_fy_period` (`customer_id`,`start_date`,`end_date`),
+  ADD KEY `idx_customer_fy` (`customer_id`,`start_date`),
+  ADD KEY `idx_status` (`status`);
+
+--
+-- Indexes for table `ledger_fy_closing_balance`
+--
+ALTER TABLE `ledger_fy_closing_balance`
+  ADD PRIMARY KEY (`closing_id`),
+  ADD KEY `fy_id` (`fy_id`),
+  ADD KEY `idx_customer_fy` (`customer_id`,`fy_id`);
+
+--
+-- Indexes for table `ledger_line_items`
+--
+ALTER TABLE `ledger_line_items`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `idx_entry_id` (`entry_id`);
+
+--
+-- Indexes for table `ledger_single_materials`
+--
+ALTER TABLE `ledger_single_materials`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `idx_entry_id` (`entry_id`);
+
+--
+-- Indexes for table `payment_receipts`
+--
+ALTER TABLE `payment_receipts`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `receipt_number` (`receipt_number`),
+  ADD UNIQUE KEY `unique_receipt` (`receipt_number`),
+  ADD KEY `idx_receipt_date` (`receipt_date`),
+  ADD KEY `idx_party_id` (`party_id`),
+  ADD KEY `idx_status` (`status`),
+  ADD KEY `account_id` (`account_id`),
+  ADD KEY `posted_by` (`posted_by`);
 
 --
 -- Indexes for table `po_deletion_history`
@@ -1232,6 +1700,25 @@ ALTER TABLE `reporttable`
   ADD PRIMARY KEY (`id`);
 
 --
+-- Indexes for table `transaction_journal`
+--
+ALTER TABLE `transaction_journal`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `journal_number` (`journal_number`),
+  ADD UNIQUE KEY `unique_journal` (`journal_number`),
+  ADD KEY `idx_journal_date` (`journal_date`),
+  ADD KEY `idx_status` (`status`),
+  ADD KEY `posted_by` (`posted_by`);
+
+--
+-- Indexes for table `transaction_journal_entries`
+--
+ALTER TABLE `transaction_journal_entries`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `idx_journal_id` (`journal_id`),
+  ADD KEY `idx_account_id` (`account_id`);
+
+--
 -- Indexes for table `users`
 --
 ALTER TABLE `users`
@@ -1288,13 +1775,13 @@ ALTER TABLE `expenses`
 -- AUTO_INCREMENT for table `invoice`
 --
 ALTER TABLE `invoice`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=16;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=19;
 
 --
 -- AUTO_INCREMENT for table `invoice_items`
 --
 ALTER TABLE `invoice_items`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=24;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=29;
 
 --
 -- AUTO_INCREMENT for table `invoice_payments`
@@ -1303,40 +1790,76 @@ ALTER TABLE `invoice_payments`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
+-- AUTO_INCREMENT for table `ledger_entries`
+--
+ALTER TABLE `ledger_entries`
+  MODIFY `entry_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=35;
+
+--
+-- AUTO_INCREMENT for table `ledger_entry_fy_mapping`
+--
+ALTER TABLE `ledger_entry_fy_mapping`
+  MODIFY `mapping_id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT for table `ledger_financial_years`
+--
+ALTER TABLE `ledger_financial_years`
+  MODIFY `fy_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+
+--
+-- AUTO_INCREMENT for table `ledger_fy_closing_balance`
+--
+ALTER TABLE `ledger_fy_closing_balance`
+  MODIFY `closing_id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT for table `ledger_line_items`
+--
+ALTER TABLE `ledger_line_items`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=8;
+
+--
+-- AUTO_INCREMENT for table `ledger_single_materials`
+--
+ALTER TABLE `ledger_single_materials`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=16;
+
+--
 -- AUTO_INCREMENT for table `po_deletion_history`
 --
 ALTER TABLE `po_deletion_history`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=24;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=33;
 
 --
 -- AUTO_INCREMENT for table `po_invoices`
 --
 ALTER TABLE `po_invoices`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=40;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=44;
 
 --
 -- AUTO_INCREMENT for table `po_invoice_items`
 --
 ALTER TABLE `po_invoice_items`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=12;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=15;
 
 --
 -- AUTO_INCREMENT for table `po_invoice_summary`
 --
 ALTER TABLE `po_invoice_summary`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=249;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=272;
 
 --
 -- AUTO_INCREMENT for table `purchase_orders`
 --
 ALTER TABLE `purchase_orders`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=35;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=36;
 
 --
 -- AUTO_INCREMENT for table `purchase_order_items`
 --
 ALTER TABLE `purchase_order_items`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=58;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=60;
 
 --
 -- AUTO_INCREMENT for table `users`
@@ -1361,10 +1884,36 @@ ALTER TABLE `user_settings`
 --
 
 --
+-- Constraints for table `accounts_payable`
+--
+ALTER TABLE `accounts_payable`
+  ADD CONSTRAINT `accounts_payable_ibfk_1` FOREIGN KEY (`po_id`) REFERENCES `purchase_orders` (`id`) ON DELETE SET NULL;
+
+--
+-- Constraints for table `accounts_receivable`
+--
+ALTER TABLE `accounts_receivable`
+  ADD CONSTRAINT `accounts_receivable_ibfk_1` FOREIGN KEY (`customer_id`) REFERENCES `customertable` (`customer_id`),
+  ADD CONSTRAINT `accounts_receivable_ibfk_2` FOREIGN KEY (`invoice_id`) REFERENCES `invoice` (`id`) ON DELETE SET NULL;
+
+--
+-- Constraints for table `chart_of_accounts`
+--
+ALTER TABLE `chart_of_accounts`
+  ADD CONSTRAINT `chart_of_accounts_ibfk_1` FOREIGN KEY (`parent_account_id`) REFERENCES `chart_of_accounts` (`id`) ON DELETE SET NULL;
+
+--
 -- Constraints for table `expenses`
 --
 ALTER TABLE `expenses`
   ADD CONSTRAINT `fk_expense_category` FOREIGN KEY (`category_id`) REFERENCES `categories` (`id`) ON DELETE SET NULL;
+
+--
+-- Constraints for table `general_ledger`
+--
+ALTER TABLE `general_ledger`
+  ADD CONSTRAINT `general_ledger_ibfk_1` FOREIGN KEY (`account_id`) REFERENCES `chart_of_accounts` (`id`),
+  ADD CONSTRAINT `general_ledger_ibfk_2` FOREIGN KEY (`posted_by`) REFERENCES `users` (`id`) ON DELETE SET NULL;
 
 --
 -- Constraints for table `invoice`
@@ -1385,6 +1934,51 @@ ALTER TABLE `invoice_payments`
   ADD CONSTRAINT `fk_invoice_payments_invoice` FOREIGN KEY (`invoice_id`) REFERENCES `invoice` (`id`) ON DELETE CASCADE;
 
 --
+-- Constraints for table `ledger_entries`
+--
+ALTER TABLE `ledger_entries`
+  ADD CONSTRAINT `fk_ledger_entries_customer` FOREIGN KEY (`customer_id`) REFERENCES `customertable` (`customer_id`) ON DELETE CASCADE;
+
+--
+-- Constraints for table `ledger_entry_fy_mapping`
+--
+ALTER TABLE `ledger_entry_fy_mapping`
+  ADD CONSTRAINT `ledger_entry_fy_mapping_ibfk_1` FOREIGN KEY (`entry_id`) REFERENCES `ledger_entries` (`entry_id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `ledger_entry_fy_mapping_ibfk_2` FOREIGN KEY (`fy_id`) REFERENCES `ledger_financial_years` (`fy_id`) ON DELETE CASCADE;
+
+--
+-- Constraints for table `ledger_financial_years`
+--
+ALTER TABLE `ledger_financial_years`
+  ADD CONSTRAINT `ledger_financial_years_ibfk_1` FOREIGN KEY (`customer_id`) REFERENCES `customertable` (`customer_id`) ON DELETE CASCADE;
+
+--
+-- Constraints for table `ledger_fy_closing_balance`
+--
+ALTER TABLE `ledger_fy_closing_balance`
+  ADD CONSTRAINT `ledger_fy_closing_balance_ibfk_1` FOREIGN KEY (`fy_id`) REFERENCES `ledger_financial_years` (`fy_id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `ledger_fy_closing_balance_ibfk_2` FOREIGN KEY (`customer_id`) REFERENCES `customertable` (`customer_id`) ON DELETE CASCADE;
+
+--
+-- Constraints for table `ledger_line_items`
+--
+ALTER TABLE `ledger_line_items`
+  ADD CONSTRAINT `fk_ledger_line_items_entry` FOREIGN KEY (`entry_id`) REFERENCES `ledger_entries` (`entry_id`) ON DELETE CASCADE;
+
+--
+-- Constraints for table `ledger_single_materials`
+--
+ALTER TABLE `ledger_single_materials`
+  ADD CONSTRAINT `fk_ledger_single_materials_entry` FOREIGN KEY (`entry_id`) REFERENCES `ledger_entries` (`entry_id`) ON DELETE CASCADE;
+
+--
+-- Constraints for table `payment_receipts`
+--
+ALTER TABLE `payment_receipts`
+  ADD CONSTRAINT `payment_receipts_ibfk_1` FOREIGN KEY (`account_id`) REFERENCES `chart_of_accounts` (`id`) ON DELETE SET NULL,
+  ADD CONSTRAINT `payment_receipts_ibfk_2` FOREIGN KEY (`posted_by`) REFERENCES `users` (`id`) ON DELETE SET NULL;
+
+--
 -- Constraints for table `po_invoice_items`
 --
 ALTER TABLE `po_invoice_items`
@@ -1396,6 +1990,19 @@ ALTER TABLE `po_invoice_items`
 --
 ALTER TABLE `purchase_order_items`
   ADD CONSTRAINT `purchase_order_items_ibfk_1` FOREIGN KEY (`purchase_order_id`) REFERENCES `purchase_orders` (`id`) ON DELETE CASCADE;
+
+--
+-- Constraints for table `transaction_journal`
+--
+ALTER TABLE `transaction_journal`
+  ADD CONSTRAINT `transaction_journal_ibfk_1` FOREIGN KEY (`posted_by`) REFERENCES `users` (`id`) ON DELETE SET NULL;
+
+--
+-- Constraints for table `transaction_journal_entries`
+--
+ALTER TABLE `transaction_journal_entries`
+  ADD CONSTRAINT `transaction_journal_entries_ibfk_1` FOREIGN KEY (`journal_id`) REFERENCES `transaction_journal` (`id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `transaction_journal_entries_ibfk_2` FOREIGN KEY (`account_id`) REFERENCES `chart_of_accounts` (`id`);
 
 --
 -- Constraints for table `user_sessions`
