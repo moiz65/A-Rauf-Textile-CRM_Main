@@ -208,19 +208,29 @@ const InvoiceForm = ({ onSubmit, onCancel, initialData = null }) => {
       // Handle invoice items - check if there are multiple items or single item
       if (initialData.items && Array.isArray(initialData.items) && initialData.items.length > 0) {
         // Multiple items structure
-        const mappedItems = initialData.items.map((item, index) => ({
-          id: index + 1,
-          description: item.description || item.item_name || "",
-          quantity: item.quantity?.toString() || "",
-          unit: item.unit || item.uom || item.unit_name || "",
-          rate: item.rate?.toString() || "",
-          net_weight: item.net_weight !== undefined && item.net_weight !== null ? item.net_weight : '',
-          amount: parseFloat(item.amount || 0)
-        }));
+        const mappedItems = initialData.items.map((item, index) => {
+          const quantity = parseFloat(item.quantity || 0);
+          const rate = parseFloat(item.rate || 0);
+          const amount = item.amount !== undefined && item.amount !== null ? parseFloat(item.amount) : (quantity * rate);
+          return {
+            id: index + 1,
+            description: item.description || item.item_name || "",
+            quantity: item.quantity?.toString() || "",
+            unit: item.unit || item.uom || item.unit_name || "",
+            rate: item.rate?.toString() || "",
+            net_weight: item.net_weight !== undefined && item.net_weight !== null ? item.net_weight : '',
+            amount: amount
+          };
+        });
         setInvoiceItems(mappedItems);
   // set multiple invoice items
       } else if (initialData.item_name || initialData.quantity || initialData.rate) {
         // Single item structure (legacy)
+        const quantity = parseFloat(initialData.quantity || 0);
+        const rate = parseFloat(initialData.rate || 0);
+        const amount = initialData.item_amount !== undefined && initialData.item_amount !== null 
+          ? parseFloat(initialData.item_amount) 
+          : (initialData.subtotal || (quantity * rate));
         const singleItem = [{
           id: 1,
           description: initialData.item_name || "",
@@ -228,7 +238,7 @@ const InvoiceForm = ({ onSubmit, onCancel, initialData = null }) => {
           unit: initialData.unit || "",
           rate: initialData.rate?.toString() || "",
           net_weight: initialData.net_weight || '',
-          amount: parseFloat(initialData.item_amount || initialData.subtotal || 0)
+          amount: amount
         }];
         setInvoiceItems(singleItem);
   // set single invoice item
@@ -734,7 +744,7 @@ const InvoiceForm = ({ onSubmit, onCancel, initialData = null }) => {
                         className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
                         placeholder="0"
                         min="0"
-                        step="1"
+                        step="0.01"
                         required
                       />
                     </td>
@@ -746,7 +756,7 @@ const InvoiceForm = ({ onSubmit, onCancel, initialData = null }) => {
                         className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
                         placeholder="0.00"
                         min="0"
-                        step="1"
+                        step="0.01"
                       />
                     </td>
                     <td className="px-4 py-3">
@@ -757,7 +767,7 @@ const InvoiceForm = ({ onSubmit, onCancel, initialData = null }) => {
                         className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
                         placeholder="0.00"
                         min="0"
-                        step="1"
+                        step="0.01"
                         required
                       />
                     </td>
@@ -971,7 +981,9 @@ const InvoiceViewTemplate = ({ invoiceId, onClose, onEdit }) => {
   }
 
   const formatCurrency = (amount, currency) => {
-    return `${currency} ${parseFloat(amount || 0).toLocaleString('en-PK', {
+    const numAmount = typeof amount === 'string' ? parseFloat(amount) : parseFloat(amount || 0);
+    if (isNaN(numAmount)) return `${currency} 0.00`;
+    return `${currency} ${numAmount.toLocaleString('en-PK', {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2
     })}`;

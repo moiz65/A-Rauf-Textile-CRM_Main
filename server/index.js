@@ -95,6 +95,22 @@ db.connect((err) => {
 const dashboardRoutes = require('./routes/dashboard');
 app.use('/api/dashboard', dashboardRoutes);
 
+// --- Ledger Routes ---
+const ledgerRoutes = require('./routes/ledger')(db);
+app.use('/api/ledger', ledgerRoutes);
+
+// --- Ledger Data Routes (for General Ledger component) ---
+const ledgerDataRoutes = require('./routes/ledgerData');
+app.use('/api/ledger-data', ledgerDataRoutes);
+
+// --- Ledger Entries Routes (for saving/managing ledger entries) ---
+const ledgerEntriesRoutes = require('./routes/ledgerEntries');
+app.use('/api/ledger-entries', ledgerEntriesRoutes);
+
+// --- Financial Years Routes (for managing financial year periods) ---
+const financialYearsRoutes = require('./routes/financialYears');
+app.use('/api/financial-years', financialYearsRoutes);
+
 // --- Profile Picture Routes ---
 const profilePictureRoutes = require('./routes/profile-picture')(db);
 app.use('/api/profile-picture', profilePictureRoutes);
@@ -1566,14 +1582,17 @@ app.get("/api/invoices", (req, res) => {
   }
   
   if (search) {
+    const searchTerm = `%${search}%`;
     if (invoice_type === 'po_invoice') {
       conditions.push('(customer_name LIKE ? OR customer_email LIKE ? OR invoice_number LIKE ? OR notes LIKE ?)');
-      const searchTerm = `%${search}%`;
       params.push(searchTerm, searchTerm, searchTerm, searchTerm);
-    } else {
+    } else if (invoice_type === 'regular' || exclude_po === 'true') {
       conditions.push('(customer_name LIKE ? OR customer_email LIKE ? OR invoice_number LIKE ? OR item_name LIKE ? OR address LIKE ? OR note LIKE ?)');
-      const searchTerm = `%${search}%`;
       params.push(searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm);
+    } else {
+      // For UNION queries, search needs to work on fields common to both tables
+      conditions.push('(customer_name LIKE ? OR customer_email LIKE ? OR invoice_number LIKE ? OR address LIKE ? OR note LIKE ?)');
+      params.push(searchTerm, searchTerm, searchTerm, searchTerm, searchTerm);
     }
   }
   
@@ -2021,10 +2040,25 @@ app.put("/api/invoices/:id", (req, res) => {
   const {
     customer_name, customer_email, p_number, a_p_number, address,
     st_reg_no, ntn_number, currency, subtotal, tax_rate, tax_amount, 
-    total_amount, bill_date, payment_deadline, note, status, items
+    total_amount, bill_date, payment_deadline, payment_days, note, status, items
   } = req.body;
 
   logger.debug('Updating invoice with data:', req.body);
+
+  // Calculate payment_deadline if not provided
+  let computed_payment_deadline = payment_deadline;
+  
+  if (!computed_payment_deadline && bill_date) {
+    // Calculate from bill_date and payment_days (default 30 days)
+    const billDate = new Date(bill_date);
+    const days = payment_days || 30;
+    billDate.setDate(billDate.getDate() + days);
+    computed_payment_deadline = billDate.toISOString().split('T')[0];
+  }
+
+  if (!computed_payment_deadline) {
+    return res.status(400).json({ error: "payment_deadline or bill_date with payment_days is required" });
+  }
 
   // Start a transaction to update both invoice and items
   db.beginTransaction((err) => {
@@ -2046,7 +2080,7 @@ app.put("/api/invoices/:id", (req, res) => {
     const invoiceValues = [
       customer_name, customer_email, p_number, a_p_number, address,
       st_reg_no, ntn_number, currency, subtotal, tax_rate, tax_amount,
-      total_amount, bill_date, payment_deadline, note, status, id
+      total_amount, bill_date, computed_payment_deadline, note, status, id
     ];
 
     db.query(updateInvoiceQuery, invoiceValues, (err, results) => {

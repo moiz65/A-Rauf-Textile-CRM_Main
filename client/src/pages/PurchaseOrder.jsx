@@ -230,7 +230,7 @@ const PurchaseOrder = () => {
                 </div>
               ))}
             </div>
-
+                
             {/* Purchase Order Table */}
             <PurchaseOrderTable onViewDetails={handleViewPODetails} openEditPOId={editPOIdFromState} />
           </>

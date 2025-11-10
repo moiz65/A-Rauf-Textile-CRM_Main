@@ -571,10 +571,10 @@ const InvoiceForm = ({ initialData, onSubmit, onCancel }) => {
               <thead className="bg-gray-50">
                 <tr>
                   <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 border-b">
-                    Description*
+                    Description *
                   </th>
                   <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 border-b">
-                    Quantity*
+                    Quantity *
                   </th>
                   <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 border-b">
                     Net Weight (KG)
@@ -611,20 +611,19 @@ const InvoiceForm = ({ initialData, onSubmit, onCancel }) => {
                         className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
                         placeholder="0"
                         min="0"
-                        step="1"  
+                        step="0.01"
                         required
                       />
                     </td>
-
                     <td className="px-4 py-3">
                       <input
                         type="number"
                         value={item.net_weight || ''}
                         onChange={(e) => handleItemChange(index, 'net_weight', e.target.value)}
                         className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
-                        placeholder="0"
+                        placeholder="0.00"
                         min="0"
-                        step="1"
+                        step="0.01"
                       />
                     </td>
                     <td className="px-4 py-3">
@@ -642,9 +641,9 @@ const InvoiceForm = ({ initialData, onSubmit, onCancel }) => {
                         value={item.rate}
                         onChange={(e) => handleItemChange(index, 'rate', e.target.value)}
                         className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
-                        placeholder="0"
+                        placeholder="0.00"
                         min="0"
-                        step="1"
+                        step="0.01"
                         required
                       />
                     </td>
@@ -739,7 +738,6 @@ const InvoiceForm = ({ initialData, onSubmit, onCancel }) => {
               required
               min="0"
               max="365"
-              step="1"
             />
           </div>
           <div className="mt-6">

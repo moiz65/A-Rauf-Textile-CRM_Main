@@ -1,19 +1,23 @@
-const mysql = require("mysql2");
+const mysql = require("mysql2/promise");
 
-const db = mysql.createConnection({
+const db = mysql.createPool({
   host: "localhost",
   user: "root",
   password: "", // Add your MySQL password if set
-  database: "arauf_crm"
+  database: "arauf_crm",
+  waitForConnections: true,
+  connectionLimit: 10,
+  queueLimit: 0
 });
 
-db.connect((err) => {
-  if (err) {
-    // Use logger in index.js; keep minimal here
-    console.error("❌ Database connection failed:", err.message);
-  } else {
+// Test connection
+db.getConnection()
+  .then((connection) => {
     console.debug("✅ Connected to MySQL Database: arauf_crm");
-  }
-});
+    connection.release();
+  })
+  .catch((err) => {
+    console.error("❌ Database connection failed:", err.message);
+  });
 
 module.exports = db;

@@ -753,10 +753,11 @@ This action cannot be undone.`;
                         <tbody>
                           {invoice.items && invoice.items.length > 0 ? (
                             invoice.items.map((item, index) => {
-                              const valueIncTax = parseFloat(item.amount || 0);
+                              // item.amount is quantity * rate (value before tax)
+                              const valueExTax = parseFloat(item.amount || 0);
                               const taxRate = parseFloat(invoice.tax_rate || 0);
-                              const taxAmount = valueIncTax * (taxRate / 100);
-                              const valueExTax = valueIncTax - taxAmount;
+                              const taxAmount = valueExTax * (taxRate / 100);
+                              const valueIncTax = valueExTax + taxAmount;
                               return (
                               <tr key={item.id || index} className="border-b border-gray-300">
                                 <td className="py-4 px-2 text-sm text-gray-800 text-center border-r border-gray-300 font-semibold">{index + 1}</td>
@@ -775,10 +776,13 @@ This action cannot be undone.`;
                               );
                             })
                           ) : (() => {
+                            // When no items array, use total_amount as the value including tax
+                            // We need to reverse-calculate the value ex-tax
                             const valueIncTax = parseFloat(invoice.total_amount || 0);
                             const taxRate = parseFloat(invoice.tax_rate || 0);
-                            const taxAmount = valueIncTax * (taxRate / 100);
-                            const valueExTax = valueIncTax - taxAmount;
+                            // Reverse calculate: valueExTax = valueIncTax / (1 + taxRate/100)
+                            const valueExTax = valueIncTax / (1 + taxRate / 100);
+                            const taxAmount = valueIncTax - valueExTax;
                             return (
                             <tr className="border-b border-gray-300">
                               <td className="py-4 px-2 text-sm text-gray-800 text-center border-r border-gray-300 font-semibold">1</td>
@@ -798,12 +802,12 @@ This action cannot be undone.`;
                           {/* Net Amount Row */}
                           {(() => {
                             // Calculate totals by summing all items
-                            const totalValueIncTax = invoice.items && invoice.items.length > 0
+                            const totalValueExTax = invoice.items && invoice.items.length > 0
                               ? invoice.items.reduce((sum, item) => sum + parseFloat(item.amount || 0), 0)
-                              : parseFloat(invoice.total_amount || 0);
+                              : parseFloat(invoice.subtotal || 0);
                             const taxRate = parseFloat(invoice.tax_rate || 0);
-                            const totalTaxAmount = totalValueIncTax * (taxRate / 100);
-                            const totalValueExTax = totalValueIncTax - totalTaxAmount;
+                            const totalTaxAmount = totalValueExTax * (taxRate / 100);
+                            const totalValueIncTax = totalValueExTax + totalTaxAmount;
                             return (
                           <tr className="bg-gray-100 border-t-2 border-gray-400">
                             <td className="py-3 px-2 border-r border-gray-300"></td>

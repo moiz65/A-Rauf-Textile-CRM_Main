@@ -50,6 +50,11 @@ const PurchaseOrderTable = ({ onViewDetails, openEditPOId = null }) => {
   const [selectedPOHistory, setSelectedPOHistory] = useState(null);
   const [invoiceHistory, setInvoiceHistory] = useState([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
+  
+  // Customers for supplier autocomplete (shared with modal)
+  const [customers, setCustomers] = useState([]);
+  // Note: we intentionally use customers.length === 0 to determine loading state
+  
   const dropdownRef = useRef(null);
   const filterPanelRef = useRef(null);
 
@@ -90,7 +95,7 @@ const PurchaseOrderTable = ({ onViewDetails, openEditPOId = null }) => {
         id: po.po_number || po.id,
         date: po.po_date,
         supplier: po.supplier_name,
-        totalAmount: po.total_amount,
+        totalAmount: parseFloat(po.total_amount) || 0,
         currency: po.currency || 'PKR',
         status: po.status,
         items: po.items_count || 0,
@@ -136,6 +141,24 @@ const PurchaseOrderTable = ({ onViewDetails, openEditPOId = null }) => {
     fetchPurchaseOrders();
   }, []);
 
+  // Fetch customers for supplier autocomplete
+  useEffect(() => {
+    const fetchCustomers = async () => {
+      try {
+  // Use the v1 customertable endpoint which returns contact persons
+  const response = await fetch('http://localhost:5000/api/v1/customertable');
+        if (response.ok) {
+          const data = await response.json();
+          setCustomers(data);
+        }
+      } catch (error) {
+        console.error('Error fetching customers:', error);
+      } finally {
+      }
+    };
+    fetchCustomers();
+  }, []);
+
   // If a parent requests a PO to be opened in edit mode (via openEditPOId),
   // try to find that PO after the list is loaded and open the edit modal.
   useEffect(() => {
@@ -165,7 +188,7 @@ const PurchaseOrderTable = ({ onViewDetails, openEditPOId = null }) => {
             id: po.po_number || po.id,
             date: po.po_date,
             supplier: po.supplier_name,
-            totalAmount: po.total_amount,
+            totalAmount: parseFloat(po.total_amount) || 0,
             currency: po.currency || 'PKR',
             status: po.status,
             items: po.items_count || 0,
@@ -261,12 +284,13 @@ const PurchaseOrderTable = ({ onViewDetails, openEditPOId = null }) => {
   };
 
   const formatCurrency = (amount) => {
+    const numAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
     return new Intl.NumberFormat('en-PK', {
       style: 'currency',
       currency: 'PKR',
       minimumFractionDigits: 0,
       maximumFractionDigits: 0
-    }).format(amount);
+    }).format(numAmount);
   };
 
   const filteredPOs = purchaseOrders
@@ -913,7 +937,11 @@ const PurchaseOrderTable = ({ onViewDetails, openEditPOId = null }) => {
     const [poItems, setPOItems] = useState([
       { item_no: 1, description: '', quantity: 1, unit: 'pcs', unit_price: 0, amount: 0, specifications: '' }
     ]);
-    const [taxRate, setTaxRate] = useState();
+  const [taxRate, setTaxRate] = useState(0);
+    
+    // Supplier autocomplete state (moved inside modal)
+    const [supplierSearchTerm, setSupplierSearchTerm] = useState('');
+    const [showSupplierDropdown, setShowSupplierDropdown] = useState(false);
 
     useEffect(() => {
       let cancelled = false;
@@ -924,10 +952,10 @@ const PurchaseOrderTable = ({ onViewDetails, openEditPOId = null }) => {
         return items.map((it, idx) => ({
           item_no: it.item_no || it.id || idx + 1,
           description: it.description || it.desc || it.description_text || '',
-          quantity: it.quantity != null ? it.quantity : (it.qty || 1),
+          quantity: parseFloat(it.quantity != null ? it.quantity : (it.qty || 1)) || 0,
           unit: it.unit || 'pcs',
-          unit_price: it.unit_price != null ? it.unit_price : (it.unitPrice || it.rate || 0),
-          amount: it.amount != null ? it.amount : (it.total || ( (it.quantity || 1) * (it.unit_price || it.unitPrice || it.rate || 0) )),
+          unit_price: parseFloat(it.unit_price != null ? it.unit_price : (it.unitPrice || it.rate || 0)) || 0,
+          amount: parseFloat(it.amount != null ? it.amount : (it.total || ( (it.quantity || 1) * (it.unit_price || it.unitPrice || it.rate || 0) ))) || 0,
           specifications: it.specifications || it.specs || ''
         }));
       };
@@ -993,6 +1021,7 @@ const PurchaseOrderTable = ({ onViewDetails, openEditPOId = null }) => {
           };
           setFormData(normalizedFormData);
           setTaxRate(parseFloat(editingPO.tax_rate) || 0);
+          setSupplierSearchTerm(editingPO.supplier_name || editingPO.supplier || '');
 
           // Prefer items already present on editingPO
           console.debug('EditPOModal: editingPO.items:', editingPO.items);
@@ -1048,6 +1077,7 @@ const PurchaseOrderTable = ({ onViewDetails, openEditPOId = null }) => {
             notes: ''
           });
           setTaxRate(0);
+          setSupplierSearchTerm('');
           setPOItems([
             { item_no: 1, description: '', quantity: 1, unit: 'pcs', unit_price: 0, amount: 0 }
           ]);
@@ -1064,6 +1094,54 @@ const PurchaseOrderTable = ({ onViewDetails, openEditPOId = null }) => {
         [name]: value
       }));
     };
+
+    // Supplier autocomplete handlers
+    const handleSupplierSearchChange = (e) => {
+      const value = e.target.value;
+      setSupplierSearchTerm(value);
+      setShowSupplierDropdown(true);
+      
+      // Update form data
+      setFormData(prev => ({
+        ...prev,
+        supplier_name: value,
+        supplier_email: '',
+        supplier_phone: '',
+        supplier_address: ''
+      }));
+    };
+
+    const handleSupplierSelect = (customer) => {
+      setSupplierSearchTerm(customer.customer);
+      setShowSupplierDropdown(false);
+      
+      // Auto-fill supplier details
+      setFormData(prev => ({
+        ...prev,
+        supplier_name: customer.customer,
+        supplier_email: customer.email || '',
+        supplier_phone: customer.phone || '',
+        supplier_address: customer.address || ''
+      }));
+    };
+
+    const handleSupplierInputFocus = () => {
+      if (customers.length > 0) {
+        setShowSupplierDropdown(true);
+      }
+    };
+
+    const handleSupplierInputBlur = () => {
+      // Delay to allow click on dropdown item
+      setTimeout(() => setShowSupplierDropdown(false), 200);
+    };
+
+    // Filter customers based on search term
+    const filteredSuppliers = customers.filter(customer =>
+      customer.customer.toLowerCase().includes(supplierSearchTerm.toLowerCase()) ||
+      (customer.company && customer.company.toLowerCase().includes(supplierSearchTerm.toLowerCase())) ||
+      (customer.email && customer.email.toLowerCase().includes(supplierSearchTerm.toLowerCase()))
+    );
 
     const handleTaxRateChange = (e) => {
       const newTaxRate = parseFloat(e.target.value) || 0;
@@ -1225,25 +1303,66 @@ const PurchaseOrderTable = ({ onViewDetails, openEditPOId = null }) => {
             <div className="bg-gray-50 p-4 rounded-lg">
               <h4 className="font-medium text-gray-700 mb-3">Supplier Information</h4>
               <div className="grid md:grid-cols-2 gap-4">
-                <div>
+                <div className="relative">
                   <label className="block text-gray-700 font-medium mb-2">Supplier Name *</label>
                   <input
                     type="text"
-                    name="supplier_name"
-                    value={formData.supplier_name || ''}
-                    onChange={handleChange}
-                    onKeyPress={(e) => {
-                      // Allow only alphabetic characters and spaces
-                      if (!/^[A-Za-z\s]$/.test(e.key)) {
-                        e.preventDefault();
-                      }
-                    }}
+                    value={supplierSearchTerm}
+                    onChange={handleSupplierSearchChange}
+                    onFocus={handleSupplierInputFocus}
+                    onBlur={handleSupplierInputBlur}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     required
-                    pattern="[A-Za-z\s]+"
-                    title="Only alphabetic characters and spaces are allowed"
-                    placeholder="Enter supplier name"
+                    placeholder={customers.length === 0 ? "Loading suppliers..." : "Type supplier name to search..."}
+                    disabled={customers.length === 0}
                   />
+                  
+                  {/* Dropdown suggestions */}
+                  {showSupplierDropdown && (
+                    <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                      {filteredSuppliers.map((customer) => (
+                        <div
+                          key={customer.customer_id}
+                          onClick={() => handleSupplierSelect(customer)}
+                          className="px-4 py-3 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-b-0 transition-colors"
+                        >
+                          <div className="flex items-start space-x-3">
+                            <div className="flex-shrink-0 w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                              <span className="text-blue-600 font-semibold text-sm">
+                                {customer.customer.charAt(0).toUpperCase()}
+                              </span>
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="font-medium text-gray-900 truncate">
+                                {customer.customer}
+                              </div>
+                              {customer.company && (
+                                <div className="text-sm text-gray-500 truncate">
+                                  {customer.company}
+                                </div>
+                              )}
+                              <div className="text-sm text-gray-500 truncate">
+                                {customer.email}
+                              </div>
+                              {customer.phone && (
+                                <div className="text-xs text-gray-400">
+                                  {customer.phone}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                      
+                      {/* No results message */}
+                      {filteredSuppliers.length === 0 && supplierSearchTerm.length > 0 && (
+                        <div className="p-4 text-center text-gray-500">
+                          <div className="text-sm">No suppliers found</div>
+                          <div className="text-xs text-gray-400">Try a different search term or create a new contact person</div>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 <div>
@@ -1350,7 +1469,7 @@ const PurchaseOrderTable = ({ onViewDetails, openEditPOId = null }) => {
                             onChange={(e) => handleItemChange(index, 'net_weight', e.target.value)}
                             className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
                             min="0"
-                            step="1"
+                            step="0.01"
                             placeholder="0.00"
                           />
                         </td>
@@ -1361,7 +1480,7 @@ const PurchaseOrderTable = ({ onViewDetails, openEditPOId = null }) => {
                             onChange={(e) => handleItemChange(index, 'unit_price', e.target.value)}
                             className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
                             min="0"
-                            step="1"
+                            step="0.01"
                             required
                           />
                         </td>
@@ -1537,7 +1656,9 @@ const PurchaseOrderTable = ({ onViewDetails, openEditPOId = null }) => {
         <div>
           <h2 className="text-lg sm:text-xl font-semibold">Purchase Orders</h2>
           <p className="text-xs sm:text-sm text-gray-500">
-            Manage all your purchase orders and suppliers
+            {selectedRows.length > 0 
+              ? `${selectedRows.length} selected` 
+              : 'Manage all your purchase orders and suppliers'}
           </p>
         </div>
         
@@ -1554,6 +1675,34 @@ const PurchaseOrderTable = ({ onViewDetails, openEditPOId = null }) => {
           </div>
           
           <div className="flex gap-2">
+            {selectedRows.length > 0 && (
+              <button
+                onClick={() => {
+                  if (window.confirm(`Delete ${selectedRows.length} selected Purchase Order(s)?`)) {
+                    (async () => {
+                      try {
+                        for (const poId of selectedRows) {
+                          await fetch(`http://localhost:5000/api/purchase-orders/${poId}`, {
+                            method: 'DELETE'
+                          });
+                        }
+                        showNotification('Success', `${selectedRows.length} Purchase Order(s) deleted successfully`);
+                        setSelectedRows([]);
+                        fetchPurchaseOrders();
+                      } catch (error) {
+                        console.error('Error deleting POs:', error);
+                        showNotification('Error', 'Failed to delete some Purchase Orders', 'error');
+                      }
+                    })();
+                  }
+                }}
+                className="flex items-center gap-1 bg-red-600 text-white px-3 sm:px-4 py-1.5 sm:py-2 rounded-md text-xs sm:text-sm font-medium hover:bg-red-700 transition-colors"
+              >
+                <Trash2 className="w-4 h-4" />
+                <span>Delete ({selectedRows.length})</span>
+              </button>
+            )}
+            
             <button 
               className="flex items-center gap-1 bg-[#1976D2] text-white px-3 sm:px-4 py-1.5 sm:py-2 rounded-md text-xs sm:text-sm font-medium hover:bg-blue-600 transition-colors"
               onClick={handleAddPO}
@@ -1785,7 +1934,7 @@ const PurchaseOrderTable = ({ onViewDetails, openEditPOId = null }) => {
                       <div className="max-w-xs truncate">{po.supplier}</div>
                     </td>
                     <td className="px-4 py-4 text-sm font-medium text-gray-900 whitespace-nowrap">
-                      {po.currency} {formatCurrency(po.totalAmount)}
+                      {po.currency} {formatCurrency(typeof po.totalAmount === 'string' ? parseFloat(po.totalAmount) : po.totalAmount)}
                     </td>
                     <td className="px-4 py-4 text-sm whitespace-nowrap text-center">
                       <span className={`px-2 py-1 inline-flex items-center justify-center text-xs font-semibold rounded-full ${getStatusClass(po.status)}`}>
