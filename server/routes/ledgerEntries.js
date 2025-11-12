@@ -67,7 +67,8 @@ router.post('/customer/:customerId', async (req, res) => {
       mtr,
       rate,
       // Multiple line items
-      lineItems
+      lineItems,
+      isTaxEntry  // Flag indicating this entry is already a tax entry
     } = req.body;
 
     // Validate required fields
@@ -151,7 +152,7 @@ router.post('/customer/:customerId', async (req, res) => {
           ]
         );
       }
-    } else if (!useLineItems && (mtr || rate)) {
+  } else if (!useLineItems && ((mtr !== undefined && mtr !== null) || (rate !== undefined && rate !== null))) {
       // Insert single material entry
       const singleAmount = (parseFloat(mtr) || 0) * (parseFloat(rate) || 0);
       const taxRate = parseFloat(salesTaxRate) || 0;
@@ -173,8 +174,8 @@ router.post('/customer/:customerId', async (req, res) => {
       );
     }
 
-    // If there's sales tax, create a separate tax entry
-    if (salesTaxAmount && parseFloat(salesTaxAmount) > 0) {
+    // If there's sales tax and this is NOT already a tax entry, create a separate tax entry
+    if (salesTaxAmount && parseFloat(salesTaxAmount) > 0 && !isTaxEntry) {
       const taxSequence = numSequence + 0.5; // Tax entry comes after main entry
       const taxAmount = Number(salesTaxAmount) || 0;
       const taxBalance = Number(newBalance) + Number(taxAmount);
@@ -275,7 +276,7 @@ router.get('/customer/:customerId', async (req, res) => {
 
     const [entries] = await db.query(query, params);
 
-    // Fetch line items for entries that have them
+    // Fetch line items or single-material details for entries
     const entriesWithItems = await Promise.all(
       entries.map(async (entry) => {
         if (entry.has_multiple_items) {
@@ -285,6 +286,24 @@ router.get('/customer/:customerId', async (req, res) => {
           );
           return { ...entry, lineItems: items };
         }
+
+        // For single material entries, fetch from ledger_single_materials if present
+        const [singleRows] = await db.query(
+          `SELECT quantity_mtr, rate, tax_rate, amount FROM ledger_single_materials WHERE entry_id = ? LIMIT 1`,
+          [entry.entry_id]
+        );
+
+        if (singleRows && singleRows.length > 0) {
+          const single = singleRows[0];
+          // Attach mtr and rate fields so frontend can display them
+          return {
+            ...entry,
+            mtr: single.quantity_mtr !== null ? parseFloat(single.quantity_mtr) : null,
+            rate: single.rate !== null ? parseFloat(single.rate) : null,
+            singleMaterialAmount: single.amount !== null ? parseFloat(single.amount) : 0
+          };
+        }
+
         return entry;
       })
     );
@@ -462,6 +481,178 @@ router.delete('/entry/:entryId', async (req, res) => {
     console.error('Error deleting ledger entry:', error);
     res.status(500).json({ 
       error: 'Failed to delete ledger entry',
+      details: error.message 
+    });
+  } finally {
+    connection.release();
+  }
+});
+
+// POST: Create multiple ledger entries in a single transaction (BULK)
+router.post('/customer/:customerId/bulk', async (req, res) => {
+  const connection = await db.getConnection();
+  
+  try {
+    await connection.beginTransaction();
+    
+    const { customerId } = req.params;
+    const { entries: entriesToAdd } = req.body;
+
+    if (!Array.isArray(entriesToAdd) || entriesToAdd.length === 0) {
+      return res.status(400).json({ error: 'No entries provided' });
+    }
+
+    const createdEntries = [];
+
+    // Process all entries in sequence
+    for (let entryData of entriesToAdd) {
+      const {
+        entryDate,
+        description,
+        billNo,
+        paymentMode,
+        chequeNo,
+        debitAmount,
+        creditAmount,
+        dueDate,
+        status,
+        salesTaxRate,
+        salesTaxAmount,
+        useLineItems,
+        mtr,
+        rate,
+        lineItems,
+        isTaxEntry  // Flag indicating if this is a tax entry
+      } = entryData;
+
+      // Validate required fields
+      if (!entryDate) {
+        throw new Error('Entry date is required');
+      }
+
+      if (!debitAmount && !creditAmount) {
+        throw new Error('Either debit or credit amount is required');
+      }
+
+      // Get the previous balance (latest balance in the sequence)
+      const [balanceResult] = await connection.query(
+        `SELECT COALESCE(MAX(balance), 0) as lastBalance 
+         FROM ledger_entries 
+         WHERE customer_id = ?`,
+        [customerId]
+      );
+      const previousBalance = Number(balanceResult[0].lastBalance) || 0;
+      
+      // Calculate new balance
+      const debit = Number(debitAmount) || 0;
+      const credit = Number(creditAmount) || 0;
+      const newBalance = Number(previousBalance) + Number(debit) - Number(credit);
+      
+      if (!Number.isFinite(newBalance)) {
+        throw new Error('Invalid balance calculation');
+      }
+
+      // Get next sequence for this date
+      const [seqResult] = await connection.query(
+        `SELECT COALESCE(MAX(sequence), 0) + 1 as next_seq 
+         FROM ledger_entries 
+         WHERE customer_id = ? AND entry_date = ?`,
+        [customerId, entryDate]
+      );
+      const sequence = Number(seqResult[0].next_seq) || 1;
+
+      // Insert ledger entry
+      const [entryResult] = await connection.query(
+        `INSERT INTO ledger_entries 
+         (customer_id, entry_date, description, bill_no, payment_mode, cheque_no, 
+          debit_amount, credit_amount, balance, status, due_date, has_multiple_items, 
+          sales_tax_rate, sales_tax_amount, sequence)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          customerId,
+          entryDate,
+          description || null,
+          billNo || null,
+          paymentMode || 'Cash',
+          chequeNo || null,
+          debit,
+          credit,
+          Number(newBalance.toFixed(2)),
+          status || 'pending',
+          dueDate || null,
+          useLineItems ? 1 : 0,
+          Number(parseFloat(salesTaxRate) || 0),
+          Number(parseFloat(salesTaxAmount) || 0),
+          sequence
+        ]
+      );
+
+      const entryId = entryResult.insertId;
+
+      // Handle line items or single material entry
+      if (useLineItems && lineItems && lineItems.length > 0) {
+        for (let i = 0; i < lineItems.length; i++) {
+          const item = lineItems[i];
+          const itemAmount = (parseFloat(item.quantity) || 0) * (parseFloat(item.rate) || 0);
+          const taxRate = parseFloat(item.taxRate) || 0;
+          const totalWithTax = itemAmount * (1 + taxRate / 100);
+          
+          await connection.query(
+            `INSERT INTO ledger_line_items 
+             (entry_id, description, quantity, rate, tax_rate, amount, total_with_tax, item_type, line_sequence)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [
+              entryId,
+              item.description || '',
+              parseFloat(item.quantity) || 0,
+              parseFloat(item.rate) || 0,
+              taxRate,
+              itemAmount,
+              totalWithTax,
+              item.type || 'material',
+              i + 1
+            ]
+          );
+        }
+      } else if (mtr && rate) {
+        // Single material entry
+        const amount = parseFloat(mtr) * parseFloat(rate);
+        await connection.query(
+          `INSERT INTO ledger_single_materials 
+           (entry_id, quantity_mtr, rate, tax_rate, amount)
+           VALUES (?, ?, ?, ?, ?)`,
+          [
+            entryId,
+            parseFloat(mtr),
+            parseFloat(rate),
+            Number(parseFloat(salesTaxRate) || 0),
+            amount
+          ]
+        );
+      }
+
+      createdEntries.push({
+        entryId,
+        description,
+        newBalance
+      });
+    }
+
+    await connection.commit();
+
+    res.status(201).json({
+      success: true,
+      message: `${entriesToAdd.length} ledger entries created successfully in bulk`,
+      data: {
+        entries: createdEntries
+      }
+    });
+
+  } catch (error) {
+    await connection.rollback();
+    console.error('[ledgerEntries] Error creating bulk entries:', error);
+    res.status(500).json({ 
+      error: 'Failed to create bulk ledger entries',
       details: error.message 
     });
   } finally {

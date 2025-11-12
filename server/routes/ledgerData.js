@@ -75,8 +75,14 @@ router.get('/:customer_id', async (req, res) => {
           ELSE COALESCE(GROUP_CONCAT(DISTINCT poi2.description SEPARATOR ', '), '')
         END as 'description',
         NULL as 'itemsDetails',
-        0 as 'mtr',
-        0 as 'rate',
+        -- Prefer summed item-level invoiced_quantity, fall back to invoice-level invoiced_quantity if no items exist
+        COALESCE(SUM(pii.invoiced_quantity), poi.invoiced_quantity, 0) as 'mtr',
+        -- Prefer an item-level unit_price when available; otherwise compute rate = subtotal / invoiced_quantity (safe against zero)
+        COALESCE(
+          (SELECT CAST(unit_price AS DECIMAL(15,2)) FROM po_invoice_items WHERE po_invoice_id = poi.id LIMIT 1),
+          CASE WHEN COALESCE(SUM(pii.invoiced_quantity), poi.invoiced_quantity, 0) > 0 THEN (poi.subtotal / COALESCE(SUM(pii.invoiced_quantity), poi.invoiced_quantity)) ELSE 0 END,
+          0
+        ) as 'rate',
         poi.invoice_number as 'invoiceId',
         poi.invoice_number as 'billNo',
         NULL as 'paymentMode',
@@ -84,6 +90,7 @@ router.get('/:customer_id', async (req, res) => {
         poi.total_amount as 'totalAmount',
         poi.subtotal as 'subtotal',
         COALESCE(poi.tax_amount, 0) as 'taxAmount',
+        COALESCE(poi.tax_rate, 0) as 'taxRate',
         CASE WHEN LOWER(poi.status) = 'paid' THEN 0 ELSE poi.total_amount END as 'debit',
         CASE WHEN LOWER(poi.status) = 'paid' THEN poi.total_amount ELSE 0 END as 'credit',
         'PO Invoice' as 'type',
@@ -93,7 +100,7 @@ router.get('/:customer_id', async (req, res) => {
       LEFT JOIN purchase_orders po ON poi.po_id = po.id
       LEFT JOIN purchase_order_items poi2 ON po.id = poi2.purchase_order_id
       WHERE poi.customer_name = (SELECT customer FROM customertable WHERE customer_id = ?) ${poDateFilter}
-      GROUP BY poi.id, poi.invoice_number, poi.invoice_date, poi.due_date, poi.payment_days, poi.total_amount, poi.subtotal, poi.tax_rate, poi.tax_amount, poi.status, poi.notes
+      GROUP BY poi.id, poi.invoice_number, poi.invoice_date, poi.due_date, poi.payment_days, poi.total_amount, poi.subtotal, poi.tax_rate, poi.tax_amount, poi.status, poi.notes, poi.invoiced_quantity
       ORDER BY poi.invoice_date DESC
     `;
 
@@ -113,7 +120,10 @@ router.get('/:customer_id', async (req, res) => {
     console.log(`📋 Found ${poResults?.length || 0} PO invoices for the company`);
     if (poResults && poResults.length > 0) {
       poResults.forEach(po => {
-        console.log(`   - ${po.invoiceId}: Amount=${po.totalAmount}, Tax=${po.taxAmount}, Description="${po.description}"`);
+        console.log(`   - PO Invoice ID=${po.id}, InvoiceID=${po.invoiceId}`);
+        console.log(`     📊 Amount=${po.totalAmount}, Tax=${po.taxAmount}`);
+        console.log(`     📏 MTR/QTY=${po.mtr} (type: ${typeof po.mtr}), RATE=${po.rate} (type: ${typeof po.rate})`);
+        console.log(`     📝 Description="${po.description}"`);
       });
     }
 
