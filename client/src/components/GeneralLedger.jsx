@@ -513,6 +513,12 @@ const GeneralLedger = () => {
     // Reset line items when leaving modal
     setLineItems([{ id: 1, description: '', quantity: 0, rate: 0, type: 'material', amount: 0 }]);
     setShowAddModal(false);
+
+    // Auto-refresh ledger data after 500ms to show the new entry
+    setTimeout(() => {
+      console.log('[GeneralLedger] 🔄 Auto-refreshing ledger data after new entry...');
+      window.location.reload();  // Refresh the page to fetch latest data from backend
+    }, 500);
   };
 
   // Filter ledger data by date range and recalculate balances
@@ -528,6 +534,13 @@ const GeneralLedger = () => {
         return entryDate >= from && entryDate <= to;
       });
     }
+    
+    // Sort by date: oldest first (ASC), newest last (DESC)
+    data = data.sort((a, b) => {
+      const dateA = new Date(a.date);
+      const dateB = new Date(b.date);
+      return dateA - dateB;  // Ascending order: older dates first, newer dates last
+    });
     
     // Recalculate balances based on filtered entries
     // For paid entries, show amount in CREDIT column (payment received)

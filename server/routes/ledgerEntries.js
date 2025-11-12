@@ -18,7 +18,8 @@ const calculateBalance = async (customerId, currentEntryId = null) => {
     }
     
     const [result] = await db.query(query, params);
-    return result[0].balance;
+    const balance = Number(result[0].balance) || 0;
+    return balance;
   } catch (error) {
     console.error('Error calculating balance:', error);
     return 0;
@@ -81,13 +82,20 @@ router.post('/customer/:customerId', async (req, res) => {
     // Get the previous balance
     const previousBalance = await calculateBalance(customerId);
     
-    // Calculate new balance
-    const debit = parseFloat(debitAmount) || 0;
-    const credit = parseFloat(creditAmount) || 0;
-    const newBalance = previousBalance + debit - credit;
+    // Calculate new balance - ensure all values are numbers
+    const debit = Number(debitAmount) || 0;
+    const credit = Number(creditAmount) || 0;
+    const newBalance = Number(previousBalance) + Number(debit) - Number(credit);
+    
+    // Validate newBalance is a finite number
+    if (!Number.isFinite(newBalance)) {
+      console.error('[ledgerEntries] Invalid balance calculation:', { previousBalance, debit, credit, newBalance });
+      return res.status(400).json({ error: 'Invalid balance calculation' });
+    }
 
     // Get next sequence for this date
     const sequence = await getNextSequence(customerId, entryDate);
+    const numSequence = Number(sequence) || 1;  // Ensure sequence is a number
 
     // Insert main ledger entry
     const [entryResult] = await connection.query(
@@ -105,13 +113,13 @@ router.post('/customer/:customerId', async (req, res) => {
         chequeNo || null,
         debit,
         credit,
-        newBalance,
+        Number(newBalance.toFixed(2)),  // Ensure rounded to 2 decimals
         status || 'pending',
         dueDate || null,
         useLineItems ? 1 : 0,
-        parseFloat(salesTaxRate) || 0,
-        parseFloat(salesTaxAmount) || 0,
-        sequence
+        Number(parseFloat(salesTaxRate) || 0),
+        Number(parseFloat(salesTaxAmount) || 0),
+        numSequence
       ]
     );
 
@@ -167,8 +175,15 @@ router.post('/customer/:customerId', async (req, res) => {
 
     // If there's sales tax, create a separate tax entry
     if (salesTaxAmount && parseFloat(salesTaxAmount) > 0) {
-      const taxSequence = sequence + 0.5; // Tax entry comes after main entry
-      const taxBalance = newBalance + parseFloat(salesTaxAmount);
+      const taxSequence = numSequence + 0.5; // Tax entry comes after main entry
+      const taxAmount = Number(salesTaxAmount) || 0;
+      const taxBalance = Number(newBalance) + Number(taxAmount);
+      
+      // Validate tax balance
+      if (!Number.isFinite(taxBalance)) {
+        console.error('[ledgerEntries] Invalid tax balance calculation:', { newBalance, taxAmount, taxBalance });
+        throw new Error('Invalid tax balance calculation');
+      }
       
       await connection.query(
         `INSERT INTO ledger_entries 
@@ -181,12 +196,12 @@ router.post('/customer/:customerId', async (req, res) => {
           `Sales Tax (${salesTaxRate}%) - ${description || billNo || 'Entry'}`,
           billNo || null,
           paymentMode || 'Cash',
-          parseFloat(salesTaxAmount),
+          Number(taxAmount),
           0,
-          taxBalance,
+          Number(taxBalance.toFixed(2)),
           status || 'pending',
           0,
-          taxSequence
+          Number(taxSequence.toFixed(1))  // Ensure it's a proper decimal
         ]
       );
     }

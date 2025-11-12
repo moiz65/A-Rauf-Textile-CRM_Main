@@ -246,6 +246,7 @@ const Sidebar = () => {
       ),
       label: "Employees",
       to: "#",
+      hidden: true, // Hide Employees menu item from sidebar per request
     },
     {
       icon: (

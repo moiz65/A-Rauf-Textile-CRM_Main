@@ -954,6 +954,7 @@ const PurchaseOrderTable = ({ onViewDetails, openEditPOId = null }) => {
           description: it.description || it.desc || it.description_text || '',
           quantity: parseFloat(it.quantity != null ? it.quantity : (it.qty || 1)) || 0,
           unit: it.unit || 'pcs',
+          net_weight: parseFloat(it.net_weight != null ? it.net_weight : 0) || 0,
           unit_price: parseFloat(it.unit_price != null ? it.unit_price : (it.unitPrice || it.rate || 0)) || 0,
           amount: parseFloat(it.amount != null ? it.amount : (it.total || ( (it.quantity || 1) * (it.unit_price || it.unitPrice || it.rate || 0) ))) || 0,
           specifications: it.specifications || it.specs || ''
@@ -1049,6 +1050,7 @@ const PurchaseOrderTable = ({ onViewDetails, openEditPOId = null }) => {
                 description: '',
                 quantity: 1,
                 unit: 'pcs',
+                net_weight: 0,
                 unit_price: 0,
                 amount: 0
               }]);
@@ -1197,6 +1199,7 @@ const PurchaseOrderTable = ({ onViewDetails, openEditPOId = null }) => {
         description: '',
         quantity: 1,
         unit: 'pcs',
+        net_weight: 0,
         unit_price: 0,
         amount: 0
       }]);
@@ -1525,7 +1528,7 @@ const PurchaseOrderTable = ({ onViewDetails, openEditPOId = null }) => {
                       </span>
                     </div>
                     
-                    <div className="flex justify-between items-center">
+                    <div className="flex justify-between items-center pb-3 border-b border-gray-200">
                       <div className="flex items-center space-x-2">
                         <span className="font-medium text-gray-700">Tax Rate:</span>
                         <input
@@ -1537,15 +1540,16 @@ const PurchaseOrderTable = ({ onViewDetails, openEditPOId = null }) => {
                         />
                         <span className="text-gray-600">%</span>
                       </div>
-
-
-                      <span className="font-medium">
-                        PKR {(formData.tax_amount || 0).toLocaleString('en-PK', {
-                          minimumFractionDigits: 2,
-                          maximumFractionDigits: 2
-                        })}
-                      </span>
                     </div>
+
+                    {/* Tax Summary Note */}
+                    {taxRate > 0 && (
+                      <div className="bg-blue-50 p-3 rounded border border-blue-200">
+                        <p className="text-sm text-gray-700">
+                          <span className="font-medium">Tax Rate Note:</span> A tax rate of <span className="font-bold text-blue-700">{taxRate}%</span> is being applied on the subtotal amount of <span className="font-bold text-blue-700">PKR {(formData.subtotal || 0).toLocaleString('en-PK', { minimumFractionDigits: 2 })}</span>.
+                        </p>
+                      </div>
+                    )}
                     
                     <div className="flex justify-between items-center pt-2 border-t border-gray-200">
                       <span className="font-bold text-lg text-gray-800">Total Amount:</span>
