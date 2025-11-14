@@ -1242,12 +1242,17 @@ const PurchaseOrderDetails = ({ poId, onBack }) => {
             status: 'Draft',
             payment_days: invoiceData.paymentDays || 30,
             notes: invoiceData.notes,
+            tax_rate: purchaseOrder?.taxRate || 0,
+            tax_amount: purchaseOrder?.taxAmount || 0,
             items: itemsWithQuantity.map(item => ({
               po_item_id: item.po_item_id,
               invoiced_quantity: item.invoiced_quantity,
               net_weight: item.net_weight || 0
             }))
           };
+          
+          console.log('🔍 [DEBUG] PurchaseOrder object:', purchaseOrder);
+          console.log('🔍 [DEBUG] Tax values being sent:', { tax_rate: invoicePayload.tax_rate, tax_amount: invoicePayload.tax_amount });
           
           apiEndpoint = 'http://localhost:5000/api/po-invoices/quantity-based';
         } else {
@@ -1846,6 +1851,18 @@ const PurchaseOrderDetails = ({ poId, onBack }) => {
                       : `PKR ${((purchaseOrder?.totalAmount || 0) - (invoiceData.invoiceAmount || 0)).toLocaleString('en-PK')}/-`
                     }
                   </span>
+                </div>
+
+                {/* Tax Rate (Read-only) */}
+                <div className="flex justify-between items-center py-2 bg-blue-50 px-4 rounded-md border border-blue-200">
+                  <span className="font-medium text-blue-700">Tax Rate (Fixed at PO Creation):</span>
+                  <span className="font-bold text-lg text-blue-600">{purchaseOrder?.taxRate || 0}%</span>
+                </div>
+
+                {/* Tax Amount (Read-only) */}
+                <div className="flex justify-between items-center py-2 bg-blue-50 px-4 rounded-md border border-blue-200">
+                  <span className="font-medium text-blue-700">Tax Amount:</span>
+                  <span className="font-bold text-lg text-blue-600">PKR {(purchaseOrder?.taxAmount || 0).toLocaleString('en-PK')}/-</span>
                 </div>
               </div>
             </div>
