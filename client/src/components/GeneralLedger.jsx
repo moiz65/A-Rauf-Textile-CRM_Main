@@ -189,8 +189,8 @@ const GeneralLedger = () => {
                 date: entry.entry_date,
                 particulars: entry.description || 'Manual Entry',
                 description: entry.description || '',
-                mtr: null,
-                rate: null,
+                mtr: entry.mtr !== null && entry.mtr !== undefined ? parseFloat(entry.mtr) : null,
+                rate: entry.rate !== null && entry.rate !== undefined ? parseFloat(entry.rate) : null,
                 billNo: entry.bill_no || '-',
                 paymentMode: entry.payment_mode || null,
                 payment_mode: entry.payment_mode || null,  // Add both camelCase and snake_case for table compatibility
@@ -1267,7 +1267,6 @@ const GeneralLedger = () => {
                     <th className="px-6 py-4 text-center font-bold text-white whitespace-nowrap text-xs uppercase tracking-wider">Days</th>
                   )}
                   <th className="px-6 py-4 text-left font-bold text-white whitespace-nowrap text-xs uppercase tracking-wider">Due Date</th>
-                  <th className="px-6 py-4 text-center font-bold text-white whitespace-nowrap text-xs uppercase tracking-wider">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200">
@@ -1399,41 +1398,13 @@ const GeneralLedger = () => {
                       )}
                       <td className="px-6 py-4 text-slate-700 text-sm whitespace-nowrap">{formatDate(entry.dueDate)}</td>
                       
-                      {/* Action Column - Edit & Delete Buttons (Only for Manual Entries) */}
-                      <td className="px-6 py-4 text-center flex items-center justify-center gap-2">
-                        {entry.isManualEntry ? (
-                          <>
-                            <button
-                              onClick={() => handleEditEntry(index)}
-                              className="inline-flex items-center gap-1 px-2 py-1.5 rounded text-xs font-bold bg-blue-100 hover:bg-blue-200 text-blue-700 transition-all duration-200"
-                              title="Edit entry"
-                            >
-                              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                              </svg>
-                              Edit
-                            </button>
-                            <button
-                              onClick={() => handleDeleteEntry(index)}
-                              className="inline-flex items-center gap-1 px-2 py-1.5 rounded text-xs font-bold bg-red-100 hover:bg-red-200 text-red-700 transition-all duration-200"
-                              title="Delete entry"
-                            >
-                              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                              </svg>
-                              Delete
-                            </button>
-                          </>
-                        ) : (
-                          <span className="text-xs text-slate-400 font-medium px-2 py-1">Backend Entry</span>
-                        )}
-                      </td>
+                      {/* Actions column removed as requested */}
                     </tr>
                     );
                   })
                 ) : (
                   <tr>
-                    <td colSpan="14" className="px-6 py-16 text-center">
+                    <td colSpan="13" className="px-6 py-16 text-center">
                       <svg className="w-16 h-16 mx-auto mb-4 opacity-30 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                       </svg>
@@ -1795,7 +1766,7 @@ const GeneralLedger = () => {
                           setNewEntry({ 
                             ...newEntry, 
                             paymentMode: mode,
-                            chequeNo: mode !== 'Cheque' ? '' : newEntry.chequeNo
+                            chequeNo: (mode === 'Cheque' || mode === 'Online') ? newEntry.chequeNo : ''
                           });
                         }}
                         className="w-full px-4 py-2.5 rounded-lg border-2 border-slate-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all font-medium text-slate-900 bg-white"
@@ -1805,9 +1776,11 @@ const GeneralLedger = () => {
                         <option value="Cheque">✓ Cheque - Cheque Payment</option>
                       </select>
                     </div>
-                    {newEntry.paymentMode === 'Cheque' && (
+                    {(newEntry.paymentMode === 'Cheque' || newEntry.paymentMode === 'Online') && (
                       <div>
-                        <label className="block text-sm font-semibold text-slate-700 mb-2">Cheque Number (Last 5 Digits)</label>
+                        <label className="block text-sm font-semibold text-slate-700 mb-2">
+                          {newEntry.paymentMode === 'Online' ? 'Transaction ID' : 'Cheque Number'} (Last 5 Digits)
+                        </label>
                         <input
                           type="text"
                           placeholder="e.g., 12345"

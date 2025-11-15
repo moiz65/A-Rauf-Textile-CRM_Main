@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: localhost
--- Generation Time: Nov 10, 2025 at 07:33 PM
+-- Generation Time: Nov 14, 2025 at 06:10 PM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.2.12
 
@@ -171,7 +171,8 @@ CREATE TABLE `customertable` (
 INSERT INTO `customertable` (`customer_id`, `customer`, `company`, `date`, `phone`, `address`, `stn`, `ntn`, `email`, `created_at`, `updated_at`) VALUES
 (1, 'Muhammad Huinain', 'Digious', '2025-09-30', '+923435980052', '202 Floor Shan Residency SB-44 Block-K North Nazimabad karachi', '', '', 'm.hunainofficial@gmail.com', '2025-09-30 11:49:35', '2025-09-30 11:49:35'),
 (2, 'XYZ', 'FAST', '2025-09-30', '03435980052', '504 Floor Shan Residency SB-44 Block-K North Nazimabad karachi', '', '', 'xyz@gmail.com', '2025-09-30 13:02:28', '2025-09-30 13:02:28'),
-(3, 'MH', 'XYZ', '2025-10-14', '+9234359800521', 'Floor Shan Residency SB-44 Block-K North Nazimabad karachi', '1111111', '1111111', '19@gmail.com', '2025-10-02 13:16:16', '2025-10-14 14:22:50');
+(3, 'MH', 'XYZ', '2025-10-14', '+9234359800521', 'Floor Shan Residency SB-44 Block-K North Nazimabad karachi', '1111111', '1111111', '19@gmail.com', '2025-10-02 13:16:16', '2025-10-14 14:22:50'),
+(7, 'Digious Sol', 'Digious Solution pvt ltd', '2025-11-12', '0987543211', 'North Nazimabad Karachi', '9876543', '1235678', 'sol@gmail.com', '2025-11-12 18:27:40', '2025-11-12 18:27:40');
 
 -- --------------------------------------------------------
 
@@ -282,7 +283,9 @@ INSERT INTO `invoice` (`id`, `invoice_number`, `customer_id`, `customer_name`, `
 (11, 'INV-2025-1759845903844', 3, 'MH', '19@gmail.com', '+923435980052', '', 'Floor Shan Residency SB-44 Block-K North Nazimabad karachi', '1111111', '1111111', NULL, 0.00, 0.00, 'PKR', 0.00, 0.00, '2025-10-07', NULL, 'Within 15 days', '2025-10-07', '', 500.00, 0.00, 0.00, 500.00, 'Pending', 0, NULL, '2025-10-07 14:05:03', '2025-10-07 14:05:03', 30),
 (12, 'INV-2025-1760443020181', 3, 'MH', '19@gmail.com', '+923435980052', '', 'Floor Shan Residency SB-44 Block-K North Nazimabad karachi', '1111111', '1111111', NULL, 0.00, 0.00, 'PKR', 0.00, 0.00, '2025-10-14', NULL, 'Within 15 days', '2025-10-29', '', 1111.00, 1.00, 11.11, 1122.11, 'Pending', 0, NULL, '2025-10-14 11:57:00', '2025-10-14 11:57:00', 15),
 (14, 'INV-2025-1760443882789', 3, 'MH', '19@gmail.com', '+923435980052', '', 'Floor Shan Residency SB-44 Block-K North Nazimabad karachi', '1111111', '1111111', NULL, 0.00, 0.00, 'PKR', 0.00, 0.00, '2025-10-12', NULL, 'Within 15 days', '0000-00-00', '', 12221.00, 0.00, 0.00, 12221.00, 'Paid', 0, NULL, '2025-10-14 12:11:22', '2025-10-14 12:43:03', 10),
-(18, 'INV-2025-1762278399628', 3, 'MH', '19@gmail.com', '+9234359800521', '', 'Floor Shan Residency SB-44 Block-K North Nazimabad karachi', '1111111', '1111111', NULL, 0.00, 0.00, 'PKR', 0.00, 0.00, '2025-11-04', NULL, 'Within 15 days', '2025-12-04', '', 2221.99, 10.00, 222.20, 2444.19, 'Pending', 0, NULL, '2025-11-04 17:46:39', '2025-11-04 17:46:39', 30);
+(18, 'INV-2025-1762278399628', 3, 'MH', '19@gmail.com', '+9234359800521', '', 'Floor Shan Residency SB-44 Block-K North Nazimabad karachi', '1111111', '1111111', NULL, 0.00, 0.00, 'PKR', 0.00, 0.00, '2025-11-04', NULL, 'Within 15 days', '2025-12-04', '', 2221.99, 10.00, 222.20, 2444.19, 'Pending', 0, NULL, '2025-11-04 17:46:39', '2025-11-04 17:46:39', 30),
+(19, 'INV-2025-1762972128956', 7, 'Digious Sol', 'sol@gmail.com', '0987543211', '', 'North Nazimabad Karachi', '9876543', '1235678', NULL, 0.00, 0.00, 'PKR', 0.00, 0.00, '2025-11-12', NULL, 'Within 15 days', '2025-11-22', '', 99000.00, 18.00, 17820.00, 116820.00, 'Pending', 0, NULL, '2025-11-12 18:28:48', '2025-11-12 18:28:48', 10),
+(20, 'INV-2025-1762972208966', 7, 'Digious Sol', 'sol@gmail.com', '0987543211', '', 'North Nazimabad Karachi', '9876543', '1235678', NULL, 0.00, 0.00, 'PKR', 0.00, 0.00, '2025-11-03', NULL, 'Within 15 days', '2025-11-10', 'this is Overdue test', 200000.00, 18.00, 36000.00, 236000.00, 'Overdue', 0, NULL, '2025-11-12 18:30:08', '2025-11-12 18:30:08', 7);
 
 -- --------------------------------------------------------
 
@@ -315,7 +318,9 @@ INSERT INTO `invoice_items` (`id`, `invoice_id`, `item_no`, `description`, `quan
 (18, 12, 1, 'aaa', 1, '', 15.00, 1111.00, 1111.00, '2025-10-14 11:57:00'),
 (22, 14, 1, 'aaa', 11, '', 15.00, 1111.00, 12221.00, '2025-10-14 12:43:03'),
 (27, 18, 1, 'aaa1', 1, '', 1.00, 1110.99, 1110.99, '2025-11-04 17:46:39'),
-(28, 18, 2, 'bbb2', 1, '', 1.00, 1111.00, 1111.00, '2025-11-04 17:46:39');
+(28, 18, 2, 'bbb2', 1, '', 1.00, 1111.00, 1111.00, '2025-11-04 17:46:39'),
+(29, 19, 1, 'Cotton Fabric ', 50, '', 70.00, 1980.00, 99000.00, '2025-11-12 18:28:48'),
+(30, 20, 1, 'Printed Layout design', 100, '', 35.00, 2000.00, 200000.00, '2025-11-12 18:30:08');
 
 -- --------------------------------------------------------
 
@@ -370,7 +375,20 @@ INSERT INTO `ledger_entries` (`entry_id`, `customer_id`, `entry_date`, `descript
 (22, 3, '2025-11-10', 'CF', 'SB44', 'Cash', NULL, 0.00, 111.00, -111.00, 'draft', NULL, 0, 11.00, 0.00, 1.0, '2025-11-10 10:07:27', '2025-11-10 10:07:27'),
 (23, 3, '2025-11-10', 'Sales Tax @ 11%', 'TAX-SB44', 'Cash', NULL, 0.00, 12.21, -123.21, 'draft', NULL, 0, 0.00, 0.00, 2.0, '2025-11-10 10:07:27', '2025-11-10 10:07:27'),
 (31, 3, '2025-11-10', 'CF', 'SB-44', 'Cash', NULL, 0.00, 1000.00, -1123.21, 'paid', NULL, 0, 10.00, 0.00, 3.0, '2025-11-10 11:21:17', '2025-11-10 11:21:17'),
-(32, 3, '2025-11-10', 'Sales Tax @ 10%', 'TAX-SB-44', 'Cash', NULL, 0.00, 100.00, -1223.21, 'paid', NULL, 0, 0.00, 0.00, 4.0, '2025-11-10 11:21:17', '2025-11-10 11:21:17');
+(32, 3, '2025-11-10', 'Sales Tax @ 10%', 'TAX-SB-44', 'Cash', NULL, 0.00, 100.00, -1223.21, 'paid', NULL, 0, 0.00, 0.00, 4.0, '2025-11-10 11:21:17', '2025-11-10 11:21:17'),
+(35, 3, '2025-11-11', 'CF', 'INV-J.', 'Cash', NULL, 0.00, 500.00, -1723.21, 'paid', NULL, 0, 10.00, 0.00, 1.0, '2025-11-11 18:43:50', '2025-11-11 18:43:50'),
+(36, 3, '2025-11-11', 'Sales Tax @ 10%', 'TAX-INV-J.', 'Cash', NULL, 0.00, 50.00, -1773.21, 'paid', NULL, 0, 0.00, 0.00, 2.0, '2025-11-11 18:43:50', '2025-11-11 18:43:50'),
+(39, 3, '2025-11-12', 'qwerty', 'qwert', 'Cash', NULL, 15129.00, 0.00, 13355.79, 'paid', NULL, 0, 10.00, 0.00, 1.0, '2025-11-12 15:17:12', '2025-11-12 15:24:13'),
+(41, 3, '2025-11-12', 'qwerty', 'qwe123', 'Cash', NULL, 1522756.00, 0.00, 1536111.79, 'paid', NULL, 0, 10.00, 0.00, 2.0, '2025-11-12 15:19:59', '2025-11-12 15:24:13'),
+(43, 3, '2025-11-12', 'hhggg', 'bbhhh', 'Cash', NULL, 15129.00, 0.00, 1551240.79, 'paid', NULL, 0, 10.00, 0.00, 3.0, '2025-11-12 15:26:50', '2025-11-12 15:26:50'),
+(44, 3, '2025-11-12', 'Sales Tax @ 10%', 'TAX-bbhhh', 'Cash', NULL, 1512.90, 0.00, 1552753.69, 'paid', NULL, 0, 0.00, 1512.90, 4.0, '2025-11-12 15:26:50', '2025-11-12 15:26:50'),
+(45, 3, '2025-11-12', 'Sales Tax (0%) - Sales Tax @ 10%', 'TAX-bbhhh', 'Cash', NULL, 1512.90, 0.00, 1554266.59, 'paid', NULL, 0, 0.00, 0.00, 4.5, '2025-11-12 15:26:50', '2025-11-12 15:26:50'),
+(46, 3, '2025-11-12', 'invgt', 'invgt', 'Cheque', '12345', 8800.00, 0.00, 1563066.59, 'paid', NULL, 1, 0.00, 0.00, 5.5, '2025-11-12 18:23:24', '2025-11-12 18:23:24'),
+(47, 7, '2025-11-13', 'Printed Lawn', 'JFg-5037', 'Cash', NULL, 0.00, 675000.00, -675000.00, 'paid', NULL, 0, 18.00, 0.00, 1.0, '2025-11-12 18:39:02', '2025-11-12 18:39:02'),
+(48, 7, '2025-11-13', 'Sales Tax @ 18%', 'TAX-JFg-5037', 'Cash', NULL, 0.00, 121500.00, -796500.00, 'paid', NULL, 0, 0.00, 0.00, 2.0, '2025-11-12 18:39:02', '2025-11-12 18:39:02'),
+(49, 7, '2025-11-13', 'mnhunain', 'qwerty', 'Online', '98765', 5000.00, 0.00, -791500.00, 'paid', NULL, 0, 10.00, 0.00, 3.0, '2025-11-12 20:53:48', '2025-11-12 20:53:48'),
+(50, 7, '2025-11-13', 'Sales Tax @ 10%', 'TAX-qwerty', 'Online', NULL, 500.00, 0.00, -791000.00, 'paid', NULL, 0, 0.00, 500.00, 4.0, '2025-11-12 20:53:48', '2025-11-12 20:53:48'),
+(51, 7, '2025-11-13', 'Sales Tax (0%) - Sales Tax @ 10%', 'TAX-qwerty', 'Online', NULL, 500.00, 0.00, -790500.00, 'paid', NULL, 0, 0.00, 0.00, 4.5, '2025-11-12 20:53:48', '2025-11-12 20:53:48');
 
 -- --------------------------------------------------------
 
@@ -455,6 +473,14 @@ CREATE TABLE `ledger_line_items` (
   `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
+--
+-- Dumping data for table `ledger_line_items`
+--
+
+INSERT INTO `ledger_line_items` (`id`, `entry_id`, `description`, `quantity`, `rate`, `tax_rate`, `amount`, `total_with_tax`, `item_type`, `line_sequence`, `created_at`, `updated_at`) VALUES
+(8, 46, 'CFQWERT', 50.00, 50.00, 50.00, 2500.00, 3750.00, 'material', 1, '2025-11-12 18:23:24', '2025-11-12 18:23:24'),
+(9, 46, 'trewq', 90.00, 70.00, 10.00, 6300.00, 6930.00, 'material', 2, '2025-11-12 18:23:24', '2025-11-12 18:23:24');
+
 -- --------------------------------------------------------
 
 --
@@ -480,7 +506,13 @@ CREATE TABLE `ledger_single_materials` (
 
 INSERT INTO `ledger_single_materials` (`id`, `entry_id`, `bill_no`, `quantity_mtr`, `rate`, `tax_rate`, `amount`, `total_with_tax`, `created_at`, `updated_at`) VALUES
 (10, 22, 'SB44', 1.00, 111.00, 11.00, 111.00, 123.21, '2025-11-10 10:07:27', '2025-11-10 10:07:27'),
-(14, 31, 'SB-44', 1.00, 1000.00, 10.00, 1000.00, 1100.00, '2025-11-10 11:21:17', '2025-11-10 11:21:17');
+(14, 31, 'SB-44', 1.00, 1000.00, 10.00, 1000.00, 1100.00, '2025-11-10 11:21:17', '2025-11-10 11:21:17'),
+(16, 35, 'INV-J.', 50.00, 10.00, 10.00, 500.00, 550.00, '2025-11-11 18:43:50', '2025-11-11 18:43:50'),
+(19, 39, 'qwert', 123.00, 123.00, 10.00, 15129.00, 16641.90, '2025-11-12 15:17:12', '2025-11-12 15:17:12'),
+(20, 41, 'qwe123', 1234.00, 1234.00, 10.00, 1522756.00, 1675031.60, '2025-11-12 15:19:59', '2025-11-12 15:19:59'),
+(21, 43, 'bbhhh', 123.00, 123.00, 10.00, 15129.00, 16641.90, '2025-11-12 15:26:50', '2025-11-12 15:26:50'),
+(22, 47, 'JFg-5037', 450.00, 1500.00, 18.00, 675000.00, 796500.00, '2025-11-12 18:39:02', '2025-11-12 18:39:02'),
+(23, 49, 'qwerty', 100.00, 50.00, 10.00, 5000.00, 5500.00, '2025-11-12 20:53:48', '2025-11-12 20:53:48');
 
 -- --------------------------------------------------------
 
@@ -618,7 +650,10 @@ INSERT INTO `po_deletion_history` (`id`, `po_invoice_id`, `invoice_number`, `po_
 (29, 23, 'PI25-003-1', 'PO25-9-003', 'Paysys', 1000000.00, '2025-09-30', '2025-11-07 16:10:30', 'PO permanently deleted', 'System User', NULL, '2025-11-07 16:10:30'),
 (30, 24, 'PI25-003-2', 'PO25-9-003', 'Paysys', 21000000.00, '2025-09-30', '2025-11-07 16:10:30', 'PO permanently deleted', 'System User', NULL, '2025-11-07 16:10:30'),
 (31, 41, 'PI25-001', 'PO25-11-001', 'MH', 10.00, '2025-11-07', '2025-11-07 18:04:04', 'Manual deletion via system', 'System User', NULL, '2025-11-07 18:04:04'),
-(32, 42, 'PI25-001', 'PO25-11-001', 'MH', 10.00, '2025-11-07', '2025-11-07 20:04:53', 'Manual deletion via system', 'System User', NULL, '2025-11-07 20:04:53');
+(32, 42, 'PI25-001', 'PO25-11-001', 'MH', 10.00, '2025-11-07', '2025-11-07 20:04:53', 'Manual deletion via system', 'System User', NULL, '2025-11-07 20:04:53'),
+(33, 43, 'PI25-001', 'PO25-11-001', 'MH', 110.00, '2025-11-10', '2025-11-12 14:28:19', 'Manual deletion via system', 'System User', NULL, '2025-11-12 14:28:19'),
+(34, 48, 'PI25-003', 'PO25-11-003', 'Digious Sol', 592000.00, '2025-10-01', '2025-11-12 19:57:02', 'Manual deletion via system', 'System User', NULL, '2025-11-12 19:57:02'),
+(35, 49, 'PI25-003', 'PO25-11-003', 'Digious Sol', 725000.00, '2025-11-12', '2025-11-13 19:00:43', 'Manual deletion via system', 'System User', NULL, '2025-11-13 19:00:43');
 
 -- --------------------------------------------------------
 
@@ -687,7 +722,11 @@ CREATE TABLE `po_invoices` (
 --
 
 INSERT INTO `po_invoices` (`id`, `invoice_number`, `invoice_date`, `due_date`, `po_id`, `po_number`, `customer_name`, `customer_email`, `customer_phone`, `customer_address`, `subtotal`, `tax_rate`, `tax_amount`, `total_amount`, `currency`, `status`, `payment_date`, `payment_method`, `payment_reference`, `notes`, `created_at`, `updated_at`, `invoicing_mode`, `total_po_quantity`, `invoiced_quantity`, `quantity_percentage`, `payment_days`) VALUES
-(43, 'PI25-001', '2025-11-10', '2025-12-10', '35', 'PO25-11-001', 'MH', '19@gmail.com', '+9234359800521', 'Floor Shan Residency SB-44 Block-K North Nazimabad karachi', 110.00, 10.00, 10.00, 110.00, 'PKR', 'Draft', NULL, NULL, NULL, 'Generated from Purchase Order: PO25-11-001', '2025-11-10 07:19:55', '2025-11-10 07:19:55', 'amount', 0.00, 0.00, 0.00, 30);
+(44, 'PI25-001', '2025-11-12', '2025-12-12', '35', 'PO25-11-001', 'MH', '19@gmail.com', '+9234359800521', 'Floor Shan Residency SB-44 Block-K North Nazimabad karachi', 50.00, 0.00, 0.00, 50.00, 'PKR', 'Draft', NULL, NULL, NULL, 'Generated from Purchase Order: PO25-11-001', '2025-11-12 14:39:31', '2025-11-12 14:39:31', 'quantity', 0.00, 50.00, 0.00, 30),
+(45, 'PI25-001-1', '2025-11-12', '2025-12-12', '35', 'PO25-11-001', 'MH', '19@gmail.com', '+9234359800521', 'Floor Shan Residency SB-44 Block-K North Nazimabad karachi', 30.00, 0.00, 0.00, 30.00, 'PKR', 'Draft', NULL, NULL, NULL, 'Generated from Purchase Order: PO25-11-001', '2025-11-12 18:24:15', '2025-11-12 18:24:15', 'quantity', 0.00, 30.00, 0.00, 30),
+(46, 'PI25-002', '2025-11-12', '2025-12-12', '36', 'PO25-11-002', 'Digious Sol', 'sol@gmail.com', '0987543211', 'North Nazimabad Karachi', 245000.00, 0.00, 0.00, 245000.00, 'PKR', 'Overdue', NULL, NULL, NULL, 'Generated from Purchase Order: PO25-11-002', '2025-11-12 18:32:19', '2025-11-12 18:35:47', 'quantity', 0.00, 350.00, 0.00, 30),
+(47, 'PI25-002-1', '2025-11-12', '2025-12-12', '36', 'PO25-11-002', 'Digious Sol', 'sol@gmail.com', '0987543211', 'North Nazimabad Karachi', 350000.00, 0.00, 0.00, 350000.00, 'PKR', 'Paid', '2025-11-12', NULL, NULL, 'Generated from Purchase Order: PO25-11-002', '2025-11-12 18:32:47', '2025-11-12 18:35:28', 'quantity', 0.00, 500.00, 0.00, 30),
+(50, 'PI25-003', '2025-11-14', '2025-12-14', '37', 'PO25-11-003', 'Digious Sol', 'sol@gmail.com', '0987543211', 'North Nazimabad Karachi', 500000.00, 0.00, 0.00, 500000.00, 'PKR', 'Draft', NULL, NULL, NULL, 'Generated from Purchase Order: PO25-11-003', '2025-11-14 17:01:22', '2025-11-14 17:01:22', 'quantity', 0.00, 100.00, 0.00, 30);
 
 --
 -- Triggers `po_invoices`
@@ -875,6 +914,15 @@ CREATE TABLE `po_invoice_items` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
+-- Dumping data for table `po_invoice_items`
+--
+
+INSERT INTO `po_invoice_items` (`id`, `po_invoice_id`, `po_item_id`, `item_no`, `description`, `po_quantity`, `invoiced_quantity`, `remaining_quantity`, `unit`, `net_weight`, `unit_price`, `amount`, `created_at`, `updated_at`) VALUES
+(15, 44, 59, 1, 'aaa', 100.00, 50.00, 50.00, 'pcs', 5.00, 1.00, 50.00, '2025-11-12 14:39:31', '2025-11-12 14:39:31'),
+(16, 45, 59, 1, 'aaa', 100.00, 30.00, 20.00, 'pcs', 3.00, 1.00, 30.00, '2025-11-12 18:24:15', '2025-11-12 18:24:15'),
+(23, 50, 61, 1, 'Design A', 100.00, 100.00, 0.00, 'pcs', 90.00, 5000.00, 500000.00, '2025-11-14 17:01:22', '2025-11-14 17:01:22');
+
+--
 -- Triggers `po_invoice_items`
 --
 DELIMITER $$
@@ -887,13 +935,13 @@ CREATE TRIGGER `trg_calculate_invoice_quantities_delete` AFTER DELETE ON `po_inv
       FROM po_invoice_items pii 
       WHERE pii.po_invoice_id = pi.id
     ),
-    total_amount = (
+    subtotal = (
       SELECT COALESCE(SUM(pii.amount), 0) 
       FROM po_invoice_items pii 
       WHERE pii.po_invoice_id = pi.id
     ),
-    subtotal = (
-      SELECT COALESCE(SUM(pii.amount), 0) 
+    total_amount = (
+      SELECT COALESCE(SUM(pii.amount), 0) + COALESCE(pi.tax_amount, 0) 
       FROM po_invoice_items pii 
       WHERE pii.po_invoice_id = pi.id
     )
@@ -911,13 +959,13 @@ CREATE TRIGGER `trg_calculate_invoice_quantities_insert` AFTER INSERT ON `po_inv
       FROM po_invoice_items pii 
       WHERE pii.po_invoice_id = pi.id
     ),
-    total_amount = (
+    subtotal = (
       SELECT COALESCE(SUM(pii.amount), 0) 
       FROM po_invoice_items pii 
       WHERE pii.po_invoice_id = pi.id
     ),
-    subtotal = (
-      SELECT COALESCE(SUM(pii.amount), 0) 
+    total_amount = (
+      SELECT COALESCE(SUM(pii.amount), 0) + COALESCE(pi.tax_amount, 0) 
       FROM po_invoice_items pii 
       WHERE pii.po_invoice_id = pi.id
     )
@@ -935,13 +983,13 @@ CREATE TRIGGER `trg_calculate_invoice_quantities_update` AFTER UPDATE ON `po_inv
       FROM po_invoice_items pii 
       WHERE pii.po_invoice_id = pi.id
     ),
-    total_amount = (
+    subtotal = (
       SELECT COALESCE(SUM(pii.amount), 0) 
       FROM po_invoice_items pii 
       WHERE pii.po_invoice_id = pi.id
     ),
-    subtotal = (
-      SELECT COALESCE(SUM(pii.amount), 0) 
+    total_amount = (
+      SELECT COALESCE(SUM(pii.amount), 0) + COALESCE(pi.tax_amount, 0) 
       FROM po_invoice_items pii 
       WHERE pii.po_invoice_id = pi.id
     )
@@ -982,7 +1030,9 @@ INSERT INTO `po_invoice_summary` (`id`, `po_number`, `po_total_amount`, `total_i
 (120, 'PO-20250927-180053', 0.00, 0.00, 0.00, 0, NULL, '2025-09-30 12:11:31', '2025-09-30 12:11:31'),
 (122, 'PO-20250929-215641', 0.00, 0.00, 0.00, 0, NULL, '2025-09-30 12:11:40', '2025-09-30 12:11:40'),
 (123, 'PO-20250929-150543', 0.00, 0.00, 0.00, 0, NULL, '2025-09-30 12:11:46', '2025-09-30 12:11:46'),
-(268, 'PO25-11-001', 110.00, 110.00, 0.00, 1, '2025-11-10', '2025-11-07 20:04:53', '2025-11-10 07:19:55');
+(272, 'PO25-11-001', 110.00, 80.00, 30.00, 2, '2025-11-12', '2025-11-12 14:28:19', '2025-11-12 18:24:15'),
+(282, 'PO25-11-002', 826000.00, 595000.00, 231000.00, 2, '2025-11-12', '2025-11-12 18:31:57', '2025-11-12 18:35:47'),
+(300, 'PO25-11-003', 1099760.00, 500000.00, 599760.00, 1, '2025-11-14', '2025-11-13 19:00:43', '2025-11-14 17:01:22');
 
 -- --------------------------------------------------------
 
@@ -1058,7 +1108,9 @@ CREATE TABLE `purchase_orders` (
 --
 
 INSERT INTO `purchase_orders` (`id`, `po_number`, `po_date`, `supplier_name`, `supplier_email`, `supplier_phone`, `supplier_address`, `subtotal`, `tax_rate`, `tax_amount`, `total_amount`, `currency`, `status`, `previous_status`, `notes`, `created_at`, `updated_at`, `payment_days`) VALUES
-(35, 'PO25-11-001', '2025-11-07', 'MH', '19@gmail.com', '+9234359800521', 'Floor Shan Residency SB-44 Block-K North Nazimabad karachi', 100.00, 10.00, 10.00, 110.00, 'PKR', 'Approved', NULL, '', '2025-11-07 16:12:59', '2025-11-07 16:16:02', 30);
+(35, 'PO25-11-001', '2025-11-07', 'MH', '19@gmail.com', '+9234359800521', 'Floor Shan Residency SB-44 Block-K North Nazimabad karachi', 100.00, 10.00, 10.00, 110.00, 'PKR', 'Approved', NULL, '', '2025-11-07 16:12:59', '2025-11-07 16:16:02', 30),
+(36, 'PO25-11-002', '2025-11-10', 'Digious Sol', 'sol@gmail.com', '0987543211', 'North Nazimabad Karachi', 700000.00, 18.00, 126000.00, 826000.00, 'PKR', 'Approved', NULL, 'this is test', '2025-11-12 18:31:49', '2025-11-12 18:34:17', 30),
+(37, 'PO25-11-003', '2025-11-12', 'Digious Sol', 'sol@gmail.com', '0987543211', 'North Nazimabad Karachi', 932000.00, 18.00, 167760.00, 1099760.00, 'PKR', 'Approved', NULL, '', '2025-11-12 18:34:04', '2025-11-12 18:34:04', 30);
 
 --
 -- Triggers `purchase_orders`
@@ -1197,7 +1249,10 @@ CREATE TABLE `purchase_order_items` (
 --
 
 INSERT INTO `purchase_order_items` (`id`, `purchase_order_id`, `item_no`, `description`, `quantity`, `unit`, `net_weight`, `unit_price`, `amount`, `created_at`, `updated_at`) VALUES
-(59, 35, 1, 'aaa', 100.00, 'pcs', 10.00, 1.00, 100.00, '2025-11-07 16:16:02', '2025-11-07 16:16:02');
+(59, 35, 1, 'aaa', 100.00, 'pcs', 10.00, 1.00, 100.00, '2025-11-07 16:16:02', '2025-11-07 16:16:02'),
+(61, 37, 1, 'Design A', 100.00, 'pcs', 90.00, 5000.00, 500000.00, '2025-11-12 18:34:04', '2025-11-12 18:34:04'),
+(62, 37, 2, 'Design B', 960.00, 'pcs', 260.00, 450.00, 432000.00, '2025-11-12 18:34:04', '2025-11-12 18:34:04'),
+(63, 36, 1, 'Fiber Printed Man Design ', 1000.00, 'pcs', 500.00, 700.00, 700000.00, '2025-11-12 18:34:17', '2025-11-12 18:34:17');
 
 -- --------------------------------------------------------
 
@@ -1763,7 +1818,7 @@ ALTER TABLE `company_settings`
 -- AUTO_INCREMENT for table `customertable`
 --
 ALTER TABLE `customertable`
-  MODIFY `customer_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=7;
+  MODIFY `customer_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=8;
 
 --
 -- AUTO_INCREMENT for table `expenses`
@@ -1775,13 +1830,13 @@ ALTER TABLE `expenses`
 -- AUTO_INCREMENT for table `invoice`
 --
 ALTER TABLE `invoice`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=19;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=21;
 
 --
 -- AUTO_INCREMENT for table `invoice_items`
 --
 ALTER TABLE `invoice_items`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=29;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=31;
 
 --
 -- AUTO_INCREMENT for table `invoice_payments`
@@ -1793,7 +1848,7 @@ ALTER TABLE `invoice_payments`
 -- AUTO_INCREMENT for table `ledger_entries`
 --
 ALTER TABLE `ledger_entries`
-  MODIFY `entry_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=35;
+  MODIFY `entry_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=52;
 
 --
 -- AUTO_INCREMENT for table `ledger_entry_fy_mapping`
@@ -1817,49 +1872,49 @@ ALTER TABLE `ledger_fy_closing_balance`
 -- AUTO_INCREMENT for table `ledger_line_items`
 --
 ALTER TABLE `ledger_line_items`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=8;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=10;
 
 --
 -- AUTO_INCREMENT for table `ledger_single_materials`
 --
 ALTER TABLE `ledger_single_materials`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=16;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=24;
 
 --
 -- AUTO_INCREMENT for table `po_deletion_history`
 --
 ALTER TABLE `po_deletion_history`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=33;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=36;
 
 --
 -- AUTO_INCREMENT for table `po_invoices`
 --
 ALTER TABLE `po_invoices`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=44;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=51;
 
 --
 -- AUTO_INCREMENT for table `po_invoice_items`
 --
 ALTER TABLE `po_invoice_items`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=15;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=24;
 
 --
 -- AUTO_INCREMENT for table `po_invoice_summary`
 --
 ALTER TABLE `po_invoice_summary`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=272;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=312;
 
 --
 -- AUTO_INCREMENT for table `purchase_orders`
 --
 ALTER TABLE `purchase_orders`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=36;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=38;
 
 --
 -- AUTO_INCREMENT for table `purchase_order_items`
 --
 ALTER TABLE `purchase_order_items`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=60;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=64;
 
 --
 -- AUTO_INCREMENT for table `users`

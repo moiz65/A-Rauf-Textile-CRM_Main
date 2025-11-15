@@ -5042,6 +5042,8 @@ async function createQuantityBasedInvoiceWithItems(req, res, payment_days, calcu
     currency,
     status,
     notes,
+    tax_rate,  // Tax rate from PO
+    tax_amount, // Tax amount from PO
     items // Array of { po_item_id, invoiced_quantity }
   } = req.body;
 
@@ -5071,6 +5073,15 @@ async function createQuantityBasedInvoiceWithItems(req, res, payment_days, calcu
   console.log(`Creating quantity-based invoice for PO ${po_id} with ${items.length} items:`, 
     items.map(item => ({ po_item_id: item.po_item_id, quantity: item.invoiced_quantity }))
   );
+  
+  console.log('🔍 [DEBUG] Request body received at backend:', {
+    po_id,
+    invoice_number,
+    customer_name,
+    tax_rate: req.body.tax_rate,
+    tax_amount: req.body.tax_amount,
+    items_count: items.length
+  });
 
   // Start transaction
   db.beginTransaction((transactionErr) => {
@@ -5079,188 +5090,234 @@ async function createQuantityBasedInvoiceWithItems(req, res, payment_days, calcu
       return res.status(500).json({ error: "Failed to start transaction" });
     }
 
-    // Step 1: Validate quantities and get item details
-    const itemValidationPromises = items.map((item) => {
-      return new Promise((resolve, reject) => {
-        const itemQuery = `
-          SELECT 
-            poi.id,
-            poi.description,
-            poi.quantity as po_quantity,
-            poi.unit,
-            COALESCE(poi.net_weight, 0) as net_weight,
-            poi.unit_price,
-            poi.amount as po_amount,
-            COALESCE(SUM(pii.invoiced_quantity), 0) as already_invoiced
-          FROM purchase_order_items poi
-          LEFT JOIN po_invoice_items pii ON poi.id = pii.po_item_id
-          WHERE poi.id = ? AND poi.purchase_order_id = ?
-          GROUP BY poi.id
-        `;
-        
-        db.query(itemQuery, [item.po_item_id, po_id], (err, results) => {
-          if (err) {
-            return reject(err);
-          }
+    // FETCH TAX FROM PO TABLE - Query the purchase_orders table to get tax_rate and tax_amount
+    const poTaxQuery = `
+      SELECT tax_rate, tax_amount 
+      FROM purchase_orders 
+      WHERE id = ?
+    `;
+    
+    console.log('🔍 [DEBUG] Fetching tax from PO with po_id:', po_id, 'Type:', typeof po_id);
+    
+    db.query(poTaxQuery, [po_id], (taxErr, taxResults) => {
+      if (taxErr) {
+        console.error("Error fetching tax from PO:", taxErr);
+        // Don't fail - just use the values from request body (they might be 0)
+      }
+      
+      console.log('📊 [DEBUG] Tax query result:', { error: taxErr ? taxErr.message : 'none', resultsLength: taxResults ? taxResults.length : 0, results: taxResults });
+      
+      // Use tax from database if available, otherwise use from request body
+      let finalTaxRate = parseFloat(tax_rate) || 0;
+      let finalTaxAmount = parseFloat(tax_amount) || 0;
+      
+      console.log('💾 [DEBUG] Initial tax values from request:', { tax_rate: parseFloat(tax_rate), tax_amount: parseFloat(tax_amount) });
+      
+      if (taxResults && taxResults.length > 0) {
+        finalTaxRate = parseFloat(taxResults[0].tax_rate) || finalTaxRate;
+        finalTaxAmount = parseFloat(taxResults[0].tax_amount) || finalTaxAmount;
+        console.log('✅ [DEBUG] Tax fetched from PO table:', { tax_rate: finalTaxRate, tax_amount: finalTaxAmount });
+      } else {
+        console.log('⚠️ [DEBUG] Could not fetch tax from PO, using request body values:', { tax_rate: finalTaxRate, tax_amount: finalTaxAmount });
+      }
+
+      // Step 1: Validate quantities and get item details
+      const itemValidationPromises = items.map((item) => {
+        return new Promise((resolve, reject) => {
+          const itemQuery = `
+            SELECT 
+              poi.id,
+              poi.description,
+              poi.quantity as po_quantity,
+              poi.unit,
+              COALESCE(poi.net_weight, 0) as net_weight,
+              poi.unit_price,
+              poi.amount as po_amount,
+              COALESCE(SUM(pii.invoiced_quantity), 0) as already_invoiced
+            FROM purchase_order_items poi
+            LEFT JOIN po_invoice_items pii ON poi.id = pii.po_item_id
+            WHERE poi.id = ? AND poi.purchase_order_id = ?
+            GROUP BY poi.id
+          `;
           
-          if (results.length === 0) {
-            return reject(new Error(`PO item ${item.po_item_id} not found`));
-          }
-          
-          const poItem = results[0];
-          const requestedQty = parseFloat(item.invoiced_quantity) || 0;
-          const availableQty = poItem.po_quantity - poItem.already_invoiced;
-          
-          if (requestedQty <= 0) {
-            return reject(new Error(`Invalid quantity for item "${poItem.description}" (ID: ${item.po_item_id}): ${requestedQty}. Quantity must be greater than 0.`));
-          }
-          
-          if (requestedQty > availableQty) {
-            return reject(new Error(`Insufficient quantity for item "${poItem.description}". Available: ${availableQty}, Requested: ${requestedQty}. Please reduce the quantity or check if this item was already invoiced.`));
-          }
-          
-          console.log(`✓ Item validated - ${poItem.description}: ${requestedQty}/${availableQty} available`);
-          
-          // Calculate proportional net weight for invoiced quantity
-          const totalNetWeight = poItem.net_weight || 0;
-          const netWeightPerUnit = poItem.po_quantity > 0 ? totalNetWeight / poItem.po_quantity : 0;
-          const invoicedNetWeight = requestedQty * netWeightPerUnit;
-          
-          resolve({
-            ...poItem,
-            invoiced_quantity: requestedQty,
-            remaining_quantity: poItem.po_quantity - poItem.already_invoiced - requestedQty,
-            item_amount: requestedQty * poItem.unit_price,
-            net_weight: invoicedNetWeight // Use calculated proportional net weight
+          db.query(itemQuery, [item.po_item_id, po_id], (err, results) => {
+            if (err) {
+              return reject(err);
+            }
+            
+            if (results.length === 0) {
+              return reject(new Error(`PO item ${item.po_item_id} not found`));
+            }
+            
+            const poItem = results[0];
+            const requestedQty = parseFloat(item.invoiced_quantity) || 0;
+            const availableQty = poItem.po_quantity - poItem.already_invoiced;
+            
+            if (requestedQty <= 0) {
+              return reject(new Error(`Invalid quantity for item "${poItem.description}" (ID: ${item.po_item_id}): ${requestedQty}. Quantity must be greater than 0.`));
+            }
+            
+            if (requestedQty > availableQty) {
+              return reject(new Error(`Insufficient quantity for item "${poItem.description}". Available: ${availableQty}, Requested: ${requestedQty}. Please reduce the quantity or check if this item was already invoiced.`));
+            }
+            
+            console.log(`✓ Item validated - ${poItem.description}: ${requestedQty}/${availableQty} available`);
+            
+            // Calculate proportional net weight for invoiced quantity
+            const totalNetWeight = poItem.net_weight || 0;
+            const netWeightPerUnit = poItem.po_quantity > 0 ? totalNetWeight / poItem.po_quantity : 0;
+            const invoicedNetWeight = requestedQty * netWeightPerUnit;
+            
+            resolve({
+              ...poItem,
+              invoiced_quantity: requestedQty,
+              remaining_quantity: poItem.po_quantity - poItem.already_invoiced - requestedQty,
+              item_amount: requestedQty * poItem.unit_price,
+              net_weight: invoicedNetWeight // Use calculated proportional net weight
+            });
           });
         });
       });
-    });
 
-    // Validate all items
-    Promise.all(itemValidationPromises)
-      .then((validatedItems) => {
-        // Calculate totals
-        const totalQuantity = validatedItems.reduce((sum, item) => sum + item.invoiced_quantity, 0);
-        const subtotal = validatedItems.reduce((sum, item) => sum + item.item_amount, 0);
-        const totalAmount = subtotal; // For now, no additional tax calculation
+      // Validate all items
+      Promise.all(itemValidationPromises)
+        .then((validatedItems) => {
+          // Calculate totals
+          const totalQuantity = validatedItems.reduce((sum, item) => sum + item.invoiced_quantity, 0);
+          const subtotal = validatedItems.reduce((sum, item) => sum + item.item_amount, 0);
+          
+          // Use the finalTaxRate and finalTaxAmount fetched from the PO table
+          const invoiceTaxRate = finalTaxRate;
+          const invoiceTaxAmount = finalTaxAmount;
+          
+          // Calculate total amount including tax
+          const totalAmount = subtotal + invoiceTaxAmount;
 
-        // Step 2: Create the invoice record
-        const invoiceQuery = `
-          INSERT INTO po_invoices (
-            po_id, po_number, invoice_number, customer_name, customer_email, 
-            customer_phone, customer_address, invoice_date, due_date, 
-            subtotal, tax_rate, tax_amount, total_amount, currency, 
-            invoicing_mode, invoiced_quantity, payment_days, notes, status
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `;
+          // Step 2: Create the invoice record
+          const invoiceQuery = `
+            INSERT INTO po_invoices (
+              po_id, po_number, invoice_number, customer_name, customer_email, 
+              customer_phone, customer_address, invoice_date, due_date, 
+              subtotal, tax_rate, tax_amount, total_amount, currency, 
+              invoicing_mode, invoiced_quantity, payment_days, notes, status
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          `;
 
-        const invoiceValues = [
-          po_id, po_number, invoice_number, customer_name, customer_email || '',
-          customer_phone || '', customer_address || '', 
-          invoice_date || new Date().toISOString().split('T')[0],
-          calculated_due_date,
-          subtotal, 0, 0, totalAmount, currency || 'PKR',
-          'quantity', totalQuantity, payment_days, notes || '', status || 'Draft'
-        ];
+          const invoiceValues = [
+            po_id, po_number, invoice_number, customer_name, customer_email || '',
+            customer_phone || '', customer_address || '', 
+            invoice_date || new Date().toISOString().split('T')[0],
+            calculated_due_date,
+            subtotal, invoiceTaxRate, invoiceTaxAmount, totalAmount, currency || 'PKR',
+            'quantity', totalQuantity, payment_days, notes || '', status || 'Draft'
+          ];
 
-        db.query(invoiceQuery, invoiceValues, (invoiceErr, invoiceResult) => {
-          if (invoiceErr) {
-            return db.rollback(() => {
-              console.error("Error creating quantity-based invoice:", invoiceErr);
-              res.status(500).json({ error: "Failed to create invoice", details: invoiceErr.message });
-            });
-          }
-
-          const invoiceId = invoiceResult.insertId;
-
-          // Step 3: Create invoice items
-          const itemInsertPromises = validatedItems.map((item, index) => {
-            return new Promise((resolve, reject) => {
-              const itemQuery = `
-                INSERT INTO po_invoice_items (
-                  po_invoice_id, po_item_id, item_no, description,
-                  po_quantity, invoiced_quantity, remaining_quantity,
-                  unit, net_weight, unit_price, amount
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-              `;
-              
-              const itemValues = [
-                invoiceId, item.id, index + 1, item.description,
-                item.po_quantity, item.invoiced_quantity, item.remaining_quantity,
-                item.unit, item.net_weight || 0, item.unit_price, item.item_amount
-              ];
-              
-              db.query(itemQuery, itemValues, (itemErr, itemResult) => {
-                if (itemErr) {
-                  return reject(itemErr);
-                }
-                resolve(itemResult);
+          db.query(invoiceQuery, invoiceValues, (invoiceErr, invoiceResult) => {
+            if (invoiceErr) {
+              return db.rollback(() => {
+                console.error("Error creating quantity-based invoice:", invoiceErr);
+                res.status(500).json({ error: "Failed to create invoice", details: invoiceErr.message });
               });
-            });
-          });
+            }
 
-          // Insert all items
-          Promise.all(itemInsertPromises)
-            .then(() => {
-              // Commit transaction
-              db.commit((commitErr) => {
-                if (commitErr) {
-                  return db.rollback(() => {
-                    console.error("Transaction commit error:", commitErr);
-                    res.status(500).json({ error: "Failed to commit transaction" });
-                  });
-                }
+            const invoiceId = invoiceResult.insertId;
 
-                console.log(`✅ Quantity-based invoice created successfully: ${invoice_number}`);
-                console.log(`   - PO: ${po_number}`);
-                console.log(`   - Items: ${validatedItems.length}`);
-                console.log(`   - Total Quantity: ${totalQuantity}`);
-                console.log(`   - Total Amount: PKR ${totalAmount}`);
+            // Step 3: Create invoice items
+            const itemInsertPromises = validatedItems.map((item, index) => {
+              return new Promise((resolve, reject) => {
+                const itemQuery = `
+                  INSERT INTO po_invoice_items (
+                    po_invoice_id, po_item_id, item_no, description,
+                    po_quantity, invoiced_quantity, remaining_quantity,
+                    unit, net_weight, unit_price, amount
+                  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                `;
                 
-                res.status(201).json({
-                  id: invoiceId,
-                  message: "Quantity-based invoice created successfully",
-                  details: {
-                    items_processed: validatedItems.length,
-                    total_po_items: items.length,
-                    total_quantity: totalQuantity,
-                    total_amount: totalAmount
-                  },
-                  invoice: {
-                    id: invoiceId,
-                    invoice_number,
-                    po_number,
-                    customer_name,
-                    invoicing_mode: 'quantity',
-                    total_quantity: totalQuantity,
-                    total_amount: totalAmount,
-                    items: validatedItems.map(item => ({
-                      po_item_id: item.id,
-                      description: item.description,
-                      invoiced_quantity: item.invoiced_quantity,
-                      remaining_quantity: item.remaining_quantity,
-                      amount: item.item_amount
-                    })),
-                    status
+                const itemValues = [
+                  invoiceId, item.id, index + 1, item.description,
+                  item.po_quantity, item.invoiced_quantity, item.remaining_quantity,
+                  item.unit, item.net_weight || 0, item.unit_price, item.item_amount
+                ];
+                
+                db.query(itemQuery, itemValues, (itemErr, itemResult) => {
+                  if (itemErr) {
+                    return reject(itemErr);
                   }
+                  resolve(itemResult);
                 });
               });
-            })
-            .catch((itemInsertErr) => {
-              db.rollback(() => {
-                console.error("Error inserting invoice items:", itemInsertErr);
-                res.status(500).json({ error: "Failed to create invoice items", details: itemInsertErr.message });
-              });
             });
+
+            // Insert all items
+            Promise.all(itemInsertPromises)
+              .then(() => {
+                // Commit transaction
+                db.commit((commitErr) => {
+                  if (commitErr) {
+                    return db.rollback(() => {
+                      console.error("Transaction commit error:", commitErr);
+                      res.status(500).json({ error: "Failed to commit transaction" });
+                    });
+                  }
+
+                  console.log(`✅ Quantity-based invoice created successfully: ${invoice_number}`);
+                  console.log(`   - PO: ${po_number}`);
+                  console.log(`   - Items: ${validatedItems.length}`);
+                  console.log(`   - Total Quantity: ${totalQuantity}`);
+                  console.log(`   - Tax Rate: ${invoiceTaxRate}%`);
+                  console.log(`   - Tax Amount: PKR ${invoiceTaxAmount}`);
+                  console.log(`   - Total Amount: PKR ${totalAmount}`);
+                  
+                  res.status(201).json({
+                    id: invoiceId,
+                    message: "Quantity-based invoice created successfully",
+                    details: {
+                      items_processed: validatedItems.length,
+                      total_po_items: items.length,
+                      total_quantity: totalQuantity,
+                      subtotal: subtotal,
+                      tax_rate: invoiceTaxRate,
+                      tax_amount: invoiceTaxAmount,
+                      total_amount: totalAmount
+                    },
+                    invoice: {
+                      id: invoiceId,
+                      invoice_number,
+                      po_number,
+                      customer_name,
+                      invoicing_mode: 'quantity',
+                      total_quantity: totalQuantity,
+                      subtotal: subtotal,
+                      tax_rate: invoiceTaxRate,
+                      tax_amount: invoiceTaxAmount,
+                      total_amount: totalAmount,
+                      items: validatedItems.map(item => ({
+                        po_item_id: item.id,
+                        description: item.description,
+                        invoiced_quantity: item.invoiced_quantity,
+                        remaining_quantity: item.remaining_quantity,
+                        amount: item.item_amount
+                      })),
+                      status
+                    }
+                  });
+                });
+              })
+              .catch((itemInsertErr) => {
+                db.rollback(() => {
+                  console.error("Error inserting invoice items:", itemInsertErr);
+                  res.status(500).json({ error: "Failed to create invoice items", details: itemInsertErr.message });
+                });
+              });
+          });
+        })
+        .catch((validationErr) => {
+          db.rollback(() => {
+            console.error("Item validation error:", validationErr);
+            res.status(400).json({ error: "Item validation failed", details: validationErr.message });
+          });
         });
-      })
-      .catch((validationErr) => {
-        db.rollback(() => {
-          console.error("Item validation error:", validationErr);
-          res.status(400).json({ error: "Item validation failed", details: validationErr.message });
-        });
-      });
+    });
   });
 }
 
