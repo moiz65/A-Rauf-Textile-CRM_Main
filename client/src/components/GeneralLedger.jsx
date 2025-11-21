@@ -543,30 +543,17 @@ const GeneralLedger = () => {
     });
     
     // Recalculate balances based on filtered entries
-    // For paid entries, show amount in CREDIT column (payment received)
+    // ALWAYS show debit as DEBIT and credit as CREDIT, regardless of status
+    // Status only affects the visual indicator, not which column the amount appears in
     let runningBalance = 0;
     return data.map(entry => {
       // Get actual debit/credit values with fallbacks for different field names
       const debitValue = parseFloat(entry.debit) || parseFloat(entry.debit_amount) || 0;
       const creditValue = parseFloat(entry.credit) || parseFloat(entry.credit_amount) || 0;
       
-      // Check if entry is paid/draft/pending (case-insensitive)
-      const statusLower = (entry.status || '').toLowerCase();
-      const isPaid = statusLower === 'paid';
-      
-      // For PAID entries: amount goes to CREDIT column only
-      // For other entries (Draft/Pending/Manual): show debit in DEBIT, credit in CREDIT
-      let displayDebit, displayCredit;
-      
-      if (isPaid) {
-        // Paid entries: show only in CREDIT column
-        displayDebit = null;  // Use null instead of 0 to distinguish from zero amounts
-        displayCredit = debitValue || creditValue || 0;  // Use debit if available, else credit
-      } else {
-        // Draft/Pending/Manual: show debit and credit separately
-        displayDebit = debitValue > 0 ? debitValue : null;
-        displayCredit = creditValue > 0 ? creditValue : null;
-      }
+      // Display debit and credit in their correct columns (never move them based on status)
+      const displayDebit = debitValue > 0 ? debitValue : null;
+      const displayCredit = creditValue > 0 ? creditValue : null;
       
       return {
         ...entry,
@@ -1368,19 +1355,27 @@ const GeneralLedger = () => {
                       
                       {/* Payment Status Column */}
                       <td className="px-6 py-4 text-center">
-                        <span className={`inline-flex items-center px-3 py-1.5 rounded text-xs font-medium ${paymentStatus.color}`}>
-                          {paymentStatus.label}
-                        </span>
+                        {/* For paid DEBIT entries, show only PAID badge */}
+                        {entry.status === 'paid' && entry._displayDebit && entry._displayDebit > 0 ? (
+                          <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-700 border border-amber-300">
+                            PAID
+                          </span>
+                        ) : (
+                          /* For all other entries, show normal status badge */
+                          <span className={`inline-flex items-center px-3 py-1.5 rounded text-xs font-medium ${paymentStatus.color}`}>
+                            {paymentStatus.label}
+                          </span>
+                        )}
                       </td>
                       
                       <td className="px-6 py-4 text-center">
                         <span className={`inline-flex items-center px-3 py-1.5 rounded text-xs font-medium ${
-                          (entry.payment_mode || entry.paymentMode) ? 'bg-green-100 text-green-700' : (entry.cash > 0 ? 'bg-slate-200 text-slate-700' : entry.online > 0 ? 'bg-slate-200 text-slate-700' : entry.cheque > 0 ? 'bg-slate-200 text-slate-700' : 'bg-slate-100 text-slate-600')
+                          (entry.payment_mode || entry.paymentMode) && (entry.payment_mode || entry.paymentMode).toLowerCase() !== 'pending' ? 'bg-green-100 text-green-700' : (entry.cash > 0 ? 'bg-slate-200 text-slate-700' : entry.online > 0 ? 'bg-slate-200 text-slate-700' : entry.cheque > 0 ? 'bg-slate-200 text-slate-700' : 'bg-slate-100 text-slate-600')
                         }`}>
-                          {entry.payment_mode || entry.paymentMode ? (
-                            `${entry.payment_mode || entry.paymentMode}${(entry.payment_mode || entry.paymentMode) === 'Cheque' && (entry.chequeNo || entry.cheque_no) ? ` (${entry.chequeNo || entry.cheque_no})` : ''}`
+                          {(entry.payment_mode || entry.paymentMode) && (entry.payment_mode || entry.paymentMode).toLowerCase() !== 'pending' ? (
+                            `via ${entry.payment_mode || entry.paymentMode}${(entry.payment_mode || entry.paymentMode) === 'Cheque' && (entry.chequeNo || entry.cheque_no) ? ` (${entry.chequeNo || entry.cheque_no})` : ''}`
                           ) : (
-                            entry.cash > 0 ? 'Cash' : entry.online > 0 ? 'Online' : entry.cheque > 0 ? `Cheque${entry.chequeNo ? ` (${entry.chequeNo})` : ''}` : '-'
+                            entry.cash > 0 ? 'via Cash' : entry.online > 0 ? 'via Online' : entry.cheque > 0 ? `via Cheque${entry.chequeNo ? ` (${entry.chequeNo})` : ''}` : '-'
                           )}
                         </span>
                       </td>
@@ -1390,7 +1385,7 @@ const GeneralLedger = () => {
                       <td className="px-6 py-4 text-right font-semibold text-slate-900">
                         {entry._displayCredit !== null && entry._displayCredit > 0 ? formatCurrency(entry._displayCredit) : '-'}
                       </td>
-                      <td className="px-8 py-4 text-right font-bold text-slate-900 bg-slate-100 rounded-lg min-w-[140px]">{formatCurrency(entry.balance)}</td>
+                      <td className="px-8 py-4 text-right font-bold text-slate-900 bg-slate-100 rounded-lg min-w-[140px]">{formatCurrency(entry.balance === -0 ? 0 : entry.balance)}</td>
                       {isTableExpanded && (
                         <td className={`px-6 py-4 text-center font-semibold text-sm text-slate-700`}>
                           {entry.days ? `${entry.days}d` : '-'}

@@ -26,6 +26,7 @@ router.get('/:customer_id', async (req, res) => {
     }
 
     // Query to fetch normal invoices for the customer
+    // EXCLUDE invoices that already have automatic ledger entries (to avoid duplication)
     const invoiceQuery = `
       SELECT 
         i.id,
@@ -53,6 +54,11 @@ router.get('/:customer_id', async (req, res) => {
       FROM invoice i
       LEFT JOIN invoice_items ii ON i.id = ii.invoice_id
       WHERE i.customer_id = ? ${invoiceDateFilter}
+        AND NOT EXISTS (
+          SELECT 1 FROM ledger_entries le 
+          WHERE le.bill_no = i.invoice_number 
+          AND le.customer_id = i.customer_id
+        )
       GROUP BY i.id
       ORDER BY i.bill_date DESC
     `;
@@ -60,6 +66,7 @@ router.get('/:customer_id', async (req, res) => {
     // Query to fetch PO invoices for the customer (with tax data)
     // Filter by matching customer name with the current customer's name
     // Description: Get item descriptions from po_invoice_items, fallback to purchase_order_items, then notes field
+    // EXCLUDE PO invoices that already have automatic ledger entries (to avoid duplication)
     const poInvoiceQuery = `
       SELECT 
         poi.id,
@@ -100,6 +107,10 @@ router.get('/:customer_id', async (req, res) => {
       LEFT JOIN purchase_orders po ON poi.po_id = po.id
       LEFT JOIN purchase_order_items poi2 ON po.id = poi2.purchase_order_id
       WHERE poi.customer_name = (SELECT customer FROM customertable WHERE customer_id = ?) ${poDateFilter}
+        AND NOT EXISTS (
+          SELECT 1 FROM ledger_entries le 
+          WHERE le.bill_no = poi.invoice_number
+        )
       GROUP BY poi.id, poi.invoice_number, poi.invoice_date, poi.due_date, poi.payment_days, poi.total_amount, poi.subtotal, poi.tax_rate, poi.tax_amount, poi.status, poi.notes, poi.invoiced_quantity
       ORDER BY poi.invoice_date DESC
     `;
