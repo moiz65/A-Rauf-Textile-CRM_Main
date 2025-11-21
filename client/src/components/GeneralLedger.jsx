@@ -1355,24 +1355,24 @@ const GeneralLedger = () => {
                       
                       {/* Payment Status Column */}
                       <td className="px-6 py-4 text-center">
-                        {/* For paid DEBIT entries, show only PAID badge */}
-                        {entry.status === 'paid' && entry._displayDebit && entry._displayDebit > 0 ? (
-                          <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-700 border border-amber-300">
-                            PAID
-                          </span>
-                        ) : (
-                          /* For all other entries, show normal status badge */
+                        <div className="flex items-center justify-center gap-2">
                           <span className={`inline-flex items-center px-3 py-1.5 rounded text-xs font-medium ${paymentStatus.color}`}>
                             {paymentStatus.label}
                           </span>
-                        )}
+                          {/* Show PAID badge for paid DEBIT entries */}
+                          {entry.status === 'paid' && entry._displayDebit && entry._displayDebit > 0 && (
+                            <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-700 border border-amber-300">
+                              PAID
+                            </span>
+                          )}
+                        </div>
                       </td>
                       
                       <td className="px-6 py-4 text-center">
                         <span className={`inline-flex items-center px-3 py-1.5 rounded text-xs font-medium ${
-                          (entry.payment_mode || entry.paymentMode) && (entry.payment_mode || entry.paymentMode).toLowerCase() !== 'pending' ? 'bg-green-100 text-green-700' : (entry.cash > 0 ? 'bg-slate-200 text-slate-700' : entry.online > 0 ? 'bg-slate-200 text-slate-700' : entry.cheque > 0 ? 'bg-slate-200 text-slate-700' : 'bg-slate-100 text-slate-600')
+                          (entry.payment_mode || entry.paymentMode) ? 'bg-green-100 text-green-700' : (entry.cash > 0 ? 'bg-slate-200 text-slate-700' : entry.online > 0 ? 'bg-slate-200 text-slate-700' : entry.cheque > 0 ? 'bg-slate-200 text-slate-700' : 'bg-slate-100 text-slate-600')
                         }`}>
-                          {(entry.payment_mode || entry.paymentMode) && (entry.payment_mode || entry.paymentMode).toLowerCase() !== 'pending' ? (
+                          {entry.payment_mode || entry.paymentMode ? (
                             `via ${entry.payment_mode || entry.paymentMode}${(entry.payment_mode || entry.paymentMode) === 'Cheque' && (entry.chequeNo || entry.cheque_no) ? ` (${entry.chequeNo || entry.cheque_no})` : ''}`
                           ) : (
                             entry.cash > 0 ? 'via Cash' : entry.online > 0 ? 'via Online' : entry.cheque > 0 ? `via Cheque${entry.chequeNo ? ` (${entry.chequeNo})` : ''}` : '-'
@@ -1385,7 +1385,7 @@ const GeneralLedger = () => {
                       <td className="px-6 py-4 text-right font-semibold text-slate-900">
                         {entry._displayCredit !== null && entry._displayCredit > 0 ? formatCurrency(entry._displayCredit) : '-'}
                       </td>
-                      <td className="px-8 py-4 text-right font-bold text-slate-900 bg-slate-100 rounded-lg min-w-[140px]">{formatCurrency(entry.balance === -0 ? 0 : entry.balance)}</td>
+                      <td className="px-8 py-4 text-right font-bold text-slate-900 bg-slate-100 rounded-lg min-w-[140px]">{formatCurrency(entry.balance)}</td>
                       {isTableExpanded && (
                         <td className={`px-6 py-4 text-center font-semibold text-sm text-slate-700`}>
                           {entry.days ? `${entry.days}d` : '-'}
