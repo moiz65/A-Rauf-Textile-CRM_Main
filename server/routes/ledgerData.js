@@ -25,13 +25,39 @@ router.get('/:customer_id', async (req, res) => {
       queryParams.push(fromDate, toDate);
     }
 
+    // Detect if the ledger_entries table has the `entry_type` column.
+    // Some installations may not have the migration applied yet.
+    let hasEntryType = false;
+    try {
+      const [cols] = await db.query("SHOW COLUMNS FROM ledger_entries LIKE 'entry_type'");
+      hasEntryType = Array.isArray(cols) && cols.length > 0;
+    } catch (colErr) {
+      // If the query fails (table missing or permission), assume false and continue
+      console.warn('[ledgerData] Could not detect entry_type column:', colErr.message);
+      hasEntryType = false;
+    }
+
     // Query to fetch normal invoices for the customer
     // EXCLUDE invoices that already have automatic ledger entries (to avoid duplication)
+    const invoiceNotExistsClause = hasEntryType
+      ? `AND NOT EXISTS (
+          SELECT 1 FROM ledger_entries le 
+          WHERE LOWER(le.bill_no) = LOWER(i.invoice_number) 
+          AND le.customer_id = i.customer_id
+          AND le.entry_type IN ('invoice', 'invoice_tax')
+        )`
+      : `AND NOT EXISTS (
+          SELECT 1 FROM ledger_entries le 
+          WHERE LOWER(le.bill_no) = LOWER(i.invoice_number) 
+          AND le.customer_id = i.customer_id
+        )`;
+
     const invoiceQuery = `
       SELECT 
         i.id,
         CONCAT(i.id, ' - ', i.invoice_number) as 'particulars',
-        i.bill_date as 'date',
+          i.bill_date as 'date',
+          i.created_at as 'created_at',
         i.payment_deadline as 'dueDate',
         i.payment_days,
   GROUP_CONCAT(DISTINCT ii.description SEPARATOR ', ') as 'description',
@@ -54,11 +80,7 @@ router.get('/:customer_id', async (req, res) => {
       FROM invoice i
       LEFT JOIN invoice_items ii ON i.id = ii.invoice_id
       WHERE i.customer_id = ? ${invoiceDateFilter}
-        AND NOT EXISTS (
-          SELECT 1 FROM ledger_entries le 
-          WHERE le.bill_no = i.invoice_number 
-          AND le.customer_id = i.customer_id
-        )
+        ${invoiceNotExistsClause}
       GROUP BY i.id
       ORDER BY i.bill_date DESC
     `;
@@ -67,11 +89,23 @@ router.get('/:customer_id', async (req, res) => {
     // Filter by matching customer name with the current customer's name
     // Description: Get item descriptions from po_invoice_items, fallback to purchase_order_items, then notes field
     // EXCLUDE PO invoices that already have automatic ledger entries (to avoid duplication)
+    const poNotExistsClause = hasEntryType
+      ? `AND NOT EXISTS (
+          SELECT 1 FROM ledger_entries le 
+          WHERE LOWER(le.bill_no) = LOWER(poi.invoice_number)
+          AND le.entry_type IN ('po_invoice', 'po_invoice_tax')
+        )`
+      : `AND NOT EXISTS (
+          SELECT 1 FROM ledger_entries le 
+          WHERE LOWER(le.bill_no) = LOWER(poi.invoice_number)
+        )`;
+
     const poInvoiceQuery = `
       SELECT 
         poi.id,
         CONCAT(poi.id, ' - ', poi.invoice_number) as 'particulars',
         poi.invoice_date as 'date',
+        poi.created_at as 'created_at',
         poi.due_date as 'dueDate',
         poi.payment_days,
         CASE 
@@ -107,10 +141,7 @@ router.get('/:customer_id', async (req, res) => {
       LEFT JOIN purchase_orders po ON poi.po_id = po.id
       LEFT JOIN purchase_order_items poi2 ON po.id = poi2.purchase_order_id
       WHERE poi.customer_name = (SELECT customer FROM customertable WHERE customer_id = ?) ${poDateFilter}
-        AND NOT EXISTS (
-          SELECT 1 FROM ledger_entries le 
-          WHERE le.bill_no = poi.invoice_number
-        )
+        ${poNotExistsClause}
       GROUP BY poi.id, poi.invoice_number, poi.invoice_date, poi.due_date, poi.payment_days, poi.total_amount, poi.subtotal, poi.tax_rate, poi.tax_amount, poi.status, poi.notes, poi.invoiced_quantity
       ORDER BY poi.invoice_date DESC
     `;
@@ -163,7 +194,8 @@ router.get('/:customer_id', async (req, res) => {
             ...invoice,
             debit: productAmount,
             credit: 0,
-            sequence: currentSequence
+            sequence: currentSequence,
+            created_at: invoice.created_at
           });
           console.log(`✅ Added main entry for INV-${invoice.invoiceId}: Debit=${productAmount}`);
           
@@ -191,6 +223,7 @@ router.get('/:customer_id', async (req, res) => {
               status: invoice.status,
               sequence: currentSequence + 0.5 // Place right after invoice
             };
+            taxEntry.created_at = invoice.created_at;
             processedInvoices.push(taxEntry);
             console.log(`💰 Added tax entry for INV-${invoice.invoiceId}: Debit=${taxAmount}, Particulars="${taxEntry.particulars}"`);
           }
@@ -218,7 +251,8 @@ router.get('/:customer_id', async (req, res) => {
             ...poInvoice,
             debit: productAmount,
             credit: 0,
-            sequence: currentSequence
+            sequence: currentSequence,
+            created_at: poInvoice.created_at
           });
           console.log(`✅ Added main PO entry for ${poInvoice.invoiceId}: Debit=${productAmount}, Description="${poInvoice.description}"`);
           
@@ -246,20 +280,25 @@ router.get('/:customer_id', async (req, res) => {
               status: poInvoice.status,
               sequence: currentSequence + 0.5 // Place right after PO invoice
             };
+            taxEntry.created_at = poInvoice.created_at;
             processedPOInvoices.push(taxEntry);
             console.log(`💰 Added PO tax entry for ${poInvoice.invoiceId}: Debit=${taxAmount}, Particulars="${taxEntry.particulars}"`);
           }
         });
         
-    // Sort ASCENDING by date (oldest first) to match chronological order
+    // Sort primarily by created_at ASC (oldest first) so that the most recently created invoice appears last
     const displayOrderResults = [
       ...processedInvoices,
       ...processedPOInvoices
     ].sort((a, b) => {
-          // Sort by date ASCENDING (oldest first)
+          // Sort by created_at ASCENDING first (oldest first)
+          const createdCompare = new Date(a.created_at || a.date || 0) - new Date(b.created_at || b.date || 0);
+          if (createdCompare !== 0) return createdCompare;
+
+          // Then by date ASCENDING (oldest first)
           const dateCompare = new Date(a.date) - new Date(b.date);
           if (dateCompare !== 0) return dateCompare;
-          
+
           // Then by sequence ASCENDING to keep invoice before tax (main entry first, then tax)
           return (a.sequence || 0) - (b.sequence || 0);
         });

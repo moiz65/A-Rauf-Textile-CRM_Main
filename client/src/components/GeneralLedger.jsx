@@ -1253,7 +1253,6 @@ const GeneralLedger = () => {
                   {isTableExpanded && (
                     <th className="px-6 py-4 text-center font-bold text-white whitespace-nowrap text-xs uppercase tracking-wider">Days</th>
                   )}
-                  <th className="px-6 py-4 text-left font-bold text-white whitespace-nowrap text-xs uppercase tracking-wider">Due Date</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200">
@@ -1355,25 +1354,27 @@ const GeneralLedger = () => {
                       
                       {/* Payment Status Column */}
                       <td className="px-6 py-4 text-center">
-                        <div className="flex items-center justify-center gap-2">
+                        {/* For paid DEBIT entries: show only PAID badge */}
+                        {entry.status === 'paid' && entry._displayDebit && entry._displayDebit > 0 ? (
+                          <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-700 border border-amber-300">
+                            PAID
+                          </span>
+                        ) : (
+                          /* For all other entries: show status label */
                           <span className={`inline-flex items-center px-3 py-1.5 rounded text-xs font-medium ${paymentStatus.color}`}>
                             {paymentStatus.label}
                           </span>
-                          {/* Show PAID badge for paid DEBIT entries */}
-                          {entry.status === 'paid' && entry._displayDebit && entry._displayDebit > 0 && (
-                            <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-700 border border-amber-300">
-                              PAID
-                            </span>
-                          )}
-                        </div>
+                        )}
                       </td>
                       
                       <td className="px-6 py-4 text-center">
                         <span className={`inline-flex items-center px-3 py-1.5 rounded text-xs font-medium ${
-                          (entry.payment_mode || entry.paymentMode) ? 'bg-green-100 text-green-700' : (entry.cash > 0 ? 'bg-slate-200 text-slate-700' : entry.online > 0 ? 'bg-slate-200 text-slate-700' : entry.cheque > 0 ? 'bg-slate-200 text-slate-700' : 'bg-slate-100 text-slate-600')
+                          (entry.payment_mode || entry.paymentMode) && (entry.payment_mode || entry.paymentMode) !== 'Pending' ? 'bg-green-100 text-green-700' : (entry.cash > 0 ? 'bg-slate-200 text-slate-700' : entry.online > 0 ? 'bg-slate-200 text-slate-700' : entry.cheque > 0 ? 'bg-slate-200 text-slate-700' : 'bg-slate-100 text-slate-600')
                         }`}>
-                          {entry.payment_mode || entry.paymentMode ? (
-                            `via ${entry.payment_mode || entry.paymentMode}${(entry.payment_mode || entry.paymentMode) === 'Cheque' && (entry.chequeNo || entry.cheque_no) ? ` (${entry.chequeNo || entry.cheque_no})` : ''}`
+                          {entry.payment_mode && entry.payment_mode !== 'Pending' ? (
+                            `via ${entry.payment_mode}${entry.payment_mode === 'Cheque' && (entry.chequeNo || entry.cheque_no) ? ` (${entry.chequeNo || entry.cheque_no})` : ''}`
+                          ) : entry.paymentMode && entry.paymentMode !== 'Pending' ? (
+                            `via ${entry.paymentMode}${entry.paymentMode === 'Cheque' && (entry.chequeNo || entry.cheque_no) ? ` (${entry.chequeNo || entry.cheque_no})` : ''}`
                           ) : (
                             entry.cash > 0 ? 'via Cash' : entry.online > 0 ? 'via Online' : entry.cheque > 0 ? `via Cheque${entry.chequeNo ? ` (${entry.chequeNo})` : ''}` : '-'
                           )}
@@ -1391,7 +1392,6 @@ const GeneralLedger = () => {
                           {entry.days ? `${entry.days}d` : '-'}
                         </td>
                       )}
-                      <td className="px-6 py-4 text-slate-700 text-sm whitespace-nowrap">{formatDate(entry.dueDate)}</td>
                       
                       {/* Actions column removed as requested */}
                     </tr>
@@ -1418,7 +1418,6 @@ const GeneralLedger = () => {
                   <td className="px-6 py-5 text-right text-lg">{formatCurrency(summary.totalCredit)}</td>
                   <td className="px-6 py-5 text-right text-lg">{formatCurrency(summary.netBalance)}</td>
                   {isTableExpanded && <td colSpan="1"></td>}
-                  <td colSpan="2" className="px-6 py-5"></td>
                 </tr>
               </tfoot>
             </table>

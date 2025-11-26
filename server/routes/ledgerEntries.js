@@ -2,6 +2,19 @@ const express = require('express');
 const router = express.Router();
 const db = require('../src/config/db');
 
+// Cache for checking whether ledger_entries has `entry_type` column
+let _hasEntryTypeCache = null;
+async function hasEntryTypeColumn() {
+  if (_hasEntryTypeCache !== null) return _hasEntryTypeCache;
+  try {
+    const [cols] = await db.query("SHOW COLUMNS FROM ledger_entries LIKE 'entry_type'");
+    _hasEntryTypeCache = Array.isArray(cols) && cols.length > 0;
+  } catch (e) {
+    _hasEntryTypeCache = false;
+  }
+  return _hasEntryTypeCache;
+}
+
 // Helper function to calculate balance
 const calculateBalance = async (customerId, currentEntryId = null) => {
   try {
@@ -98,31 +111,61 @@ router.post('/customer/:customerId', async (req, res) => {
     const sequence = await getNextSequence(customerId, entryDate);
     const numSequence = Number(sequence) || 1;  // Ensure sequence is a number
 
-    // Insert main ledger entry
-    const [entryResult] = await connection.query(
-      `INSERT INTO ledger_entries 
-       (customer_id, entry_date, description, bill_no, payment_mode, cheque_no, 
-        debit_amount, credit_amount, balance, status, due_date, has_multiple_items, 
-        sales_tax_rate, sales_tax_amount, sequence)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
-        customerId,
-        entryDate,
-        description || null,
-        billNo || null,
-        paymentMode || 'Cash',
-        chequeNo || null,
-        debit,
-        credit,
-        Number(newBalance.toFixed(2)),  // Ensure rounded to 2 decimals
-        status || 'pending',
-        dueDate || null,
-        useLineItems ? 1 : 0,
-        Number(parseFloat(salesTaxRate) || 0),
-        Number(parseFloat(salesTaxAmount) || 0),
-        numSequence
-      ]
-    );
+    // Insert main ledger entry (adapt to whether entry_type column exists)
+    const _hasEntryType = await hasEntryTypeColumn();
+    let entryResult;
+    if (_hasEntryType) {
+      [entryResult] = await connection.query(
+        `INSERT INTO ledger_entries 
+         (customer_id, entry_date, description, bill_no, entry_type, payment_mode, cheque_no, 
+          debit_amount, credit_amount, balance, status, due_date, has_multiple_items, 
+          sales_tax_rate, sales_tax_amount, sequence)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          customerId,
+          entryDate,
+          description || null,
+          billNo || null,
+          req.body.entryType || 'manual',
+          paymentMode || 'Cash',
+          chequeNo || null,
+          debit,
+          credit,
+          Number(newBalance.toFixed(2)),
+          status || 'pending',
+          dueDate || null,
+          useLineItems ? 1 : 0,
+          Number(parseFloat(salesTaxRate) || 0),
+          Number(parseFloat(salesTaxAmount) || 0),
+          numSequence
+        ]
+      );
+    } else {
+      [entryResult] = await connection.query(
+        `INSERT INTO ledger_entries 
+         (customer_id, entry_date, description, bill_no, payment_mode, cheque_no, 
+          debit_amount, credit_amount, balance, status, due_date, has_multiple_items, 
+          sales_tax_rate, sales_tax_amount, sequence)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          customerId,
+          entryDate,
+          description || null,
+          billNo || null,
+          paymentMode || 'Cash',
+          chequeNo || null,
+          debit,
+          credit,
+          Number(newBalance.toFixed(2)),
+          status || 'pending',
+          dueDate || null,
+          useLineItems ? 1 : 0,
+          Number(parseFloat(salesTaxRate) || 0),
+          Number(parseFloat(salesTaxAmount) || 0),
+          numSequence
+        ]
+      );
+    }
 
     const entryId = entryResult.insertId;
 
@@ -174,7 +217,7 @@ router.post('/customer/:customerId', async (req, res) => {
       );
     }
 
-    // If there's sales tax and this is NOT already a tax entry, create a separate tax entry
+      // If there's sales tax and this is NOT already a tax entry, create a separate tax entry
     if (salesTaxAmount && parseFloat(salesTaxAmount) > 0 && !isTaxEntry) {
       const taxSequence = numSequence + 0.5; // Tax entry comes after main entry
       const taxAmount = Number(salesTaxAmount) || 0;
@@ -186,25 +229,55 @@ router.post('/customer/:customerId', async (req, res) => {
         throw new Error('Invalid tax balance calculation');
       }
       
-      await connection.query(
-        `INSERT INTO ledger_entries 
-         (customer_id, entry_date, description, bill_no, payment_mode, 
-          debit_amount, credit_amount, balance, status, has_multiple_items, sequence)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [
-          customerId,
-          entryDate,
-          `Sales Tax (${salesTaxRate}%) - ${description || billNo || 'Entry'}`,
-          billNo || null,
-          paymentMode || 'Cash',
-          Number(taxAmount),
-          0,
-          Number(taxBalance.toFixed(2)),
-          status || 'pending',
-          0,
-          Number(taxSequence.toFixed(1))  // Ensure it's a proper decimal
-        ]
-      );
+      // Determine tax entry type based on parent entry type
+      const parentEntryType = req.body.entryType || 'manual';
+      const taxEntryType = parentEntryType === 'invoice' ? 'invoice_tax' : 
+                          parentEntryType === 'po_invoice' ? 'po_invoice_tax' :
+                          parentEntryType === 'payment' ? 'payment_tax' : 'manual';
+      
+      const _hasEntryType2 = await hasEntryTypeColumn();
+      if (_hasEntryType2) {
+        await connection.query(
+          `INSERT INTO ledger_entries 
+           (customer_id, entry_date, description, bill_no, entry_type, payment_mode, 
+            debit_amount, credit_amount, balance, status, has_multiple_items, sequence)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            customerId,
+            entryDate,
+            `Sales Tax (${salesTaxRate}%) - ${description || billNo || 'Entry'}`,
+            billNo || null,
+            taxEntryType,
+            paymentMode || 'Cash',
+            Number(taxAmount),
+            0,
+            Number(taxBalance.toFixed(2)),
+            status || 'pending',
+            0,
+            Number(taxSequence.toFixed(1))  // Ensure it's a proper decimal
+          ]
+        );
+      } else {
+        await connection.query(
+          `INSERT INTO ledger_entries 
+           (customer_id, entry_date, description, bill_no, payment_mode, 
+            debit_amount, credit_amount, balance, status, has_multiple_items, sequence)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            customerId,
+            entryDate,
+            `Sales Tax (${salesTaxRate}%) - ${description || billNo || 'Entry'}`,
+            billNo || null,
+            paymentMode || 'Cash',
+            Number(taxAmount),
+            0,
+            Number(taxBalance.toFixed(2)),
+            status || 'pending',
+            0,
+            Number(taxSequence.toFixed(1))
+          ]
+        );
+      }
     }
 
     await connection.commit();
@@ -272,7 +345,7 @@ router.get('/customer/:customerId', async (req, res) => {
       params.push(status);
     }
 
-    query += ' ORDER BY entry_date DESC, sequence ASC';
+    query += ' ORDER BY created_at ASC, entry_date ASC, sequence ASC';
 
     const [entries] = await db.query(query, params);
 
@@ -330,6 +403,61 @@ router.get('/customer/:customerId', async (req, res) => {
       error: 'Failed to fetch ledger entries',
       details: error.message 
     });
+  }
+});
+
+// DELETE: Remove duplicate PO payment DEBIT entries for a given bill_no
+router.delete('/bill/:billNo/payment-debit-duplicates', async (req, res) => {
+  const { billNo } = req.params;
+  const confirm = req.query.confirm === 'true';
+  try {
+    // Find payment debit entries that match the pattern "Payment - PO Invoice <billNo>"
+    const [toDelete] = await db.query(
+      `SELECT entry_id, bill_no, description FROM ledger_entries WHERE bill_no = ? AND description LIKE ? AND debit_amount > 0`,
+      [billNo, `Payment - PO Invoice %`]
+    );
+
+    if (!toDelete || toDelete.length === 0) {
+      return res.json({ success: true, message: 'No duplicate payment DEBIT entries found for this bill_no', deleted: [] });
+    }
+
+    // If not confirmed, return what would be deleted
+    if (!confirm) {
+      return res.json({ success: true, message: 'Found duplicate payment DEBIT entries (not deleted). Set confirm=true to delete.', entries: toDelete });
+    }
+
+    // Perform deletion in a transaction
+    const connection = await db.getConnection();
+    try {
+      await connection.beginTransaction();
+
+      const deletedIds = [];
+      for (const entry of toDelete) {
+        // Delete the main payment debit entry
+        await connection.query(`DELETE FROM ledger_entries WHERE entry_id = ?`, [entry.entry_id]);
+        deletedIds.push(entry.entry_id);
+
+        // Also delete corresponding tax payment debit entry if exists
+        const taxBillNo = `TAX-${billNo}`;
+        const [taxRows] = await connection.query(`SELECT entry_id FROM ledger_entries WHERE bill_no = ? AND debit_amount > 0`, [taxBillNo]);
+        for (const r of taxRows) {
+          await connection.query(`DELETE FROM ledger_entries WHERE entry_id = ?`, [r.entry_id]);
+          deletedIds.push(r.entry_id);
+        }
+      }
+
+      await connection.commit();
+      return res.json({ success: true, message: 'Deleted duplicate payment DEBIT entries', deleted: deletedIds });
+    } catch (err) {
+      await connection.rollback();
+      console.error("Error deleting duplicate payment entries:", err);
+      return res.status(500).json({ success: false, error: err.message });
+    } finally {
+      connection.release();
+    }
+  } catch (error) {
+    console.error(`Error while finding duplicate payment DEBIT entries for ${billNo}:`, error.message);
+    return res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -561,31 +689,61 @@ router.post('/customer/:customerId/bulk', async (req, res) => {
       );
       const sequence = Number(seqResult[0].next_seq) || 1;
 
-      // Insert ledger entry
-      const [entryResult] = await connection.query(
-        `INSERT INTO ledger_entries 
-         (customer_id, entry_date, description, bill_no, payment_mode, cheque_no, 
-          debit_amount, credit_amount, balance, status, due_date, has_multiple_items, 
-          sales_tax_rate, sales_tax_amount, sequence)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [
-          customerId,
-          entryDate,
-          description || null,
-          billNo || null,
-          paymentMode || 'Cash',
-          chequeNo || null,
-          debit,
-          credit,
-          Number(newBalance.toFixed(2)),
-          status || 'pending',
-          dueDate || null,
-          useLineItems ? 1 : 0,
-          Number(parseFloat(salesTaxRate) || 0),
-          Number(parseFloat(salesTaxAmount) || 0),
-          sequence
-        ]
-      );
+      // Insert ledger entry (handle databases without entry_type)
+      const _hasEntryTypeBulk = await hasEntryTypeColumn();
+      let entryResult;
+      if (_hasEntryTypeBulk) {
+        [entryResult] = await connection.query(
+          `INSERT INTO ledger_entries 
+           (customer_id, entry_date, description, bill_no, entry_type, payment_mode, cheque_no, 
+            debit_amount, credit_amount, balance, status, due_date, has_multiple_items, 
+            sales_tax_rate, sales_tax_amount, sequence)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            customerId,
+            entryDate,
+            description || null,
+            billNo || null,
+            entryData.entryType || 'manual',
+            paymentMode || 'Cash',
+            chequeNo || null,
+            debit,
+            credit,
+            Number(newBalance.toFixed(2)),
+            status || 'pending',
+            dueDate || null,
+            useLineItems ? 1 : 0,
+            Number(parseFloat(salesTaxRate) || 0),
+            Number(parseFloat(salesTaxAmount) || 0),
+            sequence
+          ]
+        );
+      } else {
+        [entryResult] = await connection.query(
+          `INSERT INTO ledger_entries 
+           (customer_id, entry_date, description, bill_no, payment_mode, cheque_no, 
+            debit_amount, credit_amount, balance, status, due_date, has_multiple_items, 
+            sales_tax_rate, sales_tax_amount, sequence)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            customerId,
+            entryDate,
+            description || null,
+            billNo || null,
+            paymentMode || 'Cash',
+            chequeNo || null,
+            debit,
+            credit,
+            Number(newBalance.toFixed(2)),
+            status || 'pending',
+            dueDate || null,
+            useLineItems ? 1 : 0,
+            Number(parseFloat(salesTaxRate) || 0),
+            Number(parseFloat(salesTaxAmount) || 0),
+            sequence
+          ]
+        );
+      }
 
       const entryId = entryResult.insertId;
 
