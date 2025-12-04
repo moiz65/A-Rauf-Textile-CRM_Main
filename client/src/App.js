@@ -14,6 +14,8 @@ import PurchaseOrder from './pages/PurchaseOrder';
 import ProtectedRoute from './components/ProtectedRoute';
 import Ledger from './pages/Ledger';
 import FinancialYearPage from './pages/FinancialYearPage';
+import Stock from './pages/Stock';
+import CompanyFinancialProgress from './pages/CompanyFinancialProgress';
 import { AuthProvider } from './context/AuthContext';
 
 // // Import Poppins font weights
@@ -45,6 +47,8 @@ function App() {
             <Route path="/invoice/:type/:id" element={<ProtectedRoute><InvoiceDetails /></ProtectedRoute>} />
             <Route path="/purchase-order" element={<ProtectedRoute><PurchaseOrder /></ProtectedRoute>} />
             <Route path="/purchase-order/:poId" element={<ProtectedRoute><PurchaseOrder /></ProtectedRoute>} />
+            <Route path="/stock" element={<ProtectedRoute><Stock /></ProtectedRoute>} />
+            <Route path="/company-financial-progress" element={<ProtectedRoute><CompanyFinancialProgress /></ProtectedRoute>} />
             <Route path="/ledger" element={<Ledger />} />
             <Route path="/financial-year" element={<ProtectedRoute><FinancialYearPage /></ProtectedRoute>} />
             {/* Add more routes as needed */}

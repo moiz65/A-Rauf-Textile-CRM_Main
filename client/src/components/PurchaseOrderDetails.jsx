@@ -1423,7 +1423,7 @@ const PurchaseOrderDetails = ({ poId, onBack }) => {
                         {poSummary.status}
                       </span>
                       <span className="text-xs text-blue-600 font-medium">
-                        {poSummary.invoicingPercentage.toFixed(1)}% Invoiced
+                        {Number(poSummary.invoicingPercentage || 0).toFixed(1)}% Invoiced
                       </span>
                     </div>
                   );
@@ -2211,7 +2211,7 @@ const PurchaseOrderDetails = ({ poId, onBack }) => {
                         <div className="text-center">
                           <p className="font-semibold text-orange-800 mb-1">Remaining to Invoice</p>
                           <p className="text-xl font-bold text-orange-600">PKR {summary.remainingAmount.toLocaleString()}</p>
-                          <p className="text-xs text-orange-500">{(100 - summary.invoicingPercentage).toFixed(2)}% remaining</p>
+                          <p className="text-xs text-orange-500">{Number(100 - Number(summary.invoicingPercentage || 0)).toFixed(2)}% remaining</p>
                         </div>
                         <div className="text-center">
                           <p className="font-semibold text-purple-800 mb-1">Invoice Count</p>

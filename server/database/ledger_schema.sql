@@ -5,6 +5,7 @@ CREATE TABLE IF NOT EXISTS ledger_entries (
     entry_date DATE NOT NULL,
     description TEXT,
     bill_no VARCHAR(100),
+    entry_type ENUM('invoice', 'invoice_tax', 'po_invoice', 'po_invoice_tax', 'payment', 'payment_tax', 'manual') DEFAULT 'manual',
     payment_mode ENUM('Cash', 'Online', 'Cheque') DEFAULT 'Cash',
     cheque_no VARCHAR(5),
     debit_amount DECIMAL(15, 2) DEFAULT 0.00,
@@ -21,7 +22,8 @@ CREATE TABLE IF NOT EXISTS ledger_entries (
     FOREIGN KEY (customer_id) REFERENCES customertable(customer_id) ON DELETE CASCADE,
     INDEX idx_customer_date (customer_id, entry_date),
     INDEX idx_entry_date (entry_date),
-    INDEX idx_status (status)
+    INDEX idx_status (status),
+    INDEX idx_bill_no_type (bill_no, entry_type)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Ledger Line Items Table (for multiple material entries)

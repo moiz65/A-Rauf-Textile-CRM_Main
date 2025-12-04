@@ -249,7 +249,7 @@ const FinancialOverview = ({ dashboardData }) => {
               </div>
               <div className="text-right">
                 <p className="text-sm font-medium">Rs {formatCurrency(item.value)}</p>
-                <p className="text-xs text-gray-500">{item.percentage?.toFixed(1)}%</p>
+                <p className="text-xs text-gray-500">{Number(item.percentage || 0).toFixed(1)}%</p>
               </div>
             </div>
           ))}

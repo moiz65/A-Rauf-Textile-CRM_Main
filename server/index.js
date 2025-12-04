@@ -18,6 +18,7 @@ const DEV_VERBOSE = process.env.DEV_VERBOSE === 'true' || process.env.NODE_ENV !
 const logger = {
   debug: (...args) => { if (DEV_VERBOSE) console.debug('[DEBUG]', ...args); },
   info: (...args) => { console.log('[INFO]', ...args); },
+  warn: (...args) => { console.warn('[WARN]', ...args); },
   error: (...args) => { console.error('[ERROR]', ...args); }
 };
 
@@ -91,6 +92,39 @@ db.connect((err) => {
   });
 });
 
+// Create stock table if it doesn't exist
+const createStockTable = `
+  CREATE TABLE IF NOT EXISTS stock (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    item_name VARCHAR(255) NOT NULL,
+    category VARCHAR(100),
+    quantity DECIMAL(10, 2) NOT NULL,
+    unit VARCHAR(50) DEFAULT 'KG',
+    price_per_unit DECIMAL(10, 2) DEFAULT 0,
+    supplier_name VARCHAR(255),
+    supplier_email VARCHAR(255),
+    supplier_phone VARCHAR(20),
+    purchase_date DATE,
+    expiry_date DATE,
+    location VARCHAR(255),
+    description TEXT,
+    status ENUM('Active', 'Inactive', 'Low Stock', 'Discontinued') DEFAULT 'Active',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_category (category),
+    INDEX idx_status (status),
+    INDEX idx_created_at (created_at)
+  )
+`;
+
+db.query(createStockTable, (err) => {
+  if (err) {
+    logger.error("Error creating stock table:", err);
+  } else {
+    logger.info("Stock table ready");
+  }
+});
+
 // --- Dashboard Routes ---
 const dashboardRoutes = require('./routes/dashboard');
 app.use('/api/dashboard', dashboardRoutes);
@@ -114,6 +148,405 @@ app.use('/api/financial-years', financialYearsRoutes);
 // --- Profile Picture Routes ---
 const profilePictureRoutes = require('./routes/profile-picture')(db);
 app.use('/api/profile-picture', profilePictureRoutes);
+
+// --- Stock Management Routes ---
+const stockRoutes = require('./routes/stock')(db);
+app.use('/api/stock', stockRoutes);
+
+// =============================================================================
+// AUTOMATIC LEDGER ENTRY HELPER FUNCTIONS
+// =============================================================================
+
+/**
+ * Creates automatic ledger entries for invoices and payments
+ * @param {Object} params - Entry parameters
+ * @param {number} params.customer_id - Customer ID
+ * @param {string} params.entry_date - Entry date (YYYY-MM-DD)
+ * @param {string} params.description - Entry description
+ * @param {string} params.bill_no - Bill/Invoice number
+ * @param {string} params.payment_mode - Payment mode (Cash, Cheque, Online, etc.)
+ * @param {string|null} params.cheque_no - Cheque/Transaction number
+ * @param {number} params.debit_amount - Debit amount (for receivables - unpaid invoices)
+ * @param {number} params.credit_amount - Credit amount (for payables or payments received)
+ * @param {string} params.status - Entry status (paid, unpaid, draft)
+ * @param {string|null} params.due_date - Due date for unpaid invoices
+ * @param {number} params.sales_tax_rate - Tax rate percentage
+ * @param {number} params.sales_tax_amount - Tax amount
+ * @param {string} params.entry_type - Entry type ('invoice', 'po_invoice', 'payment')
+ * @param {number|null} params.invoice_id - Related invoice ID (for reference)
+ * @param {function} callback - Callback function (err, result)
+ */
+async function createAutoLedgerEntry(params) {
+  try {
+    const {
+      customer_id,
+      entry_date,
+      description,
+      bill_no,
+      payment_mode = 'Cash',
+      cheque_no = null,
+      debit_amount = 0,
+      credit_amount = 0,
+      status = 'unpaid',
+      due_date = null,
+      sales_tax_rate = 0,
+      sales_tax_amount = 0,
+      entry_type = 'invoice',
+      invoice_id = null
+    } = params;
+
+    // Calculate balance (positive = receivable/debit, negative = payable/credit)
+    const balance = debit_amount - credit_amount;
+
+    // Get current max sequence for this customer to append new entry
+    const getMaxSequenceQuery = `
+      SELECT COALESCE(MAX(sequence), 0) as max_seq 
+      FROM ledger_entries 
+      WHERE customer_id = ?
+    `;
+
+    const [seqResults] = await db.promise().query(getMaxSequenceQuery, [customer_id]);
+    const nextSequence = (seqResults[0]?.max_seq || 0) + 1;
+
+    const insertQuery = `
+      INSERT INTO ledger_entries (
+        customer_id, entry_date, description, bill_no, payment_mode, cheque_no,
+        debit_amount, credit_amount, balance, status, due_date,
+        sales_tax_rate, sales_tax_amount, sequence, has_multiple_items
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `;
+
+    const values = [
+      customer_id,
+      entry_date,
+      description,
+      bill_no,
+      payment_mode,
+      cheque_no,
+      debit_amount,
+      credit_amount,
+      balance,
+      status,
+      due_date,
+      sales_tax_rate,
+      sales_tax_amount,
+      nextSequence,
+      0 // has_multiple_items - can be extended later
+    ];
+
+    const [result] = await db.promise().query(insertQuery, values);
+    logger.info(`✅ Auto ledger entry created: ${bill_no} | Type: ${entry_type} | Debit: ${debit_amount} | Credit: ${credit_amount}`);
+    return result;
+  } catch (err) {
+    logger.error('Error creating automatic ledger entry:', err);
+    throw err;
+  }
+}
+
+/**
+ * Creates ledger entries for a new invoice (DEBIT - Receivable)
+ * This records the unpaid invoice as a debit (amount owed to us by customer)
+ * Creates separate entries for: 1) Material/Item amount, 2) Tax amount
+ */
+function createLedgerEntriesForInvoice(invoiceData, callback) {
+  const {
+    customer_id,
+    invoice_number,
+    bill_date,
+    payment_deadline,
+    total_amount,
+    subtotal,
+    tax_rate = 0,
+    tax_amount = 0,
+    status = 'Pending',
+    currency = 'PKR',
+    items = []
+  } = invoiceData;
+
+  const material_amount = subtotal || (total_amount - tax_amount);
+
+  // Get the item description for better clarity
+  let description = 'Invoice';
+  if (items && items.length > 0) {
+    description = items[0].description || 'Invoice';
+  }
+
+  // Entry 1: Material/Item amount (DEBIT - customer owes us)
+  createAutoLedgerEntry({
+    customer_id,
+    entry_date: bill_date,
+    description: description,
+    bill_no: invoice_number,
+    payment_mode: 'Pending',
+    cheque_no: null,
+    debit_amount: material_amount,
+    credit_amount: 0,
+    status: 'unpaid',
+    due_date: payment_deadline,
+    sales_tax_rate: tax_rate,
+    sales_tax_amount: 0,
+    entry_type: 'invoice'
+  }, (err1, result1) => {
+    if (err1) return callback(err1);
+
+    // Entry 2: Tax amount (DEBIT - if tax exists)
+    if (tax_amount > 0) {
+      createAutoLedgerEntry({
+        customer_id,
+        entry_date: bill_date,
+        description: `Sales Tax @ ${tax_rate}%`,
+        bill_no: `TAX-${invoice_number}`,
+        payment_mode: 'Pending',
+        cheque_no: null,
+        debit_amount: tax_amount,
+        credit_amount: 0,
+        status: 'unpaid',
+        due_date: payment_deadline,
+        sales_tax_rate: 0,
+        sales_tax_amount: tax_amount,
+        entry_type: 'invoice_tax'
+      }, (err2, result2) => {
+        if (err2) return callback(err2);
+        logger.info(`📊 Ledger entries created for Invoice: ${invoice_number} (Material + Tax)`);
+        callback(null, { material: result1, tax: result2 });
+      });
+    } else {
+      logger.info(`📊 Ledger entry created for Invoice: ${invoice_number} (Material only)`);
+      callback(null, { material: result1 });
+    }
+  });
+}
+
+/**
+ * Creates ledger entries for a new PO Invoice (CREDIT - Payable)
+ * This records the unpaid PO invoice as a credit (amount we owe to supplier)
+ * Following same double-entry approach as regular invoices (separate entries for material and tax)
+ */
+async function createLedgerEntriesForPOInvoice(poInvoiceData) {
+  try {
+    const {
+      customer_id,
+      invoice_number,
+      invoice_date,
+      due_date,
+      total_amount,
+      tax_rate = 0,
+      tax_amount = 0,
+      status = 'Draft',
+      currency = 'PKR',
+      customer_name
+    } = poInvoiceData;
+
+    if (!customer_id) {
+      logger.warn('⚠️ No customer_id provided for PO Invoice ledger entry');
+      throw new Error('customer_id required for ledger entry');
+    }
+
+    const material_amount = total_amount - tax_amount;
+
+    // Entry 1: Material/Item amount (DEBIT - we owe supplier)
+    await createAutoLedgerEntry({
+      customer_id,
+      entry_date: invoice_date,
+      description: `PO Invoice - ${customer_name}`,
+      bill_no: invoice_number,
+      payment_mode: 'Pending',
+      cheque_no: null,
+      debit_amount: material_amount,
+      credit_amount: 0,
+      status: status === 'Paid' ? 'paid' : 'unpaid',
+      due_date: due_date,
+      sales_tax_rate: tax_rate,
+      sales_tax_amount: 0,
+      entry_type: 'po_invoice'
+    });
+
+    // Entry 2: Tax amount (DEBIT - if tax exists)
+    if (tax_amount > 0) {
+      await createAutoLedgerEntry({
+        customer_id,
+        entry_date: invoice_date,
+        description: `Sales Tax @ ${tax_rate}%`,
+        bill_no: `TAX-${invoice_number}`,
+        payment_mode: 'Pending',
+        cheque_no: null,
+        debit_amount: tax_amount,
+        credit_amount: 0,
+        status: status === 'Paid' ? 'paid' : 'unpaid',
+        due_date: due_date,
+        sales_tax_rate: 0,
+        sales_tax_amount: tax_amount,
+        entry_type: 'po_invoice_tax'
+      });
+      logger.info(`📊 Ledger entries created for PO Invoice: ${invoice_number} (Material + Tax)`);
+    } else {
+      logger.info(`📊 Ledger entry created for PO Invoice: ${invoice_number} (Material only)`);
+    }
+
+    return { success: true };
+  } catch (err) {
+    logger.error('Failed to create ledger entries for PO invoice:', err);
+    throw err;
+  }
+}
+
+/**
+ * Helper function to handle invoice payment ledger entries (avoids duplication)
+ */
+function handleInvoicePaymentIfNeeded(invoiceId, status) {
+  if (status === 'Paid') {
+    // Get customer_id from the invoice
+    const getInvoiceQuery = 'SELECT customer_id, invoice_number, total_amount, subtotal, tax_amount, tax_rate FROM invoice WHERE id = ? LIMIT 1';
+    db.query(getInvoiceQuery, [invoiceId], (invErr, invResults) => {
+      if (!invErr && invResults && invResults.length > 0) {
+        const invoiceData = invResults[0];
+        
+        createLedgerEntryForPayment({
+          customer_id: invoiceData.customer_id,
+          payment_date: new Date().toISOString().split('T')[0],
+          description: `Payment Received`,
+          reference_no: invoiceData.invoice_number,
+          payment_mode: 'Cash', // Could be passed in request
+          transaction_id: null,
+          amount: invoiceData.total_amount,
+          subtotal: invoiceData.subtotal,
+          tax_amount: invoiceData.tax_amount,
+          tax_rate: invoiceData.tax_rate,
+          invoice_type: 'invoice',
+          invoice_number: invoiceData.invoice_number
+        }, (ledgerErr) => {
+          if (ledgerErr) {
+            logger.error('Failed to create payment ledger entry for invoice:', ledgerErr);
+          }
+        });
+      }
+    });
+  }
+}
+
+/**
+ * Creates ledger entry for a payment (async version)
+ * For invoices: Creates CREDIT entries for payment received
+ * For PO invoices: Creates DEBIT entries (payment) + CREDIT counterpart entries
+ */
+async function createLedgerEntryForPayment(paymentData) {
+  try {
+    const {
+      customer_id,
+      payment_date,
+      description,
+      reference_no,
+      payment_mode,
+      transaction_id,
+      amount,
+      subtotal,
+      tax_amount,
+      tax_rate,
+      invoice_type = 'invoice',
+      invoice_number
+    } = paymentData;
+
+    if (!customer_id || !amount) {
+      throw new Error('customer_id and amount required for payment entry');
+    }
+
+    const isReceivable = invoice_type === 'invoice';
+    const material_amount = subtotal || (amount - (tax_amount || 0));
+    const tax_amt = tax_amount || 0;
+
+    if (isReceivable) {
+      // For INVOICES: Update original DEBIT entries to paid, then create CREDIT payment entries
+      const updateQuery = `UPDATE ledger_entries SET status = 'paid' WHERE customer_id = ? AND (bill_no = ? OR bill_no = ?) AND debit_amount > 0 AND status = 'unpaid'`;
+      await db.promise().query(updateQuery, [customer_id, invoice_number, `TAX-${invoice_number}`]);
+      logger.info(`✅ Updated original debit entries to 'paid' for ${invoice_number}`);
+
+      await createAutoLedgerEntry({
+        customer_id,
+        entry_date: payment_date,
+        description: description || `Payment Received`,
+        bill_no: invoice_number,
+        payment_mode: payment_mode || 'Cash',
+        cheque_no: transaction_id,
+        debit_amount: 0,
+        credit_amount: material_amount,
+        status: 'paid',
+        due_date: null,
+        sales_tax_rate: tax_rate || 0,
+        sales_tax_amount: 0,
+        entry_type: 'payment'
+      });
+
+      if (tax_amt > 0) {
+        await createAutoLedgerEntry({
+          customer_id,
+          entry_date: payment_date,
+          description: `Tax Payment @ ${tax_rate || 0}%`,
+          bill_no: `TAX-${invoice_number}`,
+          payment_mode: payment_mode || 'Cash',
+          cheque_no: transaction_id,
+          debit_amount: 0,
+          credit_amount: tax_amt,
+          status: 'paid',
+          due_date: null,
+          sales_tax_rate: 0,
+          sales_tax_amount: tax_amt,
+          entry_type: 'payment_tax'
+        });
+        logger.info(`💰 Payment entries created (Material + Tax): ${invoice_number}`);
+      } else {
+        logger.info(`💰 Payment entry created (Material only): ${invoice_number}`);
+      }
+    } else {
+      // For PO INVOICES: Create CREDIT counterpart entries (payment source),
+      // then update original DEBIT entries to paid. Do NOT create new DEBIT payment entries
+      // to avoid duplication. (Original DEBIT entries represent the payable.)
+
+      // Step 2: Create CREDIT counterpart entries (payment source) - SECOND
+      await createAutoLedgerEntry({
+        customer_id,
+        entry_date: payment_date,
+        description: `Payment - ${invoice_number}`,
+        bill_no: invoice_number,
+        payment_mode: payment_mode || 'Cash',
+        cheque_no: transaction_id,
+        debit_amount: 0,
+        credit_amount: material_amount,
+        status: 'paid',
+        due_date: null,
+        sales_tax_rate: tax_rate || 0,
+        sales_tax_amount: 0
+      });
+
+      if (tax_amt > 0) {
+        await createAutoLedgerEntry({
+          customer_id,
+          entry_date: payment_date,
+          description: `Tax Payment @ ${tax_rate || 0}%`,
+          bill_no: `TAX-${invoice_number}`,
+          payment_mode: payment_mode || 'Cash',
+          cheque_no: transaction_id,
+          debit_amount: 0,
+          credit_amount: tax_amt,
+          status: 'paid',
+          due_date: null,
+          sales_tax_rate: 0,
+          sales_tax_amount: tax_amt
+        });
+      }
+      logger.info(`💳 Counterpart CREDIT entries created for PO invoice payment: ${invoice_number}`);
+
+      // Step 3: Update original DEBIT entries to paid - LAST (don’t create extra DEBIT entries)
+      const updateQuery = `UPDATE ledger_entries SET status = 'paid' WHERE customer_id = ? AND (bill_no = ? OR bill_no = ?) AND debit_amount > 0 AND status = 'unpaid'`;
+      await db.promise().query(updateQuery, [customer_id, invoice_number, `TAX-${invoice_number}`]);
+      logger.info(`✅ Updated original debit entries to 'paid' for ${invoice_number}`);
+    }
+
+    return { success: true };
+  } catch (err) {
+    logger.error('Error creating payment ledger entry:', err);
+    throw err;
+  }
+}
 
 // Serve static files from uploads directory
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
@@ -1897,13 +2330,27 @@ app.post("/api/invoices", (req, res) => {
       });
     }
 
-    // Generate unique invoice number
-    const invoice_number = `INV-${new Date().getFullYear()}-${Date.now()}`;
+    // Get the next invoice ID for sequential numbering
+    const getMaxInvoiceIdQuery = "SELECT MAX(id) as max_id FROM invoice";
     
-  logger.debug('Generated invoice_number:', invoice_number); // Debug log
+    db.query(getMaxInvoiceIdQuery, (err, results) => {
+      if (err) {
+        logger.error("Error getting max invoice ID:", err);
+        // Fallback to timestamp if query fails
+        const invoice_number = `INV-${new Date().getFullYear()}-${Date.now()}`;
+        proceedWithInvoiceCreation(invoice_number);
+      } else {
+        const nextId = (results[0]?.max_id || 0) + 1;
+        const invoice_number = `INV-${nextId}`;
+        proceedWithInvoiceCreation(invoice_number);
+      }
+    });
 
-    // Start transaction for invoice and items
-    db.beginTransaction((err) => {
+    function proceedWithInvoiceCreation(invoice_number) {
+      logger.debug('Generated invoice_number:', invoice_number);
+
+      // Start transaction for invoice and items
+      db.beginTransaction((err) => {
       if (err) {
         console.error("Error starting transaction:", err);
         return res.status(500).json({ 
@@ -1986,6 +2433,27 @@ app.post("/api/invoices", (req, res) => {
               }
 
               logger.info('Invoice and items created successfully');
+
+              // ✅ CREATE AUTOMATIC LEDGER ENTRY FOR INVOICE (DEBIT - Receivable)
+              createLedgerEntriesForInvoice({
+                customer_id,
+                invoice_number,
+                bill_date,
+                payment_deadline: computed_payment_deadline,
+                total_amount,
+                subtotal,
+                tax_rate,
+                tax_amount,
+                status,
+                currency,
+                items
+              }, (ledgerErr, ledgerResult) => {
+                if (ledgerErr) {
+                  logger.error('Failed to create ledger entry for invoice:', ledgerErr);
+                  // Don't fail the invoice creation, just log the error
+                }
+              });
+
               res.status(201).json({ 
                 id: invoiceId, 
                 message: "Invoice created successfully",
@@ -2031,7 +2499,8 @@ app.post("/api/invoices", (req, res) => {
         }
       });
     });
-  });
+    } // Close proceedWithInvoiceCreation function
+    }); // Close db.query callback
 });
 
 // Update invoice
@@ -2152,6 +2621,10 @@ app.put("/api/invoices/:id", (req, res) => {
                   }
                   
                   logger.info('Invoice updated successfully with items');
+
+                  // Move payment check AFTER response to avoid duplication
+                  handleInvoicePaymentIfNeeded(id, status);
+
                   res.json({ 
                     message: "Invoice updated successfully",
                     id: id,
@@ -2172,6 +2645,10 @@ app.put("/api/invoices/:id", (req, res) => {
             }
             
             logger.info('Invoice updated successfully without items');
+
+            // Move payment check AFTER response to avoid duplication
+            handleInvoicePaymentIfNeeded(id, status);
+
             res.json({ 
               message: "Invoice updated successfully",
               id: id,
@@ -4300,9 +4777,84 @@ app.put("/api/po-invoices/:id", (req, res) => {
         return res.status(500).json({ message: "Invoice updated but failed to retrieve details", error: err.message });
       }
 
+      const updatedInvoice = results[0];
+
+      // ✅ If status changed to 'Paid', create payment ledger entry (DEBIT - we pay supplier)
+      if (status === 'Paid' && updatedInvoice) {
+        (async () => {
+          try {
+            // Try to find customer_id by matching supplier name from purchase_orders with customer entries
+            // First, check if customer already exists by name
+            let customer_id = null;
+            
+            // Method 1: Look for an existing customer with matching name to supplier
+            const [custByNameResults] = await db.promise().query(
+              'SELECT customer_id FROM customertable WHERE customer = ? OR company = ? LIMIT 1',
+              [updatedInvoice.customer_name, updatedInvoice.customer_name]
+            );
+            
+            if (custByNameResults && custByNameResults.length > 0) {
+              customer_id = custByNameResults[0].customer_id;
+            } else {
+              // Method 2: If no customer found, try to get from PO data - might be stored in customer_name field
+              logger.warn(`⚠️ No customer_id found for supplier: ${updatedInvoice.customer_name}. Skipping ledger entry creation.`);
+              return; // Skip ledger creation if we can't find a customer
+            }
+            
+            if (!customer_id) {
+              logger.warn(`⚠️ Cannot create payment entries: No customer found for ${updatedInvoice.invoice_number}`);
+              return;
+            }
+            
+            // First, ensure original PO invoice ledger entries exist (in case they weren't created during invoice creation)
+            const [checkResults] = await db.promise().query(`
+              SELECT COUNT(*) as entry_count FROM ledger_entries 
+              WHERE customer_id = ? AND bill_no = ? AND debit_amount > 0
+            `, [customer_id, updatedInvoice.invoice_number]);
+            
+            if (checkResults && checkResults[0] && checkResults[0].entry_count === 0) {
+              logger.warn(`⚠️ Original PO invoice entries missing for ${updatedInvoice.invoice_number}, creating now...`);
+              // Create the original ledger entries that should have been created during invoice creation
+              await createLedgerEntriesForPOInvoice({
+                customer_id: customer_id,
+                invoice_number: updatedInvoice.invoice_number,
+                invoice_date: updatedInvoice.invoice_date || new Date().toISOString().split('T')[0],
+                due_date: updatedInvoice.due_date,
+                total_amount: parseFloat(updatedInvoice.total_amount),
+                tax_rate: parseFloat(updatedInvoice.tax_rate),
+                tax_amount: parseFloat(updatedInvoice.tax_amount),
+                status: 'Draft',
+                currency: updatedInvoice.currency || 'PKR',
+                customer_name: updatedInvoice.customer_name
+              });
+              logger.info(`✅ Missing PO invoice ledger entries created for ${updatedInvoice.invoice_number}`);
+            }
+            
+            // Now proceed with payment entries
+            await createLedgerEntryForPayment({
+              customer_id: customer_id,
+              payment_date: payment_date || new Date().toISOString().split('T')[0],
+              description: `Payment - PO Invoice ${updatedInvoice.invoice_number}`,
+              reference_no: updatedInvoice.invoice_number,
+              payment_mode: 'Cash', // Could be passed in request
+              transaction_id: null,
+              amount: parseFloat(updatedInvoice.total_amount),
+              subtotal: parseFloat(updatedInvoice.subtotal),
+              tax_amount: parseFloat(updatedInvoice.tax_amount),
+              tax_rate: parseFloat(updatedInvoice.tax_rate),
+              invoice_type: 'po_invoice',
+              invoice_number: updatedInvoice.invoice_number
+            });
+            logger.info(`✅ Payment ledger entries successfully created for PO invoice ${updatedInvoice.invoice_number}`);
+          } catch (err) {
+            logger.error('Error processing PO invoice payment ledger entries:', err);
+          }
+        })();
+      }
+
       res.json({
         message: "Invoice updated successfully",
-        invoice: results[0]
+        invoice: updatedInvoice
       });
     });
   });
@@ -5186,15 +5738,31 @@ async function createQuantityBasedInvoiceWithItems(req, res, payment_days, calcu
           const totalQuantity = validatedItems.reduce((sum, item) => sum + item.invoiced_quantity, 0);
           const subtotal = validatedItems.reduce((sum, item) => sum + item.item_amount, 0);
           
-          // Use the finalTaxRate and finalTaxAmount fetched from the PO table
-          const invoiceTaxRate = finalTaxRate;
-          const invoiceTaxAmount = finalTaxAmount;
-          
-          // Calculate total amount including tax
-          const totalAmount = subtotal + invoiceTaxAmount;
+          // Calculate proportional tax based on invoiced quantity vs full PO quantity
+          // If invoicing only part of the PO, reduce tax proportionally
+          const poQuery = `SELECT COALESCE(SUM(quantity), 0) as po_total_qty FROM purchase_order_items WHERE purchase_order_id = ?`;
+          db.query(poQuery, [po_id], (poErr, poResults) => {
+            if (poErr) {
+              console.error("Error fetching PO total quantity:", poErr);
+              return db.rollback(() => {
+                res.status(500).json({ error: "Failed to calculate tax", details: poErr.message });
+              });
+            }
+            
+            const poTotalQty = poResults[0]?.po_total_qty || 1;
+            const invoicedQtyProportion = totalQuantity / poTotalQty;
+            
+            // Recalculate tax proportionally based on invoiced quantity
+            let invoiceTaxRate = finalTaxRate;
+            let invoiceTaxAmount = finalTaxAmount * invoicedQtyProportion;
+            
+            console.log(`Tax recalculation: PO qty=${poTotalQty}, invoiced qty=${totalQuantity}, proportion=${invoicedQtyProportion.toFixed(2)}, original tax=${finalTaxAmount}, adjusted tax=${invoiceTaxAmount.toFixed(2)}`);
+            
+            // Calculate total amount including tax
+            const totalAmount = subtotal + invoiceTaxAmount;
 
-          // Step 2: Create the invoice record
-          const invoiceQuery = `
+            // Step 2: Create the invoice record
+            const invoiceQuery = `
             INSERT INTO po_invoices (
               po_id, po_number, invoice_number, customer_name, customer_email, 
               customer_phone, customer_address, invoice_date, due_date, 
@@ -5267,6 +5835,35 @@ async function createQuantityBasedInvoiceWithItems(req, res, payment_days, calcu
                   console.log(`   - Tax Rate: ${invoiceTaxRate}%`);
                   console.log(`   - Tax Amount: PKR ${invoiceTaxAmount}`);
                   console.log(`   - Total Amount: PKR ${totalAmount}`);
+
+                  // ✅ Need to get customer_id from purchase_orders for ledger entry
+                  const getCustomerQuery = 'SELECT customer_id FROM purchase_orders WHERE po_number = ? LIMIT 1';
+                  db.query(getCustomerQuery, [po_number], (custErr, custResults) => {
+                    if (custErr || !custResults || custResults.length === 0) {
+                      logger.warn('⚠️ Could not find customer_id for PO invoice ledger entry');
+                    } else {
+                      const po_customer_id = custResults[0].customer_id;
+                      
+                      // ✅ CREATE AUTOMATIC LEDGER ENTRY FOR PO INVOICE (CREDIT - Payable)
+                      createLedgerEntriesForPOInvoice({
+                        customer_id: po_customer_id,
+                        invoice_number,
+                        invoice_date: invoice_date || new Date().toISOString().split('T')[0],
+                        due_date: calculated_due_date,
+                        total_amount: totalAmount,
+                        tax_rate: invoiceTaxRate,
+                        tax_amount: invoiceTaxAmount,
+                        status: status || 'Draft',
+                        currency: currency || 'PKR',
+                        customer_name
+                      }, (ledgerErr, ledgerResult) => {
+                        if (ledgerErr) {
+                          logger.error('Failed to create ledger entry for PO invoice:', ledgerErr);
+                          // Don't fail the invoice creation, just log the error
+                        }
+                      });
+                    }
+                  });
                   
                   res.status(201).json({
                     id: invoiceId,
@@ -5310,6 +5907,7 @@ async function createQuantityBasedInvoiceWithItems(req, res, payment_days, calcu
                 });
               });
           });
+        });
         })
         .catch((validationErr) => {
           db.rollback(() => {
@@ -5487,7 +6085,34 @@ app.post("/api/fix-net-weight", (req, res) => {
 });
 
 // --- Start Server ---
-const PORT = 5000;
-app.listen(PORT, () => {
+const PORT = process.env.PORT || 5000;
+const server = app.listen(PORT, () => {
   logger.info(`🚀 Server running on http://localhost:${PORT}`);
+});
+
+// Graceful server error handling
+server.on('error', (err) => {
+  if (err && err.code === 'EADDRINUSE') {
+    logger.error(`🔌 Port ${PORT} already in use. Make sure the server is not already running or change the PORT.`);
+    process.exit(1);
+  } else {
+    logger.error('Server error:', err);
+    process.exit(1);
+  }
+});
+
+// Handle SIGINT / SIGTERM gracefully
+process.on('SIGINT', () => {
+  logger.info('SIGINT received, shutting down server gracefully.');
+  server.close(() => {
+    logger.info('Server stopped.');
+    process.exit(0);
+  });
+});
+process.on('SIGTERM', () => {
+  logger.info('SIGTERM received, shutting down server gracefully.');
+  server.close(() => {
+    logger.info('Server stopped.');
+    process.exit(0);
+  });
 });

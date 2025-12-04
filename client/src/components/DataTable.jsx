@@ -88,7 +88,7 @@ const DataTable = () => {
                     </td>
                     <td className="px-4 py-4 text-sm text-gray-500 whitespace-nowrap">{row.date}</td>
                     <td className="px-4 py-4 text-sm text-gray-900 whitespace-nowrap">{row.particulars || "-"}</td>
-                    <td className="px-4 py-4 text-sm text-gray-900 whitespace-nowrap">{row.rate ? row.rate.toFixed(2) : "-"}</td>
+                    <td className="px-4 py-4 text-sm text-gray-900 whitespace-nowrap">{row.rate !== undefined && row.rate !== null ? Number(row.rate).toFixed(2) : "-"}</td>
                     <td className="px-4 py-4 text-sm text-gray-900 whitespace-nowrap">{row.quantity || "-"}</td>
                     <td className="px-4 py-4 text-sm text-gray-900 whitespace-nowrap">{row.mtr || "-"}</td>
                     <td className="px-4 py-4 text-sm text-gray-900 whitespace-nowrap">{row.credit || "-"}</td>

@@ -1,6 +1,57 @@
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 
+// Helper: load image URL or convert known repo path to served public path
+// Simple in-memory cache for the logo to speed repeated PDF generations in the same session
+const _logoCache = { path: null, dataUrl: null };
+
+const loadImageAsDataURL = async (path) => {
+  if (!path) return null;
+
+  // If user passed absolute repo path like '/home/.../client/public/logo.png', map it to '/logo.png'
+  try {
+    const normalized = String(path || '');
+    if (normalized.includes('/client/public/') || normalized.includes('public/logo')) {
+      path = '/logo.png';
+    }
+  } catch (e) {
+    // ignore
+  }
+
+  // Return from cache when the same path is requested
+  try {
+    if (_logoCache.path === path && _logoCache.dataUrl) {
+      return _logoCache.dataUrl;
+    }
+
+    const res = await fetch(path, { cache: 'no-cache' });
+    if (!res.ok) return null;
+    const blob = await res.blob();
+    const dataUrl = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+
+    // cache result for subsequent calls
+    _logoCache.path = path;
+    _logoCache.dataUrl = dataUrl;
+    return dataUrl;
+  } catch (e) {
+    return null;
+  }
+};
+
+// Preload default logo into cache on module load so repeated calls are faster in the same session
+(async () => {
+  try {
+    await loadImageAsDataURL('/logo.png');
+  } catch (e) {
+    // ignore preload errors
+  }
+})();
+
 /**
  * Helper function to generate short ref (same as frontend table)
  */
@@ -40,11 +91,13 @@ const getShortRef = (billNo, invoiceId, isManualEntry) => {
  * @param {String} toDate - Filter end date
  * @param {Object} settings - Company settings
  */
-export const generateLedgerPDF = (entries, customer, fromDate, toDate, settings = {}) => {
-  const doc = new jsPDF('p', 'mm', 'a4'); // Portrait orientation
+export const generateLedgerPDF = async (entries, customer, fromDate, toDate, settings = {}) => {
+  const doc = new jsPDF('p', 'mm', 'a4'); // Portrait orientation (A4)
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
   const margin = 10;
+  // Reserve area for footer so rows aren't drawn under it
+  const footerHeight = 16; // mm
   
   const colWidths = {
     date: 18,
@@ -57,18 +110,39 @@ export const generateLedgerPDF = (entries, customer, fromDate, toDate, settings 
 
   let yPosition = margin;
   let pageNum = 1;
+  
+  // Try to preload logo (async). Prefer settings.logoDataUrl or settings.logoPath
+  let logoDataUrl = settings.logoDataUrl || null;
+  if (!logoDataUrl) {
+    const logoPath = settings.logoPath || '/logo.png';
+    logoDataUrl = await loadImageAsDataURL(logoPath);
+  }
 
   // ============ PROFESSIONAL HEADER ============
   const addPageHeader = () => {
     yPosition = margin;
 
     // Company Logo Area (placeholder with colored box)
-    doc.setFillColor(41, 128, 185); // Professional blue
-    doc.rect(margin, yPosition, 15, 12, 'F');
-    doc.setTextColor(255, 255, 255);
-    doc.setFontSize(10);
-    doc.setFont(undefined, 'bold');
-    doc.text('AR', margin + 4, yPosition + 7.5, { align: 'center' });
+    if (logoDataUrl) {
+      try {
+        doc.addImage(logoDataUrl, 'PNG', margin, yPosition, 15, 12);
+      } catch (e) {
+        // fallback to colored box
+        doc.setFillColor(41, 128, 185);
+        doc.rect(margin, yPosition, 15, 12, 'F');
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(10);
+        doc.setFont(undefined, 'bold');
+        doc.text('AR', margin + 4, yPosition + 7.5, { align: 'center' });
+      }
+    } else {
+      doc.setFillColor(41, 128, 185); // Professional blue
+      doc.rect(margin, yPosition, 15, 12, 'F');
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(10);
+      doc.setFont(undefined, 'bold');
+      doc.text('AR', margin + 4, yPosition + 7.5, { align: 'center' });
+    }
 
     // Company Info - Right side of header
     doc.setTextColor(0, 0, 0);
@@ -140,7 +214,7 @@ export const generateLedgerPDF = (entries, customer, fromDate, toDate, settings 
 
   // Check if we need a new page
   const checkPageBreak = (requiredSpace = 25) => {
-    if (yPosition + requiredSpace > pageHeight - margin - 15) {
+    if (yPosition + requiredSpace > pageHeight - margin - footerHeight) {
       doc.addPage();
       pageNum++;
       addPageHeader();
