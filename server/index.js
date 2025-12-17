@@ -145,6 +145,14 @@ app.use('/api/ledger-entries', ledgerEntriesRoutes);
 const financialYearsRoutes = require('./routes/financialYears');
 app.use('/api/financial-years', financialYearsRoutes);
 
+// --- Financial Reports Routes ---
+const financialReportsRoutes = require('./routes/financialReports');
+app.use('/api/financial-reports', financialReportsRoutes);
+
+// --- Financial Reports Persistence Routes ---
+const financialReportsPersistenceRoutes = require('./routes/financialReportsPersistence');
+app.use('/api/financial-reports-storage', financialReportsPersistenceRoutes);
+
 // --- Profile Picture Routes ---
 const profilePictureRoutes = require('./routes/profile-picture')(db);
 app.use('/api/profile-picture', profilePictureRoutes);

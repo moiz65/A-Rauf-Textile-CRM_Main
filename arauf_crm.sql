@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: localhost
--- Generation Time: Nov 27, 2025 at 02:59 PM
+-- Generation Time: Dec 17, 2025 at 10:12 PM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.2.12
 
@@ -208,6 +208,58 @@ INSERT INTO `expenses` (`id`, `title`, `date`, `vendor`, `amount`, `category`, `
 (5, 'computer loan ', '2025-10-02', 'xyz', 10000.00, 'Computer loan ', 'Cash', 'Paid', 'mmmmm', '2025-09-30 17:13:31', '2025-10-01 19:59:57', NULL),
 (7, 'aaa111', '2025-10-08', 'mmm', 500.00, 'educational loan ', 'Cash', 'Pending', '', '2025-10-08 18:41:08', '2025-10-08 18:41:08', NULL),
 (8, ',bbb', '2025-10-08', 'bbbb', 51.00, 'Muhammad Hunain', 'Cash', 'Paid', '', '2025-10-08 18:48:19', '2025-10-08 18:48:19', NULL);
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `financial_reports`
+--
+
+CREATE TABLE `financial_reports` (
+  `id` int(11) NOT NULL,
+  `report_id` varchar(50) NOT NULL,
+  `short_id` varchar(20) NOT NULL,
+  `user_id` int(11) DEFAULT NULL,
+  `description` varchar(255) DEFAULT NULL,
+  `range_type` varchar(20) DEFAULT 'all',
+  `start_date` date DEFAULT NULL,
+  `end_date` date DEFAULT NULL,
+  `total_debit` decimal(15,2) DEFAULT 0.00,
+  `total_credit` decimal(15,2) DEFAULT 0.00,
+  `total_balance` decimal(15,2) DEFAULT 0.00,
+  `contact_count` int(11) DEFAULT 0,
+  `generated_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `generated_by` varchar(255) DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `financial_reports`
+--
+
+INSERT INTO `financial_reports` (`id`, `report_id`, `short_id`, `user_id`, `description`, `range_type`, `start_date`, `end_date`, `total_debit`, `total_credit`, `total_balance`, `contact_count`, `generated_at`, `generated_by`, `created_at`, `updated_at`) VALUES
+(3, '2025-12-17T20:19:52.273Z', 'FR-GGRIP', NULL, 'A-Rauf Financial Report', '1y', NULL, NULL, 0.00, 0.00, 0.00, 0, '2025-12-17 20:19:52', 'user', '2025-12-17 20:19:52', '2025-12-17 20:19:52');
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `financial_report_details`
+--
+
+CREATE TABLE `financial_report_details` (
+  `id` int(11) NOT NULL,
+  `report_id` int(11) NOT NULL,
+  `customer_id` int(11) NOT NULL,
+  `customer_name` varchar(255) DEFAULT NULL,
+  `company_name` varchar(255) DEFAULT NULL,
+  `email` varchar(255) DEFAULT NULL,
+  `phone` varchar(50) DEFAULT NULL,
+  `debit_amount` decimal(15,2) DEFAULT 0.00,
+  `credit_amount` decimal(15,2) DEFAULT 0.00,
+  `balance` decimal(15,2) DEFAULT 0.00,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- --------------------------------------------------------
 
@@ -1773,6 +1825,25 @@ ALTER TABLE `expenses`
   ADD KEY `idx_expenses_category` (`category`);
 
 --
+-- Indexes for table `financial_reports`
+--
+ALTER TABLE `financial_reports`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `report_id` (`report_id`),
+  ADD UNIQUE KEY `short_id` (`short_id`),
+  ADD KEY `idx_user_id` (`user_id`),
+  ADD KEY `idx_generated_at` (`generated_at`),
+  ADD KEY `idx_short_id` (`short_id`);
+
+--
+-- Indexes for table `financial_report_details`
+--
+ALTER TABLE `financial_report_details`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `idx_report_id` (`report_id`),
+  ADD KEY `idx_customer_id` (`customer_id`);
+
+--
 -- Indexes for table `general_ledger`
 --
 ALTER TABLE `general_ledger`
@@ -2009,13 +2080,25 @@ ALTER TABLE `company_settings`
 -- AUTO_INCREMENT for table `customertable`
 --
 ALTER TABLE `customertable`
-  MODIFY `customer_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=18;
+  MODIFY `customer_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=19;
 
 --
 -- AUTO_INCREMENT for table `expenses`
 --
 ALTER TABLE `expenses`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=9;
+
+--
+-- AUTO_INCREMENT for table `financial_reports`
+--
+ALTER TABLE `financial_reports`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
+
+--
+-- AUTO_INCREMENT for table `financial_report_details`
+--
+ALTER TABLE `financial_report_details`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT for table `invoice`
@@ -2039,7 +2122,7 @@ ALTER TABLE `invoice_payments`
 -- AUTO_INCREMENT for table `ledger_entries`
 --
 ALTER TABLE `ledger_entries`
-  MODIFY `entry_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=172;
+  MODIFY `entry_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=176;
 
 --
 -- AUTO_INCREMENT for table `ledger_entry_fy_mapping`
@@ -2069,7 +2152,7 @@ ALTER TABLE `ledger_line_items`
 -- AUTO_INCREMENT for table `ledger_single_materials`
 --
 ALTER TABLE `ledger_single_materials`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=27;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=29;
 
 --
 -- AUTO_INCREMENT for table `po_deletion_history`
@@ -2159,6 +2242,12 @@ ALTER TABLE `chart_of_accounts`
 --
 ALTER TABLE `expenses`
   ADD CONSTRAINT `fk_expense_category` FOREIGN KEY (`category_id`) REFERENCES `categories` (`id`) ON DELETE SET NULL;
+
+--
+-- Constraints for table `financial_report_details`
+--
+ALTER TABLE `financial_report_details`
+  ADD CONSTRAINT `financial_report_details_ibfk_1` FOREIGN KEY (`report_id`) REFERENCES `financial_reports` (`id`) ON DELETE CASCADE;
 
 --
 -- Constraints for table `general_ledger`
