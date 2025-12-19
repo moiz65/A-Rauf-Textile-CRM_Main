@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, Edit2, Trash2, Plus, AlertCircle, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Search, Edit2, Trash2, Plus, AlertCircle, ChevronLeft, ChevronRight, TrendingUp, Zap } from 'lucide-react';
 import AddStockModal from './AddStockModal';
 import AddStockSidebar from './AddStockSidebar';
 import StockDetailsSidebar from './StockDetailsSidebar';
@@ -20,6 +20,10 @@ const RegisteredStockPage = ({ openAddSidebar, openEditStock, refreshKey }) => {
   const [currentPage, setCurrentPage] = useState(1);
   const [sortBy, setSortBy] = useState('item_name');
   const [sortOrder, setSortOrder] = useState('asc');
+  const [totalStock, setTotalStock] = useState(0);
+  const [totalValue, setTotalValue] = useState(0);
+  const [lowStockCount, setLowStockCount] = useState(0);
+  const [lastRestocked, setLastRestocked] = useState(null);
   
   const itemsPerPage = 10;
 
@@ -38,6 +42,21 @@ const RegisteredStockPage = ({ openAddSidebar, openEditStock, refreshKey }) => {
       if (!response.ok) throw new Error('Failed to fetch stocks');
       const data = await response.json();
       setStocks(data || []);
+      
+      // Calculate stats
+      const total = data.reduce((sum, item) => sum + (parseFloat(item.quantity) || 0), 0);
+      const value = data.reduce((sum, item) => sum + ((parseFloat(item.quantity) || 0) * (parseFloat(item.price_per_unit) || 0)), 0);
+      const low = data.filter(i => Number(i.quantity) <= 5).length;
+      const latest = data.reduce((acc, item) => {
+        const date = item.purchase_date || item.created_at || null;
+        if (!date) return acc;
+        return !acc || new Date(date) > new Date(acc) ? date : acc;
+      }, null);
+      
+      setTotalStock(total);
+      setTotalValue(value);
+      setLowStockCount(low);
+      setLastRestocked(latest);
       setError(null);
     } catch (err) {
       setError(err.message);
@@ -104,6 +123,8 @@ const RegisteredStockPage = ({ openAddSidebar, openEditStock, refreshKey }) => {
     }
   };
 
+  const formatCurrency = (amt) => `PKR ${Number(amt || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
   const getUniqueCategories = () => {
     const categories = new Set(stocks.map(s => s.category).filter(Boolean));
     return ['All', ...Array.from(categories)];
@@ -131,6 +152,55 @@ const RegisteredStockPage = ({ openAddSidebar, openEditStock, refreshKey }) => {
 
   return (
     <div className="p-6">
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+        {/* Total Stock */}
+        <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-4 border border-blue-200">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-blue-600 font-medium">Total Stock Items</p>
+              <p className="text-3xl font-bold text-blue-900 mt-2">{totalStock}</p>
+            </div>
+            <TrendingUp className="w-10 h-10 text-blue-400 opacity-50" />
+          </div>
+        </div>
+
+        {/* Total Stock Value */}
+        <div className="bg-gradient-to-br from-indigo-50 to-indigo-100 rounded-lg p-4 border border-indigo-200">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-indigo-600 font-medium">Total Stock Value</p>
+              <p className="text-3xl font-bold text-indigo-900 mt-2">{formatCurrency(totalValue)}</p>
+            </div>
+            <TrendingUp className="w-10 h-10 text-indigo-400 opacity-50" />
+          </div>
+        </div>
+
+        {/* Low Stock */}
+        <div className="bg-gradient-to-br from-yellow-50 to-yellow-100 rounded-lg p-4 border border-yellow-200">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-yellow-600 font-medium">Low Stock</p>
+              <p className="text-3xl font-bold text-yellow-900 mt-2">{lowStockCount}</p>
+            </div>
+            <Zap className="w-10 h-10 text-yellow-400 opacity-50" />
+          </div>
+        </div>
+
+        {/* Last Updated */}
+        <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg p-4 border border-purple-200">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-purple-600 font-medium">Last Updated</p>
+              <p className="text-lg font-bold text-purple-900 mt-2">
+                {lastRestocked ? new Date(lastRestocked).toLocaleDateString() : new Date().toLocaleDateString()}
+              </p>
+            </div>
+            <div className="w-10 h-10 bg-purple-400 opacity-20 rounded-full"></div>
+          </div>
+        </div>
+      </div>
+
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>

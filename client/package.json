@@ -17,7 +17,7 @@
     "eslint-config-react-app": "^7.0.1",
     "html2canvas": "^1.4.1",
     "jspdf": "^3.0.3",
-    "jspdf-autotable": "^3.8.4",
+    "jspdf-autotable": "^5.0.2",
     "lucide-react": "^0.510.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
