@@ -4,7 +4,6 @@ import { X, AlertCircle } from 'lucide-react';
 const AddStockSidebar = ({ isOpen, onClose, onSuccess, initialData = null }) => {
   const [formData, setFormData] = useState({
     item_name: '',
-    category: '',
     quantity: '',
     unit: 'KG',
     price_per_unit: '',
@@ -13,8 +12,6 @@ const AddStockSidebar = ({ isOpen, onClose, onSuccess, initialData = null }) => 
     supplier_phone: '',
     purchase_date: new Date().toISOString().split('T')[0],
     expiry_date: '',
-    location: '',
-    description: '',
     status: 'Active'
   });
   const [loading, setLoading] = useState(false);
@@ -25,7 +22,6 @@ const AddStockSidebar = ({ isOpen, onClose, onSuccess, initialData = null }) => 
     if (initialData) {
       setFormData({
         item_name: initialData.item_name || '',
-        category: initialData.category || '',
         quantity: initialData.quantity || '',
         unit: initialData.unit || 'KG',
         price_per_unit: initialData.price_per_unit || '',
@@ -34,8 +30,6 @@ const AddStockSidebar = ({ isOpen, onClose, onSuccess, initialData = null }) => 
         supplier_phone: initialData.supplier_phone || '',
         purchase_date: initialData.purchase_date || new Date().toISOString().split('T')[0],
         expiry_date: initialData.expiry_date || '',
-        location: initialData.location || '',
-        description: initialData.description || '',
         status: initialData.status || 'Active'
       });
     }
@@ -47,7 +41,6 @@ const AddStockSidebar = ({ isOpen, onClose, onSuccess, initialData = null }) => 
       setTimeout(() => {
         setFormData({
           item_name: '',
-          category: '',
           quantity: '',
           unit: 'KG',
           price_per_unit: '',
@@ -56,8 +49,6 @@ const AddStockSidebar = ({ isOpen, onClose, onSuccess, initialData = null }) => 
           supplier_phone: '',
           purchase_date: new Date().toISOString().split('T')[0],
           expiry_date: '',
-          location: '',
-          description: '',
           status: 'Active'
         });
         setError(null);
@@ -156,12 +147,6 @@ const AddStockSidebar = ({ isOpen, onClose, onSuccess, initialData = null }) => 
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
-              <input type="text" name="category" value={formData.category} onChange={handleInputChange}
-                placeholder="e.g., Fabric"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
-            </div>
-            <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Quantity *</label>
               <input type="number" name="quantity" value={formData.quantity} onChange={handleInputChange} step="0.01"
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
@@ -204,18 +189,7 @@ const AddStockSidebar = ({ isOpen, onClose, onSuccess, initialData = null }) => 
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Location</label>
-            <input type="text" name="location" value={formData.location} onChange={handleInputChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
-          </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
-            <textarea name="description" value={formData.description} onChange={handleInputChange}
-              rows="3"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
-          </div>
 
           <div className="pt-4 border-t border-gray-200 flex justify-end gap-3">
             <button type="button" onClick={onClose} className="px-4 py-2 bg-gray-100 rounded-lg">Cancel</button>

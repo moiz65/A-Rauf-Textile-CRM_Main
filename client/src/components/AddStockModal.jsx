@@ -5,7 +5,6 @@ import { useClickOutside } from '../hooks/useClickOutside';
 const AddStockModal = ({ isOpen, onClose, onSuccess, initialData = null }) => {
   const [formData, setFormData] = useState({
     item_name: '',
-    category: '',
     quantity: '',
     unit: 'KG',
     price_per_unit: '',
@@ -14,8 +13,6 @@ const AddStockModal = ({ isOpen, onClose, onSuccess, initialData = null }) => {
     supplier_phone: '',
     purchase_date: new Date().toISOString().split('T')[0],
     expiry_date: '',
-    location: '',
-    description: '',
     status: 'Active'
   });
 
@@ -41,7 +38,6 @@ const AddStockModal = ({ isOpen, onClose, onSuccess, initialData = null }) => {
     if (initialData && isOpen) {
       setFormData({
         item_name: initialData.item_name || '',
-        category: initialData.category || '',
         quantity: initialData.quantity || '',
         unit: initialData.unit || 'KG',
         price_per_unit: initialData.price_per_unit || '',
@@ -50,8 +46,6 @@ const AddStockModal = ({ isOpen, onClose, onSuccess, initialData = null }) => {
         supplier_phone: initialData.supplier_phone || '',
         purchase_date: initialData.purchase_date || new Date().toISOString().split('T')[0],
         expiry_date: initialData.expiry_date || '',
-        location: initialData.location || '',
-        description: initialData.description || '',
         status: initialData.status || 'Active'
       });
     }
@@ -60,7 +54,6 @@ const AddStockModal = ({ isOpen, onClose, onSuccess, initialData = null }) => {
   const handleClose = () => {
     setFormData({
       item_name: '',
-      category: '',
       quantity: '',
       unit: 'KG',
       price_per_unit: '',
@@ -69,8 +62,6 @@ const AddStockModal = ({ isOpen, onClose, onSuccess, initialData = null }) => {
       supplier_phone: '',
       purchase_date: new Date().toISOString().split('T')[0],
       expiry_date: '',
-      location: '',
-      description: '',
       status: 'Active'
     });
     setError(null);
@@ -125,7 +116,6 @@ const AddStockModal = ({ isOpen, onClose, onSuccess, initialData = null }) => {
       setSuccess(true);
       setFormData({
         item_name: '',
-        category: '',
         quantity: '',
         unit: 'KG',
         price_per_unit: '',
@@ -134,8 +124,6 @@ const AddStockModal = ({ isOpen, onClose, onSuccess, initialData = null }) => {
         supplier_phone: '',
         purchase_date: new Date().toISOString().split('T')[0],
         expiry_date: '',
-        location: '',
-        description: '',
         status: 'Active'
       });
 
@@ -208,20 +196,6 @@ const AddStockModal = ({ isOpen, onClose, onSuccess, initialData = null }) => {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Category
-                </label>
-                <input
-                  type="text"
-                  name="category"
-                  value={formData.category}
-                  onChange={handleInputChange}
-                  placeholder="e.g., Fabric, Raw Material"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
                   Quantity *
                 </label>
                 <input
@@ -269,19 +243,6 @@ const AddStockModal = ({ isOpen, onClose, onSuccess, initialData = null }) => {
                 />
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Location
-                </label>
-                <input
-                  type="text"
-                  name="location"
-                  value={formData.location}
-                  onChange={handleInputChange}
-                  placeholder="e.g., Warehouse A"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div>
             </div>
           </div>
 
@@ -363,21 +324,6 @@ const AddStockModal = ({ isOpen, onClose, onSuccess, initialData = null }) => {
                 />
               </div>
             </div>
-          </div>
-
-          {/* Description */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Description
-            </label>
-            <textarea
-              name="description"
-              value={formData.description}
-              onChange={handleInputChange}
-              placeholder="Add any additional notes about this stock item..."
-              rows="3"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
-            />
           </div>
 
           {/* Status */}

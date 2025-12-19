@@ -77,56 +77,7 @@ const CompanyStock = ({ onAddStock, refreshKey, onOpenRegistered = null }) => {
         </button>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        {/* Total Stock */}
-        <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-4 border border-blue-200">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-blue-600 font-medium">Total Stock Items</p>
-              <p className="text-3xl font-bold text-blue-900 mt-2">{totalStock}</p>
-            </div>
-            <TrendingUp className="w-10 h-10 text-blue-400 opacity-50" />
-          </div>
-        </div>
-
-        {/* Total Stock Value */}
-        <div className="bg-gradient-to-br from-indigo-50 to-indigo-100 rounded-lg p-4 border border-indigo-200">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-indigo-600 font-medium">Total Stock Value</p>
-              <p className="text-3xl font-bold text-indigo-900 mt-2">{formatCurrency(totalValue)}</p>
-            </div>
-            <TrendingUp className="w-10 h-10 text-indigo-400 opacity-50" />
-          </div>
-        </div>
-
-        {/* (Categories card removed per user request) */}
-
-        {/* Low Stock */}
-        <div className="bg-gradient-to-br from-yellow-50 to-yellow-100 rounded-lg p-4 border border-yellow-200">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-yellow-600 font-medium">Low Stock</p>
-              <p className="text-3xl font-bold text-yellow-900 mt-2">{lowStockCount}</p>
-            </div>
-            <Zap className="w-10 h-10 text-yellow-400 opacity-50" />
-          </div>
-        </div>
-
-        {/* Last Updated */}
-        <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg p-4 border border-purple-200">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-purple-600 font-medium">Last Updated</p>
-              <p className="text-lg font-bold text-purple-900 mt-2">
-                {lastRestocked ? new Date(lastRestocked).toLocaleDateString() : new Date().toLocaleDateString()}
-              </p>
-            </div>
-            <div className="w-10 h-10 bg-purple-400 opacity-20 rounded-full"></div>
-          </div>
-        </div>
-      </div>
+      {/* Stats cards moved to Registered Stock page */}
 
       {/* Recent Stock Items Preview */}
       {stockItems.length > 0 && (

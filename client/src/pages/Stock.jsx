@@ -1,14 +1,13 @@
 import React, { useState } from 'react';
-import { Package, BarChart3 } from 'lucide-react';
+import { BarChart3 } from 'lucide-react';
 import Sidebar from '../components/Sidebar';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
-import CompanyStock from '../components/CompanyStock';
 import RegisteredStockPage from '../components/RegisteredStockPage';
 import AddStockSidebar from '../components/AddStockSidebar';
 
 const Stock = () => {
-  const [activeTab, setActiveTab] = useState('overview');
+  const [activeTab, setActiveTab] = useState('registered');
   const [showAddSidebar, setShowAddSidebar] = useState(false);
   const [editingStock, setEditingStock] = useState(null);
   const [refreshKey, setRefreshKey] = useState(0);
@@ -34,41 +33,8 @@ const Stock = () => {
       <main className="flex-1 p-6 bg-[#F5F5F5] md:ml-64">
         <Header />
 
-        {/* Tab Navigation */}
-        <div className="mb-6">
-          <div className="flex bg-white rounded-lg p-1 w-fit shadow-sm border border-gray-200">
-            <button
-              onClick={() => setActiveTab('overview')}
-              className={`px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 flex items-center gap-2 ${
-                activeTab === 'overview'
-                  ? 'bg-blue-500 text-white shadow-sm'
-                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
-              }`}
-            >
-              <Package className="w-4 h-4" />
-              Stock Overview
-            </button>
-            <button
-              onClick={() => setActiveTab('registered')}
-              className={`px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 flex items-center gap-2 ${
-                activeTab === 'registered'
-                  ? 'bg-blue-500 text-white shadow-sm'
-                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
-              }`}
-            >
-              <BarChart3 className="w-4 h-4" />
-              Registered Stock
-            </button>
-          </div>
-        </div>
-
-        {/* Content */}
-        {activeTab === 'overview' && (
-            <CompanyStock onAddStock={() => openAddSidebar(null)} refreshKey={refreshKey} onOpenRegistered={() => setActiveTab('registered')} />
-        )}
-        {activeTab === 'registered' && (
-          <RegisteredStockPage openAddSidebar={openAddSidebar} openEditStock={(s) => openAddSidebar(s)} refreshKey={refreshKey} />
-        )}
+        {/* Content - Only Registered Stock */}
+        <RegisteredStockPage openAddSidebar={openAddSidebar} openEditStock={(s) => openAddSidebar(s)} refreshKey={refreshKey} />
         
         {/* Footer */}
         <Footer />
